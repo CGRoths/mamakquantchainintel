@@ -1,0 +1,210 @@
+"use client";
+
+import { AlertCircle, CheckCircle2 } from "lucide-react";
+import type { ReactNode } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+import {
+  approveBatchResultAction,
+  commitBatchResultAction,
+  createBatchResultAction,
+  failBatchResultAction,
+  supersedeBatchResultAction,
+  type BatchMutationState,
+} from "@/app/mqchain/actions";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
+type BatchAction = (previousState: BatchMutationState, formData: FormData) => Promise<BatchMutationState>;
+
+type BatchFormShellProps = {
+  action: BatchAction;
+  children: (helpers: { fieldError: (name: string) => string | undefined }) => ReactNode;
+  failureTitle: string;
+  pendingLabel: string;
+  submitLabel: string;
+  submitVariant?: "default" | "outline" | "destructive";
+  className?: string;
+  disabled?: boolean;
+  navigateOnSuccess?: boolean;
+};
+
+const initialState: BatchMutationState = null;
+
+function FieldError({ error }: { error?: string }) {
+  if (!error) {
+    return null;
+  }
+
+  return <p className="text-xs text-destructive">{error}</p>;
+}
+
+function BatchFormShell({
+  action,
+  children,
+  failureTitle,
+  pendingLabel,
+  submitLabel,
+  submitVariant = "outline",
+  className = "grid gap-3",
+  disabled = false,
+  navigateOnSuccess = false,
+}: BatchFormShellProps) {
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState(action, initialState);
+
+  useEffect(() => {
+    if (!state?.ok) {
+      return;
+    }
+
+    if (navigateOnSuccess) {
+      router.push(`/mqchain/batches/${state.data.batchId}`);
+    } else {
+      router.refresh();
+    }
+  }, [navigateOnSuccess, router, state]);
+
+  function fieldError(name: string) {
+    return state?.ok === false ? state.fieldErrors?.[name]?.[0] : undefined;
+  }
+
+  return (
+    <form action={formAction} className={className}>
+      {state?.ok === false ? (
+        <Alert variant="destructive">
+          <AlertCircle />
+          <AlertTitle>{failureTitle}</AlertTitle>
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {state?.ok ? (
+        <Alert>
+          <CheckCircle2 />
+          <AlertTitle>Batch action saved</AlertTitle>
+          <AlertDescription>{state.data.message}</AlertDescription>
+        </Alert>
+      ) : null}
+      {children({ fieldError })}
+      <Button type="submit" variant={submitVariant} disabled={disabled || pending}>
+        {pending ? pendingLabel : submitLabel}
+      </Button>
+    </form>
+  );
+}
+
+export function CreateBatchForm({ approvedCandidateIds }: { approvedCandidateIds: number[] }) {
+  return (
+    <BatchFormShell
+      action={createBatchResultAction}
+      failureTitle="Batch creation failed"
+      pendingLabel="Creating..."
+      submitLabel="Create"
+      className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
+      navigateOnSuccess
+    >
+      {({ fieldError }) => (
+        <>
+          <div className="grid gap-2">
+            <Label>Candidate IDs</Label>
+            <Input name="candidateIds" placeholder="1, 2, 3" defaultValue={approvedCandidateIds.join(", ")} />
+            <FieldError error={fieldError("candidateIds")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Batch name</Label>
+            <Input name="sourceName" placeholder="Binance BTC reserve review" />
+            <FieldError error={fieldError("sourceName")} />
+          </div>
+        </>
+      )}
+    </BatchFormShell>
+  );
+}
+
+export function BatchPrimaryActions({
+  batchId,
+  canApprove,
+  canCommit,
+}: {
+  batchId: number;
+  canApprove: boolean;
+  canCommit: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <BatchFormShell
+        action={approveBatchResultAction}
+        failureTitle="Batch approval failed"
+        pendingLabel="Approving..."
+        submitLabel="Approve batch"
+        className="grid gap-2"
+        disabled={!canApprove}
+      >
+        {() => <input type="hidden" name="batchId" value={batchId} />}
+      </BatchFormShell>
+      <BatchFormShell
+        action={commitBatchResultAction}
+        failureTitle="Batch commit failed"
+        pendingLabel="Committing..."
+        submitLabel="Commit to registry"
+        submitVariant="default"
+        className="grid gap-2"
+        disabled={!canCommit}
+      >
+        {() => <input type="hidden" name="batchId" value={batchId} />}
+      </BatchFormShell>
+    </div>
+  );
+}
+
+export function BatchLifecycleForms({
+  batchId,
+  canFail,
+  canSupersede,
+}: {
+  batchId: number;
+  canFail: boolean;
+  canSupersede: boolean;
+}) {
+  return (
+    <div className="grid gap-4">
+      <BatchFormShell
+        action={failBatchResultAction}
+        failureTitle="Batch failure update failed"
+        pendingLabel="Saving..."
+        submitLabel="Fail batch"
+        submitVariant="destructive"
+        className="grid gap-2"
+        disabled={!canFail}
+      >
+        {({ fieldError }) => (
+          <>
+            <input type="hidden" name="batchId" value={batchId} />
+            <Textarea name="reason" rows={3} placeholder="Failure reason" />
+            <FieldError error={fieldError("reason")} />
+          </>
+        )}
+      </BatchFormShell>
+      <BatchFormShell
+        action={supersedeBatchResultAction}
+        failureTitle="Batch supersede update failed"
+        pendingLabel="Saving..."
+        submitLabel="Mark superseded"
+        className="grid gap-2"
+        disabled={!canSupersede}
+      >
+        {({ fieldError }) => (
+          <>
+            <input type="hidden" name="batchId" value={batchId} />
+            <Textarea name="reason" rows={3} placeholder="Supersede reason" />
+            <FieldError error={fieldError("reason")} />
+          </>
+        )}
+      </BatchFormShell>
+    </div>
+  );
+}

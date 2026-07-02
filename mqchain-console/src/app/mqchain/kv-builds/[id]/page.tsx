@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
 
-import { activateKvBuildManifestAction } from "@/app/mqchain/actions";
 import { DbError } from "@/components/mqchain/db-error";
+import { ActivateKvBuildManifestForm } from "@/components/mqchain/kv-build-forms";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buildKvManifestActivationPreflight } from "@/lib/mqchain/kv-manifest";
@@ -29,10 +28,7 @@ export default async function KvBuildDetailPage({ params }: { params: Promise<{ 
           <CardHeader><CardTitle>Activation</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>Activation marks this manifest as the serving artifact for downstream MQCHAIN workers. The binary build itself remains external to Vercel.</p>
-            <form action={activateKvBuildManifestAction}>
-              <input type="hidden" name="buildId" value={build.id} />
-              <Button type="submit" disabled={!preflight.canActivate}>Activate compiled manifest</Button>
-            </form>
+            <ActivateKvBuildManifestForm buildId={build.id} canActivate={preflight.canActivate} />
           </CardContent>
         </Card>
         <Card className="rounded-lg">

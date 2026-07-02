@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { createDiscoveryJobAction } from "@/app/mqchain/actions";
+import { createDiscoveryJobResultAction } from "@/app/mqchain/actions";
 import { DbError } from "@/components/mqchain/db-error";
 import { DiscoveryJobForm } from "@/components/mqchain/discovery-job-form";
 import { StatusBadge } from "@/components/mqchain/status-badge";
@@ -23,7 +23,7 @@ export default async function DiscoveryJobsPage() {
             <CardDescription>Factory, registry, proxy, pool, vault, tx graph, or LLM evidence reviewer stubs.</CardDescription>
           </CardHeader>
           <CardContent>
-            <DiscoveryJobForm action={createDiscoveryJobAction} />
+            <DiscoveryJobForm action={createDiscoveryJobResultAction} />
           </CardContent>
         </Card>
         <Card className="rounded-lg">

@@ -69,6 +69,79 @@ export type IntakeActionState = ActionResult<IntakeActionData> | null;
 export type UrlIntakeActionData = IntakeActionData;
 export type UrlIntakeActionState = IntakeActionState;
 
+export type CandidateMutationData = {
+  candidateId: number;
+  status?: string | null;
+  evidenceId?: number;
+  message: string;
+};
+
+export type CandidateMutationState = ActionResult<CandidateMutationData> | null;
+
+export type BatchMutationData = {
+  batchId: number;
+  status?: string | null;
+  registryCount?: number;
+  dictionaryVersion?: string | null;
+  message: string;
+};
+
+export type BatchMutationState = ActionResult<BatchMutationData> | null;
+
+export type RegistryMutationData = {
+  registryId: number;
+  status?: string | null;
+  evidenceId?: number;
+  discoveryJobId?: number;
+  message: string;
+};
+
+export type RegistryMutationState = ActionResult<RegistryMutationData> | null;
+
+export type DiscoveryMutationData = {
+  jobId: number;
+  status?: string | null;
+  sourceJobId?: number;
+  sourceDocumentId?: number;
+  rows?: number;
+  candidatesCreated?: number;
+  evidenceCreated?: number;
+  invalidRows?: number;
+  duplicates?: number;
+  message: string;
+};
+
+export type DiscoveryMutationState = ActionResult<DiscoveryMutationData> | null;
+
+export type KvBuildMutationData = {
+  buildId: number;
+  status?: string | null;
+  buildHash?: string | null;
+  message: string;
+};
+
+export type KvBuildMutationState = ActionResult<KvBuildMutationData> | null;
+
+export type DictionaryMutationData = {
+  dictionaryType: "entity" | "protocol" | "category" | "role" | "key_prefix";
+  id: number;
+  code?: string | null;
+  status?: "active" | "inactive";
+  message: string;
+};
+
+export type DictionaryMutationState = ActionResult<DictionaryMutationData> | null;
+
+export type MetricGroupMutationData = {
+  groupId: number;
+  ruleId?: number;
+  status?: "active" | "inactive";
+  dictionaryVersion?: string | null;
+  message: string;
+};
+
+export type MetricGroupMutationState = ActionResult<MetricGroupMutationData> | null;
+
 function reviewReturnPath(formData: FormData) {
   const returnTo = formValue(formData, "returnTo") ?? "";
   return returnTo.startsWith("/mqchain/review") ? returnTo : "/mqchain/review";
@@ -94,6 +167,369 @@ function revalidateIntakePaths() {
   revalidatePath("/mqchain/source-jobs");
   revalidatePath("/mqchain/candidates");
   revalidatePath("/mqchain/review");
+}
+
+function revalidateCandidatePaths(candidateId: number | string | undefined) {
+  revalidatePath("/mqchain");
+  revalidatePath("/mqchain/candidates");
+  revalidatePath("/mqchain/review");
+  revalidatePath("/mqchain/review/groups");
+
+  if (candidateId) {
+    revalidatePath(`/mqchain/candidates/${candidateId}`);
+  }
+}
+
+function revalidateBatchPaths(batchId: number | string | undefined) {
+  revalidatePath("/mqchain");
+  revalidatePath("/mqchain/batches");
+  revalidatePath("/mqchain/review");
+  revalidatePath("/mqchain/registry");
+  revalidatePath("/mqchain/kv-builds");
+
+  if (batchId) {
+    revalidatePath(`/mqchain/batches/${batchId}`);
+  }
+}
+
+function revalidateRegistryPaths(registryId: number | string | undefined) {
+  revalidatePath("/mqchain");
+  revalidatePath("/mqchain/registry");
+  revalidatePath("/mqchain/resolver");
+  revalidatePath("/mqchain/audit-log");
+  revalidatePath("/mqchain/metric-groups");
+
+  if (registryId) {
+    revalidatePath(`/mqchain/registry/${registryId}`);
+  }
+}
+
+function revalidateDiscoveryPaths(jobId: number | string | undefined) {
+  revalidatePath("/mqchain");
+  revalidatePath("/mqchain/discovery/jobs");
+  revalidatePath("/mqchain/candidates");
+  revalidatePath("/mqchain/review");
+  revalidatePath("/mqchain/source-jobs");
+
+  if (jobId) {
+    revalidatePath(`/mqchain/discovery/jobs/${jobId}`);
+  }
+}
+
+function revalidateKvBuildPaths(buildId: number | string | undefined) {
+  revalidatePath("/mqchain");
+  revalidatePath("/mqchain/kv-builds");
+  revalidatePath("/mqchain/audit-log");
+
+  if (buildId) {
+    revalidatePath(`/mqchain/kv-builds/${buildId}`);
+  }
+}
+
+function revalidateDictionaryPaths(section?: string) {
+  revalidatePath("/mqchain");
+  revalidatePath("/mqchain/dictionaries");
+  revalidatePath("/mqchain/metric-groups");
+  revalidatePath("/mqchain/registry");
+  revalidatePath("/mqchain/resolver");
+  revalidatePath("/mqchain/audit-log");
+
+  if (section) {
+    revalidatePath(`/mqchain/dictionaries/${section}`);
+  }
+}
+
+function revalidateMetricGroupPaths(groupId?: number | string | undefined) {
+  revalidatePath("/mqchain");
+  revalidatePath("/mqchain/metric-groups");
+  revalidatePath("/mqchain/dictionaries");
+  revalidatePath("/mqchain/registry");
+  revalidatePath("/mqchain/resolver");
+  revalidatePath("/mqchain/audit-log");
+
+  if (groupId) {
+    revalidatePath(`/mqchain/metric-groups?preview=${groupId}`);
+  }
+}
+
+function createBatchInputFromFormData(formData: FormData, fallbackSourceName?: string) {
+  return {
+    candidateIds: formValue(formData, "candidateIds"),
+    sourceName: formValue(formData, "sourceName") || fallbackSourceName,
+  };
+}
+
+function batchIdInputFromFormData(formData: FormData) {
+  return { batchId: formValue(formData, "batchId") };
+}
+
+function batchLifecycleInputFromFormData(formData: FormData) {
+  return {
+    batchId: formValue(formData, "batchId"),
+    reason: formValue(formData, "reason"),
+  };
+}
+
+function approveCandidateInputFromFormData(formData: FormData) {
+  return {
+    candidateId: formValue(formData, "candidateId"),
+    entityId: formValue(formData, "entityId"),
+    protocolId: formValue(formData, "protocolId"),
+    roleId: formValue(formData, "roleId"),
+    confidenceScore: formValue(formData, "confidenceScore"),
+    qualityTier: formValue(formData, "qualityTier"),
+    labelStatus: formValue(formData, "labelStatus"),
+    flags: formValue(formData, "flags"),
+    metricEligible: formValue(formData, "metricEligible"),
+    validFromBlock: formValue(formData, "validFromBlock"),
+    validToBlock: formValue(formData, "validToBlock"),
+    firstSeenBlock: formValue(formData, "firstSeenBlock"),
+    lastSeenBlock: formValue(formData, "lastSeenBlock"),
+    notes: formValue(formData, "notes"),
+  };
+}
+
+function candidateStatusInputFromFormData(formData: FormData) {
+  return {
+    candidateId: formValue(formData, "candidateId"),
+    reason: formValue(formData, "reason"),
+  };
+}
+
+function duplicateCandidateInputFromFormData(formData: FormData) {
+  return {
+    candidateId: formValue(formData, "candidateId"),
+    duplicateOfCandidateId: formValue(formData, "duplicateOfCandidateId"),
+    reason: formValue(formData, "reason"),
+  };
+}
+
+function supersedeRegistryInputFromFormData(formData: FormData) {
+  return {
+    candidateId: formValue(formData, "candidateId"),
+    supersedesRegistryId: formValue(formData, "supersedesRegistryId"),
+    validFromBlock: formValue(formData, "validFromBlock"),
+    reason: formValue(formData, "reason"),
+  };
+}
+
+function historicalOnlyInputFromFormData(formData: FormData) {
+  return {
+    candidateId: formValue(formData, "candidateId"),
+    validFromBlock: formValue(formData, "validFromBlock"),
+    validToBlock: formValue(formData, "validToBlock"),
+    reason: formValue(formData, "reason"),
+  };
+}
+
+function candidateEvidenceInputFromFormData(formData: FormData) {
+  return {
+    candidateId: formValue(formData, "candidateId"),
+    evidenceType: formValue(formData, "evidenceType"),
+    sourceUrl: formValue(formData, "sourceUrl"),
+    trustTier: formValue(formData, "trustTier"),
+    confidenceDelta: formValue(formData, "confidenceDelta"),
+    summary: formValue(formData, "summary"),
+    payloadJson: formValue(formData, "payloadJson"),
+  };
+}
+
+function registryEvidenceInputFromFormData(formData: FormData) {
+  return {
+    registryId: formValue(formData, "registryId"),
+    evidenceType: formValue(formData, "evidenceType"),
+    sourceUrl: formValue(formData, "sourceUrl"),
+    trustTier: formValue(formData, "trustTier"),
+    confidenceDelta: formValue(formData, "confidenceDelta"),
+    summary: formValue(formData, "summary"),
+    payloadJson: formValue(formData, "payloadJson"),
+  };
+}
+
+function registryEditInputFromFormData(formData: FormData) {
+  return {
+    registryId: formValue(formData, "registryId"),
+    entityId: formValue(formData, "entityId"),
+    protocolId: formValue(formData, "protocolId"),
+    roleId: formValue(formData, "roleId"),
+    confidenceScore: formValue(formData, "confidenceScore"),
+    qualityTier: formValue(formData, "qualityTier"),
+    labelStatus: formValue(formData, "labelStatus"),
+    flags: formValue(formData, "flags"),
+    metricUsage: formValue(formData, "metricUsage"),
+    validFromBlock: formValue(formData, "validFromBlock"),
+    validToBlock: formValue(formData, "validToBlock"),
+    firstSeenBlock: formValue(formData, "firstSeenBlock"),
+    lastSeenBlock: formValue(formData, "lastSeenBlock"),
+    notes: formValue(formData, "notes"),
+  };
+}
+
+function registryIdInputFromFormData(formData: FormData) {
+  return {
+    registryId: formValue(formData, "registryId"),
+    reason: formValue(formData, "reason"),
+  };
+}
+
+function registrySecondaryRoleInputFromFormData(formData: FormData) {
+  return {
+    registryId: formValue(formData, "registryId"),
+    roleId: formValue(formData, "roleId"),
+    reason: formValue(formData, "reason"),
+  };
+}
+
+function registrySupersedeInputFromFormData(formData: FormData) {
+  return {
+    registryId: formValue(formData, "registryId"),
+    replacementRegistryId: formValue(formData, "replacementRegistryId"),
+    validToBlock: formValue(formData, "validToBlock"),
+    reason: formValue(formData, "reason"),
+  };
+}
+
+function registryDiscoveryInputFromFormData(formData: FormData) {
+  return {
+    registryId: formValue(formData, "registryId"),
+    discoveryType: formValue(formData, "discoveryType"),
+    configJson: formValue(formData, "configJson"),
+  };
+}
+
+function discoveryJobInputFromFormData(formData: FormData) {
+  return {
+    discoveryType: formValue(formData, "discoveryType"),
+    chainCode: formValue(formData, "chainCode"),
+    seedAddress: formValue(formData, "seedAddress"),
+    configJson: formValue(formData, "configJson"),
+  };
+}
+
+function discoveryCompletionInputFromFormData(formData: FormData) {
+  return {
+    jobId: formValue(formData, "jobId"),
+    resultsJson: formValue(formData, "resultsJson"),
+  };
+}
+
+function createKvBuildManifestInputFromFormData(formData: FormData) {
+  return {
+    buildHash: formValue(formData, "buildHash"),
+    dictionaryVersion: formValue(formData, "dictionaryVersion"),
+    status: formValue(formData, "status"),
+    rowCount: formValue(formData, "rowCount"),
+    storageUri: formValue(formData, "storageUri"),
+    manifestJson: formValue(formData, "manifestJson"),
+  };
+}
+
+function kvBuildIdInputFromFormData(formData: FormData) {
+  return {
+    buildId: formValue(formData, "buildId"),
+  };
+}
+
+function entityInputFromFormData(formData: FormData) {
+  return {
+    entityCode: formValue(formData, "entityCode"),
+    entityName: formValue(formData, "entityName"),
+    entityType: formValue(formData, "entityType"),
+    categoryId: formValue(formData, "categoryId"),
+    websiteUrl: formValue(formData, "websiteUrl"),
+    description: formValue(formData, "description"),
+  };
+}
+
+function protocolInputFromFormData(formData: FormData) {
+  return {
+    entityId: formValue(formData, "entityId"),
+    protocolCode: formValue(formData, "protocolCode"),
+    protocolName: formValue(formData, "protocolName"),
+    protocolType: formValue(formData, "protocolType"),
+    chainScope: formValue(formData, "chainScope"),
+    description: formValue(formData, "description"),
+  };
+}
+
+function categoryInputFromFormData(formData: FormData) {
+  return {
+    categoryId: formValue(formData, "categoryId"),
+    categoryCode: formValue(formData, "categoryCode"),
+    categoryName: formValue(formData, "categoryName"),
+    parentCategoryId: formValue(formData, "parentCategoryId"),
+    domainCode: formValue(formData, "domainCode"),
+    metricDomain: formValue(formData, "metricDomain"),
+    description: formValue(formData, "description"),
+  };
+}
+
+function roleInputFromFormData(formData: FormData) {
+  return {
+    roleId: formValue(formData, "roleId"),
+    roleCode: formValue(formData, "roleCode"),
+    roleName: formValue(formData, "roleName"),
+    categoryId: formValue(formData, "categoryId"),
+    roleGroup: formValue(formData, "roleGroup"),
+    metricUsageDefault: formValue(formData, "metricUsageDefault"),
+    boundaryClass: formValue(formData, "boundaryClass"),
+    defaultQualityTier: formValue(formData, "defaultQualityTier"),
+    defaultFlags: formValue(formData, "defaultFlags"),
+    description: formValue(formData, "description"),
+  };
+}
+
+function keyPrefixInputFromFormData(formData: FormData) {
+  return {
+    prefixCode: formValue(formData, "prefixCode"),
+    chainCode: formValue(formData, "chainCode"),
+    chainName: formValue(formData, "chainName"),
+    chainFamily: formValue(formData, "chainFamily"),
+    addressFamily: formValue(formData, "addressFamily"),
+    codec: formValue(formData, "codec"),
+    payloadLen: formValue(formData, "payloadLen"),
+    evmChainId: formValue(formData, "evmChainId"),
+    description: formValue(formData, "description"),
+  };
+}
+
+function dictionaryIdInputFromFormData(formData: FormData) {
+  return {
+    id: formValue(formData, "id"),
+  };
+}
+
+function metricGroupInputFromFormData(formData: FormData) {
+  return {
+    metricGroupCode: formValue(formData, "metricGroupCode"),
+    metricGroupName: formValue(formData, "metricGroupName"),
+    chainCode: formValue(formData, "chainCode"),
+    minConfidence: formValue(formData, "minConfidence"),
+    requireMetricEligible: formValue(formData, "requireMetricEligible"),
+    description: formValue(formData, "description"),
+    includeRoles: formValue(formData, "includeRoles"),
+    excludeRoles: formValue(formData, "excludeRoles"),
+    includeCategories: formValue(formData, "includeCategories"),
+    excludeCategories: formValue(formData, "excludeCategories"),
+    includeEntities: formValue(formData, "includeEntities"),
+    excludeEntities: formValue(formData, "excludeEntities"),
+    ruleMinConfidence: formValue(formData, "ruleMinConfidence"),
+    ruleRequireMetricEligible: formValue(formData, "ruleRequireMetricEligible"),
+  };
+}
+
+function metricGroupRuleInputFromFormData(formData: FormData) {
+  return {
+    metricGroupId: formValue(formData, "metricGroupId"),
+    includeRoles: formValue(formData, "includeRoles"),
+    excludeRoles: formValue(formData, "excludeRoles"),
+    includeCategories: formValue(formData, "includeCategories"),
+    excludeCategories: formValue(formData, "excludeCategories"),
+    includeEntities: formValue(formData, "includeEntities"),
+    excludeEntities: formValue(formData, "excludeEntities"),
+    ruleMinConfidence: formValue(formData, "ruleMinConfidence"),
+    ruleRequireMetricEligible: formValue(formData, "ruleRequireMetricEligible"),
+  };
 }
 
 function manualIntakeInputFromFormData(formData: FormData) {
@@ -295,26 +731,21 @@ export async function createDeploymentSourceIntakeResultAction(
 }
 
 export async function approveCandidateAction(formData: FormData) {
-  const candidate = await approveCandidate({
-    candidateId: formValue(formData, "candidateId"),
-    entityId: formValue(formData, "entityId"),
-    protocolId: formValue(formData, "protocolId"),
-    roleId: formValue(formData, "roleId"),
-    confidenceScore: formValue(formData, "confidenceScore"),
-    qualityTier: formValue(formData, "qualityTier"),
-    labelStatus: formValue(formData, "labelStatus"),
-    flags: formValue(formData, "flags"),
-    metricEligible: formValue(formData, "metricEligible"),
-    validFromBlock: formValue(formData, "validFromBlock"),
-    validToBlock: formValue(formData, "validToBlock"),
-    firstSeenBlock: formValue(formData, "firstSeenBlock"),
-    lastSeenBlock: formValue(formData, "lastSeenBlock"),
-    notes: formValue(formData, "notes"),
-  });
+  const candidate = await approveCandidate(approveCandidateInputFromFormData(formData));
 
-  revalidatePath("/mqchain/candidates");
-  revalidatePath("/mqchain/review");
+  revalidateCandidatePaths(candidate.id);
   redirect(`/mqchain/candidates/${candidate.id}`);
+}
+
+export async function approveCandidateResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const candidate = await approveCandidate(approveCandidateInputFromFormData(formData));
+    revalidateCandidatePaths(candidate.id);
+    return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate approved with review edits." };
+  });
 }
 
 export async function approveCandidateAsSuggestedAction(formData: FormData) {
@@ -332,14 +763,21 @@ export async function approveCandidateAsSuggestedAction(formData: FormData) {
 }
 
 export async function rejectCandidateAction(formData: FormData) {
-  const candidate = await rejectCandidate({
-    candidateId: formValue(formData, "candidateId"),
-    reason: formValue(formData, "reason"),
-  });
+  const candidate = await rejectCandidate(candidateStatusInputFromFormData(formData));
 
-  revalidatePath("/mqchain/candidates");
-  revalidatePath("/mqchain/review");
+  revalidateCandidatePaths(candidate.id);
   redirect(`/mqchain/candidates/${candidate.id}`);
+}
+
+export async function rejectCandidateResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const candidate = await rejectCandidate(candidateStatusInputFromFormData(formData));
+    revalidateCandidatePaths(candidate.id);
+    return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate rejected." };
+  });
 }
 
 export async function reviewRejectCandidateAction(formData: FormData) {
@@ -357,46 +795,77 @@ export async function reviewRejectCandidateAction(formData: FormData) {
 }
 
 export async function addCandidateEvidenceAction(formData: FormData) {
-  const evidence = await addCandidateEvidence({
-    candidateId: formValue(formData, "candidateId"),
-    evidenceType: formValue(formData, "evidenceType"),
-    sourceUrl: formValue(formData, "sourceUrl"),
-    trustTier: formValue(formData, "trustTier"),
-    confidenceDelta: formValue(formData, "confidenceDelta"),
-    summary: formValue(formData, "summary"),
-    payloadJson: formValue(formData, "payloadJson"),
-  });
+  const evidence = await addCandidateEvidence(candidateEvidenceInputFromFormData(formData));
 
-  revalidatePath("/mqchain/candidates");
-  revalidatePath("/mqchain/review");
+  revalidateCandidatePaths(evidence.candidateId ?? undefined);
   redirect(`/mqchain/candidates/${evidence.candidateId}`);
+}
+
+export async function addCandidateEvidenceResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const evidence = await addCandidateEvidence(candidateEvidenceInputFromFormData(formData));
+    revalidateCandidatePaths(evidence.candidateId ?? undefined);
+
+    if (!evidence.candidateId) {
+      throw new Error("Evidence was not linked to a candidate.");
+    }
+
+    return {
+      candidateId: evidence.candidateId,
+      evidenceId: evidence.id,
+      message: "Candidate evidence attached.",
+    };
+  });
 }
 
 export async function addRegistryEvidenceAction(formData: FormData) {
   const registryId = formValue(formData, "registryId");
-  const evidence = await addRegistryEvidence({
-    registryId,
-    evidenceType: formValue(formData, "evidenceType"),
-    sourceUrl: formValue(formData, "sourceUrl"),
-    trustTier: formValue(formData, "trustTier"),
-    confidenceDelta: formValue(formData, "confidenceDelta"),
-    summary: formValue(formData, "summary"),
-    payloadJson: formValue(formData, "payloadJson"),
-  });
+  const evidence = await addRegistryEvidence(registryEvidenceInputFromFormData(formData));
 
-  revalidatePath("/mqchain/registry");
+  revalidateRegistryPaths(evidence.registryId ?? registryId ?? undefined);
   redirect(`/mqchain/registry/${evidence.registryId ?? registryId}`);
 }
 
-export async function markCandidateNeedsMoreEvidenceAction(formData: FormData) {
-  const candidate = await markCandidateNeedsMoreEvidence({
-    candidateId: formValue(formData, "candidateId"),
-    reason: formValue(formData, "reason"),
-  });
+export async function addRegistryEvidenceResultAction(
+  _previousState: RegistryMutationState,
+  formData: FormData,
+): Promise<RegistryMutationState> {
+  return runAction(async () => {
+    const evidence = await addRegistryEvidence(registryEvidenceInputFromFormData(formData));
 
-  revalidatePath("/mqchain/candidates");
-  revalidatePath("/mqchain/review");
+    if (!evidence.registryId) {
+      throw new Error("Evidence was not linked to a registry row.");
+    }
+
+    revalidateRegistryPaths(evidence.registryId);
+
+    return {
+      registryId: evidence.registryId,
+      evidenceId: evidence.id,
+      message: "Registry evidence attached.",
+    };
+  });
+}
+
+export async function markCandidateNeedsMoreEvidenceAction(formData: FormData) {
+  const candidate = await markCandidateNeedsMoreEvidence(candidateStatusInputFromFormData(formData));
+
+  revalidateCandidatePaths(candidate.id);
   redirect(`/mqchain/candidates/${candidate.id}`);
+}
+
+export async function markCandidateNeedsMoreEvidenceResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const candidate = await markCandidateNeedsMoreEvidence(candidateStatusInputFromFormData(formData));
+    revalidateCandidatePaths(candidate.id);
+    return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate marked as needing more evidence." };
+  });
 }
 
 export async function reviewMarkCandidateNeedsMoreEvidenceAction(formData: FormData) {
@@ -414,14 +883,21 @@ export async function reviewMarkCandidateNeedsMoreEvidenceAction(formData: FormD
 }
 
 export async function markCandidateConflictAction(formData: FormData) {
-  const candidate = await markCandidateConflict({
-    candidateId: formValue(formData, "candidateId"),
-    reason: formValue(formData, "reason"),
-  });
+  const candidate = await markCandidateConflict(candidateStatusInputFromFormData(formData));
 
-  revalidatePath("/mqchain/candidates");
-  revalidatePath("/mqchain/review");
+  revalidateCandidatePaths(candidate.id);
   redirect(`/mqchain/candidates/${candidate.id}`);
+}
+
+export async function markCandidateConflictResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const candidate = await markCandidateConflict(candidateStatusInputFromFormData(formData));
+    revalidateCandidatePaths(candidate.id);
+    return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate marked as conflict pending." };
+  });
 }
 
 export async function reviewMarkCandidateConflictAction(formData: FormData) {
@@ -439,54 +915,79 @@ export async function reviewMarkCandidateConflictAction(formData: FormData) {
 }
 
 export async function markCandidateDuplicateAction(formData: FormData) {
-  const candidate = await markCandidateDuplicate({
-    candidateId: formValue(formData, "candidateId"),
-    duplicateOfCandidateId: formValue(formData, "duplicateOfCandidateId"),
-    reason: formValue(formData, "reason"),
-  });
+  const candidate = await markCandidateDuplicate(duplicateCandidateInputFromFormData(formData));
 
-  revalidatePath("/mqchain/candidates");
-  revalidatePath("/mqchain/review");
+  revalidateCandidatePaths(candidate.id);
   redirect(`/mqchain/candidates/${candidate.id}`);
+}
+
+export async function markCandidateDuplicateResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const candidate = await markCandidateDuplicate(duplicateCandidateInputFromFormData(formData));
+    revalidateCandidatePaths(candidate.id);
+    return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate merged as duplicate." };
+  });
 }
 
 export async function markCandidateMetricIneligibleAction(formData: FormData) {
-  const candidate = await markCandidateMetricIneligible({
-    candidateId: formValue(formData, "candidateId"),
-    reason: formValue(formData, "reason"),
-  });
+  const candidate = await markCandidateMetricIneligible(candidateStatusInputFromFormData(formData));
 
-  revalidatePath("/mqchain/candidates");
-  revalidatePath("/mqchain/review");
+  revalidateCandidatePaths(candidate.id);
   redirect(`/mqchain/candidates/${candidate.id}`);
+}
+
+export async function markCandidateMetricIneligibleResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const candidate = await markCandidateMetricIneligible(candidateStatusInputFromFormData(formData));
+    revalidateCandidatePaths(candidate.id);
+    return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate marked metric ineligible." };
+  });
 }
 
 export async function markCandidateSupersedesRegistryAction(formData: FormData) {
-  const candidate = await markCandidateSupersedesRegistry({
-    candidateId: formValue(formData, "candidateId"),
-    supersedesRegistryId: formValue(formData, "supersedesRegistryId"),
-    validFromBlock: formValue(formData, "validFromBlock"),
-    reason: formValue(formData, "reason"),
-  });
+  const candidate = await markCandidateSupersedesRegistry(supersedeRegistryInputFromFormData(formData));
 
-  revalidatePath("/mqchain/candidates");
-  revalidatePath("/mqchain/review");
+  revalidateCandidatePaths(candidate.id);
   revalidatePath("/mqchain/registry");
   redirect(`/mqchain/candidates/${candidate.id}`);
 }
 
-export async function markCandidateHistoricalOnlyAction(formData: FormData) {
-  const candidate = await markCandidateHistoricalOnly({
-    candidateId: formValue(formData, "candidateId"),
-    validFromBlock: formValue(formData, "validFromBlock"),
-    validToBlock: formValue(formData, "validToBlock"),
-    reason: formValue(formData, "reason"),
+export async function markCandidateSupersedesRegistryResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const candidate = await markCandidateSupersedesRegistry(supersedeRegistryInputFromFormData(formData));
+    revalidateCandidatePaths(candidate.id);
+    revalidatePath("/mqchain/registry");
+    return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate approved to supersede an existing registry row." };
   });
+}
 
-  revalidatePath("/mqchain/candidates");
-  revalidatePath("/mqchain/review");
+export async function markCandidateHistoricalOnlyAction(formData: FormData) {
+  const candidate = await markCandidateHistoricalOnly(historicalOnlyInputFromFormData(formData));
+
+  revalidateCandidatePaths(candidate.id);
   revalidatePath("/mqchain/registry");
   redirect(`/mqchain/candidates/${candidate.id}`);
+}
+
+export async function markCandidateHistoricalOnlyResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const candidate = await markCandidateHistoricalOnly(historicalOnlyInputFromFormData(formData));
+    revalidateCandidatePaths(candidate.id);
+    revalidatePath("/mqchain/registry");
+    return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate approved as historical-only." };
+  });
 }
 
 export async function reviewMarkCandidateMetricIneligibleAction(formData: FormData) {
@@ -504,13 +1005,21 @@ export async function reviewMarkCandidateMetricIneligibleAction(formData: FormDa
 }
 
 export async function createBatchAction(formData: FormData) {
-  const batch = await createBatchFromCandidates({
-    candidateIds: formValue(formData, "candidateIds"),
-    sourceName: formValue(formData, "sourceName"),
-  });
+  const batch = await createBatchFromCandidates(createBatchInputFromFormData(formData));
 
-  revalidatePath("/mqchain/batches");
+  revalidateBatchPaths(batch.id);
   redirect(`/mqchain/batches/${batch.id}`);
+}
+
+export async function createBatchResultAction(
+  _previousState: BatchMutationState,
+  formData: FormData,
+): Promise<BatchMutationState> {
+  return runAction(async () => {
+    const batch = await createBatchFromCandidates(createBatchInputFromFormData(formData));
+    revalidateBatchPaths(batch.id);
+    return { batchId: batch.id, status: batch.status, message: "Batch created from approved candidates." };
+  });
 }
 
 export async function createReviewBatchFromSelectionAction(formData: FormData) {
@@ -531,257 +1040,523 @@ export async function createReviewBatchFromSelectionAction(formData: FormData) {
 }
 
 export async function approveBatchAction(formData: FormData) {
-  const batch = await approveBatch({ batchId: formValue(formData, "batchId") });
+  const batch = await approveBatch(batchIdInputFromFormData(formData));
 
-  revalidatePath("/mqchain/batches");
+  revalidateBatchPaths(batch.id);
   redirect(`/mqchain/batches/${batch.id}`);
+}
+
+export async function approveBatchResultAction(
+  _previousState: BatchMutationState,
+  formData: FormData,
+): Promise<BatchMutationState> {
+  return runAction(async () => {
+    const batch = await approveBatch(batchIdInputFromFormData(formData));
+    revalidateBatchPaths(batch.id);
+    return { batchId: batch.id, status: batch.status, message: "Batch approved for commit." };
+  });
 }
 
 export async function commitBatchAction(formData: FormData) {
-  const result = await commitBatch({ batchId: formValue(formData, "batchId") });
+  const result = await commitBatch(batchIdInputFromFormData(formData));
 
-  revalidatePath("/mqchain/batches");
-  revalidatePath("/mqchain/registry");
-  revalidatePath("/mqchain/kv-builds");
+  revalidateBatchPaths(result.batch.id);
   redirect(`/mqchain/batches/${result.batch.id}`);
 }
 
-export async function failBatchAction(formData: FormData) {
-  const batch = await failBatch({
-    batchId: formValue(formData, "batchId"),
-    reason: formValue(formData, "reason"),
+export async function commitBatchResultAction(
+  _previousState: BatchMutationState,
+  formData: FormData,
+): Promise<BatchMutationState> {
+  return runAction(async () => {
+    const result = await commitBatch(batchIdInputFromFormData(formData));
+    revalidateBatchPaths(result.batch.id);
+    return {
+      batchId: result.batch.id,
+      status: result.batch.status,
+      registryCount: result.registryIds.length,
+      dictionaryVersion: result.dictionaryVersion,
+      message: `Batch committed to registry with ${result.registryIds.length} rows and queued KV handoff.`,
+    };
   });
+}
 
-  revalidatePath("/mqchain/batches");
+export async function failBatchAction(formData: FormData) {
+  const batch = await failBatch(batchLifecycleInputFromFormData(formData));
+
+  revalidateBatchPaths(batch.id);
   redirect(`/mqchain/batches/${batch.id}`);
+}
+
+export async function failBatchResultAction(
+  _previousState: BatchMutationState,
+  formData: FormData,
+): Promise<BatchMutationState> {
+  return runAction(async () => {
+    const batch = await failBatch(batchLifecycleInputFromFormData(formData));
+    revalidateBatchPaths(batch.id);
+    return { batchId: batch.id, status: batch.status, message: "Batch marked failed." };
+  });
 }
 
 export async function supersedeBatchAction(formData: FormData) {
-  const batch = await supersedeBatch({
-    batchId: formValue(formData, "batchId"),
-    reason: formValue(formData, "reason"),
-  });
+  const batch = await supersedeBatch(batchLifecycleInputFromFormData(formData));
 
-  revalidatePath("/mqchain/batches");
+  revalidateBatchPaths(batch.id);
   redirect(`/mqchain/batches/${batch.id}`);
 }
 
-export async function createDiscoveryJobAction(formData: FormData) {
-  const job = await createDiscoveryJob({
-    discoveryType: formValue(formData, "discoveryType"),
-    chainCode: formValue(formData, "chainCode"),
-    seedAddress: formValue(formData, "seedAddress"),
-    configJson: formValue(formData, "configJson"),
+export async function supersedeBatchResultAction(
+  _previousState: BatchMutationState,
+  formData: FormData,
+): Promise<BatchMutationState> {
+  return runAction(async () => {
+    const batch = await supersedeBatch(batchLifecycleInputFromFormData(formData));
+    revalidateBatchPaths(batch.id);
+    return { batchId: batch.id, status: batch.status, message: "Batch marked superseded." };
   });
+}
 
-  revalidatePath("/mqchain/discovery/jobs");
+export async function createDiscoveryJobAction(formData: FormData) {
+  const job = await createDiscoveryJob(discoveryJobInputFromFormData(formData));
+
+  revalidateDiscoveryPaths(job.id);
   redirect(`/mqchain/discovery/jobs/${job.id}`);
+}
+
+export async function createDiscoveryJobResultAction(
+  _previousState: DiscoveryMutationState,
+  formData: FormData,
+): Promise<DiscoveryMutationState> {
+  return runAction(async () => {
+    const job = await createDiscoveryJob(discoveryJobInputFromFormData(formData));
+    revalidateDiscoveryPaths(job.id);
+    return {
+      jobId: job.id,
+      status: job.status,
+      message: `Discovery job ${job.id} created. Scanner execution remains external until results are completed into candidates.`,
+    };
+  });
 }
 
 export async function completeDiscoveryJobAction(formData: FormData) {
-  const result = await completeDiscoveryJob({
-    jobId: formValue(formData, "jobId"),
-    resultsJson: formValue(formData, "resultsJson"),
-  });
+  const result = await completeDiscoveryJob(discoveryCompletionInputFromFormData(formData));
 
-  revalidatePath("/mqchain/discovery/jobs");
-  revalidatePath("/mqchain/candidates");
-  revalidatePath("/mqchain/review");
+  revalidateDiscoveryPaths(result.job.id);
   redirect(`/mqchain/discovery/jobs/${result.job.id}`);
 }
 
-export async function createRegistryDiscoveryJobAction(formData: FormData) {
-  const job = await createDiscoveryJobFromRegistry({
-    registryId: formValue(formData, "registryId"),
-    discoveryType: formValue(formData, "discoveryType"),
-    configJson: formValue(formData, "configJson"),
+export async function completeDiscoveryJobResultAction(
+  _previousState: DiscoveryMutationState,
+  formData: FormData,
+): Promise<DiscoveryMutationState> {
+  return runAction(async () => {
+    const result = await completeDiscoveryJob(discoveryCompletionInputFromFormData(formData));
+    revalidateDiscoveryPaths(result.job.id);
+    return {
+      jobId: result.job.id,
+      status: result.job.status,
+      sourceJobId: result.sourceJobId,
+      sourceDocumentId: result.sourceDocumentId,
+      rows: result.rows,
+      candidatesCreated: result.candidatesCreated,
+      evidenceCreated: result.evidenceCreated,
+      invalidRows: result.invalidRows,
+      duplicates: result.duplicates,
+      message: `Discovery completion staged ${result.candidatesCreated} candidates and ${result.evidenceCreated} evidence rows; registry truth still requires review and batch commit.`,
+    };
   });
+}
 
+export async function createRegistryDiscoveryJobAction(formData: FormData) {
+  const registryId = formValue(formData, "registryId");
+  const job = await createDiscoveryJobFromRegistry(registryDiscoveryInputFromFormData(formData));
+
+  revalidateRegistryPaths(registryId ?? undefined);
   revalidatePath("/mqchain/discovery/jobs");
-  revalidatePath("/mqchain/registry");
   redirect(`/mqchain/discovery/jobs/${job.id}`);
 }
 
-export async function createMetricGroupAction(formData: FormData) {
-  const result = await createMetricGroup({
-    metricGroupCode: formValue(formData, "metricGroupCode"),
-    metricGroupName: formValue(formData, "metricGroupName"),
-    chainCode: formValue(formData, "chainCode"),
-    minConfidence: formValue(formData, "minConfidence"),
-    requireMetricEligible: formValue(formData, "requireMetricEligible"),
-    description: formValue(formData, "description"),
-    includeRoles: formValue(formData, "includeRoles"),
-    excludeRoles: formValue(formData, "excludeRoles"),
-    includeCategories: formValue(formData, "includeCategories"),
-    excludeCategories: formValue(formData, "excludeCategories"),
-    includeEntities: formValue(formData, "includeEntities"),
-    excludeEntities: formValue(formData, "excludeEntities"),
-    ruleMinConfidence: formValue(formData, "ruleMinConfidence"),
-    ruleRequireMetricEligible: formValue(formData, "ruleRequireMetricEligible"),
-  });
+export async function createRegistryDiscoveryJobResultAction(
+  _previousState: RegistryMutationState,
+  formData: FormData,
+): Promise<RegistryMutationState> {
+  return runAction(async () => {
+    const registryId = formValue(formData, "registryId");
+    const job = await createDiscoveryJobFromRegistry(registryDiscoveryInputFromFormData(formData));
 
-  revalidatePath("/mqchain/metric-groups");
-  revalidatePath("/mqchain/dictionaries");
+    revalidateRegistryPaths(registryId ?? undefined);
+    revalidatePath("/mqchain/discovery/jobs");
+
+    return {
+      registryId: Number(registryId),
+      discoveryJobId: job.id,
+      status: job.status,
+      message: `Discovery job ${job.id} created from approved registry truth.`,
+    };
+  });
+}
+
+export async function createMetricGroupAction(formData: FormData) {
+  const result = await createMetricGroup(metricGroupInputFromFormData(formData));
+
+  revalidateMetricGroupPaths(result.group.id);
   redirect(`/mqchain/metric-groups?preview=${result.group.id}`);
+}
+
+export async function createMetricGroupResultAction(
+  _previousState: MetricGroupMutationState,
+  formData: FormData,
+): Promise<MetricGroupMutationState> {
+  return runAction(async () => {
+    const result = await createMetricGroup(metricGroupInputFromFormData(formData));
+
+    revalidateMetricGroupPaths(result.group.id);
+
+    return {
+      groupId: result.group.id,
+      ruleId: result.rule.id,
+      status: result.group.isActive ? "active" : "inactive",
+      dictionaryVersion: result.dictionaryVersion,
+      message: `Metric group ${result.group.metricGroupCode} created with an initial rule and dictionary version updated.`,
+    };
+  });
 }
 
 export async function addMetricGroupRuleAction(formData: FormData) {
-  const result = await addMetricGroupRule({
-    metricGroupId: formValue(formData, "metricGroupId"),
-    includeRoles: formValue(formData, "includeRoles"),
-    excludeRoles: formValue(formData, "excludeRoles"),
-    includeCategories: formValue(formData, "includeCategories"),
-    excludeCategories: formValue(formData, "excludeCategories"),
-    includeEntities: formValue(formData, "includeEntities"),
-    excludeEntities: formValue(formData, "excludeEntities"),
-    ruleMinConfidence: formValue(formData, "ruleMinConfidence"),
-    ruleRequireMetricEligible: formValue(formData, "ruleRequireMetricEligible"),
-  });
+  const result = await addMetricGroupRule(metricGroupRuleInputFromFormData(formData));
 
-  revalidatePath("/mqchain");
-  revalidatePath("/mqchain/metric-groups");
-  revalidatePath("/mqchain/dictionaries");
+  revalidateMetricGroupPaths(result.group.id);
   redirect(`/mqchain/metric-groups?preview=${result.group.id}`);
 }
 
-export async function deactivateMetricGroupAction(formData: FormData) {
-  await deactivateMetricGroup({ id: formValue(formData, "id") });
+export async function addMetricGroupRuleResultAction(
+  _previousState: MetricGroupMutationState,
+  formData: FormData,
+): Promise<MetricGroupMutationState> {
+  return runAction(async () => {
+    const result = await addMetricGroupRule(metricGroupRuleInputFromFormData(formData));
 
-  revalidatePath("/mqchain");
-  revalidatePath("/mqchain/metric-groups");
-  revalidatePath("/mqchain/dictionaries");
+    revalidateMetricGroupPaths(result.group.id);
+
+    return {
+      groupId: result.group.id,
+      ruleId: result.rule.id,
+      status: result.group.isActive ? "active" : "inactive",
+      dictionaryVersion: result.dictionaryVersion,
+      message: `Rule ${result.rule.id} added to ${result.group.metricGroupCode} and dictionary version updated.`,
+    };
+  });
+}
+
+export async function deactivateMetricGroupAction(formData: FormData) {
+  const result = await deactivateMetricGroup(dictionaryIdInputFromFormData(formData));
+
+  revalidateMetricGroupPaths(result.group.id);
   redirect("/mqchain/metric-groups");
 }
 
-export async function createKvBuildManifestAction(formData: FormData) {
-  const build = await createKvBuildManifest({
-    buildHash: formValue(formData, "buildHash"),
-    dictionaryVersion: formValue(formData, "dictionaryVersion"),
-    status: formValue(formData, "status"),
-    rowCount: formValue(formData, "rowCount"),
-    storageUri: formValue(formData, "storageUri"),
-    manifestJson: formValue(formData, "manifestJson"),
-  });
+export async function deactivateMetricGroupResultAction(
+  _previousState: MetricGroupMutationState,
+  formData: FormData,
+): Promise<MetricGroupMutationState> {
+  return runAction(async () => {
+    const result = await deactivateMetricGroup(dictionaryIdInputFromFormData(formData));
 
-  revalidatePath("/mqchain");
-  revalidatePath("/mqchain/kv-builds");
+    revalidateMetricGroupPaths(result.group.id);
+
+    return {
+      groupId: result.group.id,
+      status: "inactive",
+      dictionaryVersion: result.dictionaryVersion,
+      message: `Metric group ${result.group.metricGroupCode} deactivated and dictionary version updated.`,
+    };
+  });
+}
+
+export async function createKvBuildManifestAction(formData: FormData) {
+  const build = await createKvBuildManifest(createKvBuildManifestInputFromFormData(formData));
+
+  revalidateKvBuildPaths(build.id);
   redirect(`/mqchain/kv-builds/${build.id}`);
+}
+
+export async function createKvBuildManifestResultAction(
+  _previousState: KvBuildMutationState,
+  formData: FormData,
+): Promise<KvBuildMutationState> {
+  return runAction(async () => {
+    const build = await createKvBuildManifest(createKvBuildManifestInputFromFormData(formData));
+
+    revalidateKvBuildPaths(build.id);
+
+    return {
+      buildId: build.id,
+      status: build.status,
+      buildHash: build.buildHash,
+      message: `KV build manifest ${build.id} registered for external artifact tracking.`,
+    };
+  });
 }
 
 export async function activateKvBuildManifestAction(formData: FormData) {
-  const build = await activateKvBuildManifest({ buildId: formValue(formData, "buildId") });
+  const build = await activateKvBuildManifest(kvBuildIdInputFromFormData(formData));
 
-  revalidatePath("/mqchain");
-  revalidatePath("/mqchain/kv-builds");
+  revalidateKvBuildPaths(build.id);
   redirect(`/mqchain/kv-builds/${build.id}`);
 }
 
-export async function createEntityAction(formData: FormData) {
-  await createEntity({
-    entityCode: formValue(formData, "entityCode"),
-    entityName: formValue(formData, "entityName"),
-    entityType: formValue(formData, "entityType"),
-    categoryId: formValue(formData, "categoryId"),
-    websiteUrl: formValue(formData, "websiteUrl"),
-    description: formValue(formData, "description"),
-  });
+export async function activateKvBuildManifestResultAction(
+  _previousState: KvBuildMutationState,
+  formData: FormData,
+): Promise<KvBuildMutationState> {
+  return runAction(async () => {
+    const build = await activateKvBuildManifest(kvBuildIdInputFromFormData(formData));
 
-  revalidatePath("/mqchain/dictionaries");
+    revalidateKvBuildPaths(build.id);
+
+    return {
+      buildId: build.id,
+      status: build.status,
+      buildHash: build.buildHash,
+      message: "KV build manifest activated as the current serving artifact.",
+    };
+  });
+}
+
+export async function createEntityAction(formData: FormData) {
+  await createEntity(entityInputFromFormData(formData));
+
+  revalidateDictionaryPaths("entities");
   redirect("/mqchain/dictionaries/entities");
+}
+
+export async function createEntityResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const entity = await createEntity(entityInputFromFormData(formData));
+    revalidateDictionaryPaths("entities");
+    return {
+      dictionaryType: "entity",
+      id: entity.id,
+      code: entity.entityCode,
+      status: entity.isActive ? "active" : "inactive",
+      message: `Entity ${entity.entityCode} created and dictionary version updated.`,
+    };
+  });
 }
 
 export async function deactivateEntityAction(formData: FormData) {
-  await deactivateEntity({ id: formValue(formData, "id") });
-  revalidatePath("/mqchain/dictionaries");
+  await deactivateEntity(dictionaryIdInputFromFormData(formData));
+  revalidateDictionaryPaths("entities");
   redirect("/mqchain/dictionaries/entities");
 }
 
-export async function createProtocolAction(formData: FormData) {
-  await createProtocol({
-    entityId: formValue(formData, "entityId"),
-    protocolCode: formValue(formData, "protocolCode"),
-    protocolName: formValue(formData, "protocolName"),
-    protocolType: formValue(formData, "protocolType"),
-    chainScope: formValue(formData, "chainScope"),
-    description: formValue(formData, "description"),
+export async function deactivateEntityResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const entity = await deactivateEntity(dictionaryIdInputFromFormData(formData));
+    revalidateDictionaryPaths("entities");
+    return {
+      dictionaryType: "entity",
+      id: entity.id,
+      code: entity.entityCode,
+      status: "inactive",
+      message: `Entity ${entity.entityCode} deactivated and dictionary version updated.`,
+    };
   });
+}
 
-  revalidatePath("/mqchain/dictionaries");
+export async function createProtocolAction(formData: FormData) {
+  await createProtocol(protocolInputFromFormData(formData));
+
+  revalidateDictionaryPaths("protocols");
   redirect("/mqchain/dictionaries/protocols");
+}
+
+export async function createProtocolResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const protocol = await createProtocol(protocolInputFromFormData(formData));
+    revalidateDictionaryPaths("protocols");
+    return {
+      dictionaryType: "protocol",
+      id: protocol.id,
+      code: protocol.protocolCode,
+      status: protocol.isActive ? "active" : "inactive",
+      message: `Protocol ${protocol.protocolCode} created and dictionary version updated.`,
+    };
+  });
 }
 
 export async function deactivateProtocolAction(formData: FormData) {
-  await deactivateProtocol({ id: formValue(formData, "id") });
-  revalidatePath("/mqchain/dictionaries");
+  await deactivateProtocol(dictionaryIdInputFromFormData(formData));
+  revalidateDictionaryPaths("protocols");
   redirect("/mqchain/dictionaries/protocols");
 }
 
-export async function createCategoryAction(formData: FormData) {
-  await createCategory({
-    categoryId: formValue(formData, "categoryId"),
-    categoryCode: formValue(formData, "categoryCode"),
-    categoryName: formValue(formData, "categoryName"),
-    parentCategoryId: formValue(formData, "parentCategoryId"),
-    domainCode: formValue(formData, "domainCode"),
-    metricDomain: formValue(formData, "metricDomain"),
-    description: formValue(formData, "description"),
+export async function deactivateProtocolResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const protocol = await deactivateProtocol(dictionaryIdInputFromFormData(formData));
+    revalidateDictionaryPaths("protocols");
+    return {
+      dictionaryType: "protocol",
+      id: protocol.id,
+      code: protocol.protocolCode,
+      status: "inactive",
+      message: `Protocol ${protocol.protocolCode} deactivated and dictionary version updated.`,
+    };
   });
+}
 
-  revalidatePath("/mqchain/dictionaries");
+export async function createCategoryAction(formData: FormData) {
+  await createCategory(categoryInputFromFormData(formData));
+
+  revalidateDictionaryPaths("categories");
   redirect("/mqchain/dictionaries/categories");
+}
+
+export async function createCategoryResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const category = await createCategory(categoryInputFromFormData(formData));
+    revalidateDictionaryPaths("categories");
+    return {
+      dictionaryType: "category",
+      id: category.categoryId,
+      code: category.categoryCode,
+      status: category.isActive ? "active" : "inactive",
+      message: `Category ${category.categoryCode} created and dictionary version updated.`,
+    };
+  });
 }
 
 export async function deactivateCategoryAction(formData: FormData) {
-  await deactivateCategory({ id: formValue(formData, "id") });
-  revalidatePath("/mqchain/dictionaries");
+  await deactivateCategory(dictionaryIdInputFromFormData(formData));
+  revalidateDictionaryPaths("categories");
   redirect("/mqchain/dictionaries/categories");
 }
 
-export async function createRoleAction(formData: FormData) {
-  await createRole({
-    roleId: formValue(formData, "roleId"),
-    roleCode: formValue(formData, "roleCode"),
-    roleName: formValue(formData, "roleName"),
-    categoryId: formValue(formData, "categoryId"),
-    roleGroup: formValue(formData, "roleGroup"),
-    metricUsageDefault: formValue(formData, "metricUsageDefault"),
-    boundaryClass: formValue(formData, "boundaryClass"),
-    defaultQualityTier: formValue(formData, "defaultQualityTier"),
-    defaultFlags: formValue(formData, "defaultFlags"),
-    description: formValue(formData, "description"),
+export async function deactivateCategoryResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const category = await deactivateCategory(dictionaryIdInputFromFormData(formData));
+    revalidateDictionaryPaths("categories");
+    return {
+      dictionaryType: "category",
+      id: category.categoryId,
+      code: category.categoryCode,
+      status: "inactive",
+      message: `Category ${category.categoryCode} deactivated and dictionary version updated.`,
+    };
   });
+}
 
-  revalidatePath("/mqchain/dictionaries");
+export async function createRoleAction(formData: FormData) {
+  await createRole(roleInputFromFormData(formData));
+
+  revalidateDictionaryPaths("roles");
   redirect("/mqchain/dictionaries/roles");
+}
+
+export async function createRoleResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const role = await createRole(roleInputFromFormData(formData));
+    revalidateDictionaryPaths("roles");
+    return {
+      dictionaryType: "role",
+      id: role.roleId,
+      code: role.roleCode,
+      status: role.isActive ? "active" : "inactive",
+      message: `Role ${role.roleCode} created and dictionary version updated.`,
+    };
+  });
 }
 
 export async function deactivateRoleAction(formData: FormData) {
-  await deactivateRole({ id: formValue(formData, "id") });
-  revalidatePath("/mqchain/dictionaries");
+  await deactivateRole(dictionaryIdInputFromFormData(formData));
+  revalidateDictionaryPaths("roles");
   redirect("/mqchain/dictionaries/roles");
 }
 
-export async function createKeyPrefixAction(formData: FormData) {
-  await createKeyPrefix({
-    prefixCode: formValue(formData, "prefixCode"),
-    chainCode: formValue(formData, "chainCode"),
-    chainName: formValue(formData, "chainName"),
-    chainFamily: formValue(formData, "chainFamily"),
-    addressFamily: formValue(formData, "addressFamily"),
-    codec: formValue(formData, "codec"),
-    payloadLen: formValue(formData, "payloadLen"),
-    evmChainId: formValue(formData, "evmChainId"),
-    description: formValue(formData, "description"),
+export async function deactivateRoleResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const role = await deactivateRole(dictionaryIdInputFromFormData(formData));
+    revalidateDictionaryPaths("roles");
+    return {
+      dictionaryType: "role",
+      id: role.roleId,
+      code: role.roleCode,
+      status: "inactive",
+      message: `Role ${role.roleCode} deactivated and dictionary version updated.`,
+    };
   });
+}
 
-  revalidatePath("/mqchain/dictionaries");
+export async function createKeyPrefixAction(formData: FormData) {
+  await createKeyPrefix(keyPrefixInputFromFormData(formData));
+
+  revalidateDictionaryPaths("key-prefixes");
   redirect("/mqchain/dictionaries/key-prefixes");
 }
 
+export async function createKeyPrefixResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const prefix = await createKeyPrefix(keyPrefixInputFromFormData(formData));
+    revalidateDictionaryPaths("key-prefixes");
+    return {
+      dictionaryType: "key_prefix",
+      id: prefix.prefixCode,
+      code: prefix.chainCode,
+      status: prefix.isActive ? "active" : "inactive",
+      message: `Key prefix 0x${prefix.prefixCode.toString(16).padStart(4, "0")} created and dictionary version updated.`,
+    };
+  });
+}
+
 export async function deactivateKeyPrefixAction(formData: FormData) {
-  await deactivateKeyPrefix({ id: formValue(formData, "id") });
-  revalidatePath("/mqchain/dictionaries");
+  await deactivateKeyPrefix(dictionaryIdInputFromFormData(formData));
+  revalidateDictionaryPaths("key-prefixes");
   redirect("/mqchain/dictionaries/key-prefixes");
+}
+
+export async function deactivateKeyPrefixResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const prefix = await deactivateKeyPrefix(dictionaryIdInputFromFormData(formData));
+    revalidateDictionaryPaths("key-prefixes");
+    return {
+      dictionaryType: "key_prefix",
+      id: prefix.prefixCode,
+      code: prefix.chainCode,
+      status: "inactive",
+      message: `Key prefix 0x${prefix.prefixCode.toString(16).padStart(4, "0")} deactivated and dictionary version updated.`,
+    };
+  });
 }
 
 export async function archiveSourceJobAction(formData: FormData) {
@@ -797,69 +1572,103 @@ export async function archiveSourceJobAction(formData: FormData) {
 }
 
 export async function updateRegistryLabelAction(formData: FormData) {
-  const row = await updateRegistryLabel({
-    registryId: formValue(formData, "registryId"),
-    entityId: formValue(formData, "entityId"),
-    protocolId: formValue(formData, "protocolId"),
-    roleId: formValue(formData, "roleId"),
-    confidenceScore: formValue(formData, "confidenceScore"),
-    qualityTier: formValue(formData, "qualityTier"),
-    labelStatus: formValue(formData, "labelStatus"),
-    flags: formValue(formData, "flags"),
-    metricUsage: formValue(formData, "metricUsage"),
-    validFromBlock: formValue(formData, "validFromBlock"),
-    validToBlock: formValue(formData, "validToBlock"),
-    firstSeenBlock: formValue(formData, "firstSeenBlock"),
-    lastSeenBlock: formValue(formData, "lastSeenBlock"),
-    notes: formValue(formData, "notes"),
-  });
+  const row = await updateRegistryLabel(registryEditInputFromFormData(formData));
 
-  revalidatePath("/mqchain/registry");
+  revalidateRegistryPaths(row.id);
   redirect(`/mqchain/registry/${row.id}`);
 }
 
 export async function deactivateRegistryLabelAction(formData: FormData) {
-  const row = await deactivateRegistryLabel({
-    registryId: formValue(formData, "registryId"),
-    reason: formValue(formData, "reason"),
-  });
+  const row = await deactivateRegistryLabel(registryIdInputFromFormData(formData));
 
-  revalidatePath("/mqchain/registry");
+  revalidateRegistryPaths(row.id);
   redirect(`/mqchain/registry/${row.id}`);
 }
 
 export async function addRegistrySecondaryRoleAction(formData: FormData) {
-  const row = await addRegistrySecondaryRole({
-    registryId: formValue(formData, "registryId"),
-    roleId: formValue(formData, "roleId"),
-    reason: formValue(formData, "reason"),
-  });
+  const row = await addRegistrySecondaryRole(registrySecondaryRoleInputFromFormData(formData));
 
-  revalidatePath("/mqchain/registry");
+  revalidateRegistryPaths(row.id);
   redirect(`/mqchain/registry/${row.id}`);
 }
 
 export async function supersedeRegistryLabelAction(formData: FormData) {
-  const row = await supersedeRegistryLabel({
-    registryId: formValue(formData, "registryId"),
-    replacementRegistryId: formValue(formData, "replacementRegistryId"),
-    validToBlock: formValue(formData, "validToBlock"),
-    reason: formValue(formData, "reason"),
-  });
+  const replacementRegistryId = formValue(formData, "replacementRegistryId");
+  const row = await supersedeRegistryLabel(registrySupersedeInputFromFormData(formData));
 
-  revalidatePath("/mqchain/registry");
-  revalidatePath(`/mqchain/registry/${formValue(formData, "replacementRegistryId")}`);
+  revalidateRegistryPaths(row.id);
+  if (replacementRegistryId) {
+    revalidatePath(`/mqchain/registry/${replacementRegistryId}`);
+  }
   redirect(`/mqchain/registry/${row.id}`);
 }
 
 export async function markRegistryHistoricalAction(formData: FormData) {
-  const row = await markRegistryHistorical({
-    registryId: formValue(formData, "registryId"),
-    reason: formValue(formData, "reason"),
-  });
+  const row = await markRegistryHistorical(registryIdInputFromFormData(formData));
 
-  revalidatePath("/mqchain/registry");
+  revalidateRegistryPaths(row.id);
   redirect(`/mqchain/registry/${row.id}`);
+}
+
+export async function updateRegistryLabelResultAction(
+  _previousState: RegistryMutationState,
+  formData: FormData,
+): Promise<RegistryMutationState> {
+  return runAction(async () => {
+    const row = await updateRegistryLabel(registryEditInputFromFormData(formData));
+    revalidateRegistryPaths(row.id);
+    return { registryId: row.id, status: row.isActive ? "active" : "inactive", message: "Registry label updated." };
+  });
+}
+
+export async function deactivateRegistryLabelResultAction(
+  _previousState: RegistryMutationState,
+  formData: FormData,
+): Promise<RegistryMutationState> {
+  return runAction(async () => {
+    const row = await deactivateRegistryLabel(registryIdInputFromFormData(formData));
+    revalidateRegistryPaths(row.id);
+    return { registryId: row.id, status: "inactive", message: "Registry label deactivated." };
+  });
+}
+
+export async function addRegistrySecondaryRoleResultAction(
+  _previousState: RegistryMutationState,
+  formData: FormData,
+): Promise<RegistryMutationState> {
+  return runAction(async () => {
+    const row = await addRegistrySecondaryRole(registrySecondaryRoleInputFromFormData(formData));
+    revalidateRegistryPaths(row.id);
+    return { registryId: row.id, status: row.isActive ? "active" : "inactive", message: "Secondary role attached to registry label." };
+  });
+}
+
+export async function supersedeRegistryLabelResultAction(
+  _previousState: RegistryMutationState,
+  formData: FormData,
+): Promise<RegistryMutationState> {
+  return runAction(async () => {
+    const replacementRegistryId = formValue(formData, "replacementRegistryId");
+    const row = await supersedeRegistryLabel(registrySupersedeInputFromFormData(formData));
+
+    revalidateRegistryPaths(row.id);
+    if (replacementRegistryId) {
+      revalidatePath(`/mqchain/registry/${replacementRegistryId}`);
+    }
+
+    return { registryId: row.id, status: "superseded", message: "Registry label superseded." };
+  });
+}
+
+export async function markRegistryHistoricalResultAction(
+  _previousState: RegistryMutationState,
+  formData: FormData,
+): Promise<RegistryMutationState> {
+  return runAction(async () => {
+    const row = await markRegistryHistorical(registryIdInputFromFormData(formData));
+    revalidateRegistryPaths(row.id);
+    return { registryId: row.id, status: "historical", message: "Registry label marked historical." };
+  });
 }
 
 export async function createSettingsUserAction(formData: FormData) {

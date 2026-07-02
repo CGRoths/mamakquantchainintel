@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { completeDiscoveryJobAction } from "@/app/mqchain/actions";
+import { completeDiscoveryJobResultAction } from "@/app/mqchain/actions";
 import { DbError } from "@/components/mqchain/db-error";
+import { DiscoveryCompletionForm } from "@/components/mqchain/discovery-job-form";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DistributionRow } from "@/lib/mqchain/batch-detail";
 import { discoveryTemplateSummary } from "@/lib/mqchain/discovery-config";
@@ -165,19 +164,7 @@ export default async function DiscoveryJobDetailPage({ params }: { params: Promi
         <Card className="rounded-lg">
           <CardHeader><CardTitle>Complete with discovered candidates</CardTitle></CardHeader>
           <CardContent>
-            <form action={completeDiscoveryJobAction} className="grid gap-3">
-              <input type="hidden" name="jobId" value={job.id} />
-              <div className="grid gap-2">
-                <Label>Results JSON</Label>
-                <Textarea
-                  name="resultsJson"
-                  rows={14}
-                  placeholder={'[{"address":"0x...","chain":"ethereum","entity":"uniswap","protocol":"uniswap_v3","role":"uniswap_v3_pool","evidence_type":"factory_event","confidence":65,"summary":"PoolCreated log","payload":{"tx_hash":"0x..."}}]'}
-                  required
-                />
-              </div>
-              <Button type="submit">Create candidates from results</Button>
-            </form>
+            <DiscoveryCompletionForm action={completeDiscoveryJobResultAction} jobId={job.id} />
           </CardContent>
         </Card>
       </>

@@ -1,24 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import {
-  addRegistryEvidenceAction,
-  addRegistrySecondaryRoleAction,
-  createRegistryDiscoveryJobAction,
-  deactivateRegistryLabelAction,
-  markRegistryHistoricalAction,
-  supersedeRegistryLabelAction,
-  updateRegistryLabelAction,
-} from "@/app/mqchain/actions";
 import { DbError } from "@/components/mqchain/db-error";
 import { FlagBadges } from "@/components/mqchain/flag-badges";
+import { RegistryDetailForms } from "@/components/mqchain/registry-detail-forms";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { formatDiscoveryConfigTemplate } from "@/lib/mqchain/discovery-templates";
 import { FLAG_BITS, hasFlag } from "@/lib/mqchain/flags";
 import { listDictionaries } from "@/lib/mqchain/services/dictionary-service";
@@ -132,157 +121,14 @@ export default async function RegistryDetailPage({ params }: { params: Promise<{
               </Table>
             </CardContent>
           </Card>
-          <Card className="rounded-lg">
-            <CardHeader><CardTitle>Edit label</CardTitle></CardHeader>
-            <CardContent>
-              <form action={updateRegistryLabelAction} className="grid gap-3">
-                <input type="hidden" name="registryId" value={detail.registry.id} />
-                <div className="grid gap-2">
-                  <Label>Entity</Label>
-                  <select name="entityId" defaultValue={detail.registry.entityId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm" required>
-                    {dictionaries.entities.map((entity) => <option key={entity.id} value={entity.id}>{entity.entityName}</option>)}
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Protocol</Label>
-                  <select name="protocolId" defaultValue={detail.registry.protocolId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm">
-                    <option value="">No protocol</option>
-                    {dictionaries.protocols.map((protocol) => <option key={protocol.id} value={protocol.id}>{protocol.protocolName}</option>)}
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Role</Label>
-                  <select name="roleId" defaultValue={detail.registry.roleId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm" required>
-                    {dictionaries.roles.map((role) => <option key={role.roleId} value={role.roleId}>{role.roleCode}</option>)}
-                  </select>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="grid gap-2"><Label>Confidence</Label><Input name="confidenceScore" type="number" min="0" max="100" defaultValue={detail.registry.confidenceScore} /></div>
-                  <div className="grid gap-2"><Label>Quality</Label><Input name="qualityTier" type="number" min="0" max="5" defaultValue={detail.registry.qualityTier} /></div>
-                  <div className="grid gap-2"><Label>Flags</Label><Input name="flags" type="number" min="0" defaultValue={detail.registry.flags} /></div>
-                </div>
-                <FlagBadges flags={detail.registry.flags} />
-                <input type="hidden" name="labelStatus" value={detail.registry.labelStatus} />
-                <Input name="metricUsage" placeholder="metric usage" defaultValue={detail.registry.metricUsage ?? ""} />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Input name="validFromBlock" placeholder="valid from block" defaultValue={detail.registry.validFromBlock ?? ""} />
-                  <Input name="validToBlock" placeholder="valid to block" defaultValue={detail.registry.validToBlock ?? ""} />
-                  <Input name="firstSeenBlock" placeholder="first seen block" defaultValue={detail.registry.firstSeenBlock ?? ""} />
-                  <Input name="lastSeenBlock" placeholder="last seen block" defaultValue={detail.registry.lastSeenBlock ?? ""} />
-                </div>
-                <Textarea name="notes" rows={3} defaultValue={detail.registry.notes ?? ""} />
-                <Button type="submit">Save registry label</Button>
-              </form>
-            </CardContent>
-          </Card>
-          <Card className="rounded-lg">
-            <CardHeader><CardTitle>Secondary roles</CardTitle></CardHeader>
-            <CardContent className="grid gap-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Reason</TableHead>
-                    <TableHead>Added by</TableHead>
-                    <TableHead>Added</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {detail.secondaryRoles.map((role) => (
-                    <TableRow key={role.roleId}>
-                      <TableCell>
-                        <div className="font-mono text-xs">{role.roleCode}</div>
-                        <div className="text-xs text-muted-foreground">{role.roleName}</div>
-                      </TableCell>
-                      <TableCell>{role.reason ?? "-"}</TableCell>
-                      <TableCell className="font-mono text-xs">{role.addedBy ?? "-"}</TableCell>
-                      <TableCell className="font-mono text-xs">{role.addedAt}</TableCell>
-                    </TableRow>
-                  ))}
-                  {!detail.secondaryRoles.length ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
-                        No secondary roles are attached to this registry label.
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
-                </TableBody>
-              </Table>
-              <form action={addRegistrySecondaryRoleAction} className="grid gap-3">
-                <input type="hidden" name="registryId" value={detail.registry.id} />
-                <div className="grid gap-2">
-                  <Label>Role</Label>
-                  <select name="roleId" className="h-10 rounded-md border bg-background px-3 text-sm" required>
-                    {dictionaries.roles
-                      .filter((role) => role.roleId !== detail.registry.roleId && !detail.secondaryRoles.some((secondary) => secondary.roleId === role.roleId))
-                      .map((role) => <option key={role.roleId} value={role.roleId}>{role.roleCode}</option>)}
-                  </select>
-                </div>
-                <Textarea name="reason" rows={3} placeholder="Why this approved label also carries this role" />
-                <Button type="submit" variant="outline">Add secondary role</Button>
-              </form>
-            </CardContent>
-          </Card>
-          <Card className="rounded-lg">
-            <CardHeader><CardTitle>Supersede label</CardTitle></CardHeader>
-            <CardContent className="grid gap-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Entity</TableHead>
-                    <TableHead>Timeline</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {detail.relatedRegistryRows.map((row) => (
-                    <TableRow key={row.registry.id}>
-                      <TableCell className="font-mono">
-                        <Link className="text-primary hover:underline" href={`/mqchain/registry/${row.registry.id}`}>{row.registry.id}</Link>
-                      </TableCell>
-                      <TableCell><StatusBadge status={row.registry.isActive ? "approved" : "superseded"} /></TableCell>
-                      <TableCell className="font-mono text-xs">{row.roleCode ?? row.registry.roleId}</TableCell>
-                      <TableCell>{row.entityName ?? "-"}</TableCell>
-                      <TableCell className="font-mono text-xs">{row.registry.validFromBlock ?? "*"} - {row.registry.validToBlock ?? "*"}</TableCell>
-                    </TableRow>
-                  ))}
-                  {!detail.relatedRegistryRows.length ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
-                        No sibling registry rows exist for this exact chain/address yet.
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
-                </TableBody>
-              </Table>
-              <form action={supersedeRegistryLabelAction} className="grid gap-3">
-                <input type="hidden" name="registryId" value={detail.registry.id} />
-                <div className="grid gap-2">
-                  <Label>Replacement registry row</Label>
-                  <select name="replacementRegistryId" className="h-10 rounded-md border bg-background px-3 text-sm" required disabled={!detail.registry.isActive}>
-                    {detail.relatedRegistryRows
-                      .filter((row) => row.registry.isActive)
-                      .map((row) => (
-                        <option key={row.registry.id} value={row.registry.id}>
-                          #{row.registry.id} {row.roleCode ?? `role ${row.registry.roleId}`} {row.entityName ? `- ${row.entityName}` : ""}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                <Input name="validToBlock" type="number" min="1" placeholder="valid to block (optional)" disabled={!detail.registry.isActive} />
-                <Textarea name="reason" rows={3} placeholder="Reason this registry row is superseded" disabled={!detail.registry.isActive} />
-                <Button
-                  type="submit"
-                  variant="outline"
-                  disabled={!detail.registry.isActive || !detail.relatedRegistryRows.some((row) => row.registry.isActive)}
-                >
-                  Supersede with replacement
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <RegistryDetailForms
+            registry={detail.registry}
+            dictionaries={dictionaries}
+            secondaryRoles={detail.secondaryRoles}
+            relatedRegistryRows={detail.relatedRegistryRows}
+            discoveryConfig={discoveryConfig}
+            isHistorical={isHistorical}
+          />
           <Card className="rounded-lg">
             <CardHeader><CardTitle>Evidence</CardTitle></CardHeader>
             <CardContent>
@@ -326,35 +172,6 @@ export default async function RegistryDetailPage({ params }: { params: Promise<{
                   ) : null}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-          <Card className="rounded-lg">
-            <CardHeader><CardTitle>Add registry evidence</CardTitle></CardHeader>
-            <CardContent>
-              <form action={addRegistryEvidenceAction} className="grid gap-3">
-                <input type="hidden" name="registryId" value={detail.registry.id} />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label>Evidence type</Label>
-                    <Input name="evidenceType" placeholder="official_page" required />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Trust tier</Label>
-                    <select name="trustTier" defaultValue="weak" className="h-10 rounded-md border bg-background px-3 text-sm">
-                      <option value="official">official</option>
-                      <option value="verified_third_party">verified third party</option>
-                      <option value="inferred">inferred</option>
-                      <option value="weak">weak</option>
-                      <option value="conflict">conflict</option>
-                    </select>
-                  </div>
-                </div>
-                <Input name="sourceUrl" placeholder="https://source.example/evidence" />
-                <Input name="confidenceDelta" type="number" min="-100" max="100" defaultValue="0" />
-                <Textarea name="summary" placeholder="Evidence summary" rows={2} required />
-                <Textarea name="payloadJson" placeholder='{"source_role_label":"cold wallet","block_height":123}' rows={5} />
-                <Button type="submit" variant="outline">Attach registry evidence</Button>
-              </form>
             </CardContent>
           </Card>
           <Card className="rounded-lg">
@@ -453,45 +270,6 @@ export default async function RegistryDetailPage({ params }: { params: Promise<{
                   ) : null}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-          <Card className="rounded-lg">
-            <CardHeader><CardTitle>Discovery loop</CardTitle></CardHeader>
-            <CardContent>
-              <form action={createRegistryDiscoveryJobAction} className="grid gap-3">
-                <input type="hidden" name="registryId" value={detail.registry.id} />
-                <input type="hidden" name="discoveryType" value="tx_graph_scanner" />
-                <div className="grid gap-2">
-                  <Label>Seed</Label>
-                  <Input value={`${detail.registry.chainCode}:${detail.registry.rawAddress || detail.registry.normalizedAddress}`} readOnly />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Scanner</Label>
-                  <Input value="tx_graph_scanner" readOnly />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Config JSON</Label>
-                  <Textarea name="configJson" rows={8} defaultValue={discoveryConfig} />
-                </div>
-                <Button type="submit">Create discovery job</Button>
-              </form>
-            </CardContent>
-          </Card>
-          <Card className="rounded-lg">
-            <CardHeader><CardTitle>Deactivate label</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid gap-4">
-              <form action={markRegistryHistoricalAction} className="grid gap-3">
-                <input type="hidden" name="registryId" value={detail.registry.id} />
-                <Textarea name="reason" rows={3} placeholder="Reason for historical-only label" />
-                <Button type="submit" variant="outline" disabled={!detail.registry.isActive || isHistorical}>Mark historical</Button>
-              </form>
-              <form action={deactivateRegistryLabelAction} className="grid gap-3">
-                <input type="hidden" name="registryId" value={detail.registry.id} />
-                <Textarea name="reason" rows={3} placeholder="Reason for deactivation" />
-                <Button type="submit" variant="destructive" disabled={!detail.registry.isActive}>Deactivate</Button>
-              </form>
-              </div>
             </CardContent>
           </Card>
         </section>

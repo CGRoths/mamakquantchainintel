@@ -1,25 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import {
-  addCandidateEvidenceAction,
-  approveCandidateAction,
-  markCandidateConflictAction,
-  markCandidateDuplicateAction,
-  markCandidateHistoricalOnlyAction,
-  markCandidateMetricIneligibleAction,
-  markCandidateNeedsMoreEvidenceAction,
-  markCandidateSupersedesRegistryAction,
-  rejectCandidateAction,
-} from "@/app/mqchain/actions";
+import { CandidateReviewForms } from "@/components/mqchain/candidate-review-forms";
 import { DbError } from "@/components/mqchain/db-error";
 import { FlagBadges } from "@/components/mqchain/flag-badges";
 import { StatusBadge } from "@/components/mqchain/status-badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buildCandidateTraceWarnings } from "@/lib/mqchain/candidate-detail";
 import { FLAG_BITS, hasFlag } from "@/lib/mqchain/flags";
@@ -299,163 +285,30 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
                 </div>
               </CardContent>
             </Card>
-            <Card className="rounded-lg">
-              <CardHeader><CardTitle>Add evidence</CardTitle></CardHeader>
-              <CardContent>
-                <form action={addCandidateEvidenceAction} className="grid gap-3">
-                  <input type="hidden" name="candidateId" value={candidate.id} />
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label>Evidence type</Label>
-                      <Input name="evidenceType" placeholder="official_page" required />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Trust tier</Label>
-                      <select name="trustTier" defaultValue="weak" className="h-10 rounded-md border bg-background px-3 text-sm">
-                        <option value="official">official</option>
-                        <option value="verified_third_party">verified third party</option>
-                        <option value="inferred">inferred</option>
-                        <option value="weak">weak</option>
-                        <option value="conflict">conflict</option>
-                      </select>
-                    </div>
-                  </div>
-                  <Input name="sourceUrl" placeholder="https://source.example/evidence" />
-                  <Input name="confidenceDelta" type="number" min="-100" max="100" defaultValue="0" />
-                  <Textarea name="summary" placeholder="Evidence summary" rows={2} required />
-                  <Textarea name="payloadJson" placeholder='{"source_role_label":"cold wallet","block_height":123}' rows={5} />
-                  <Button type="submit" variant="outline">Attach evidence</Button>
-                </form>
-              </CardContent>
-            </Card>
-            <Card className="rounded-lg">
-              <CardHeader><CardTitle>Approve with edits</CardTitle></CardHeader>
-              <CardContent>
-                <form action={approveCandidateAction} className="grid gap-3">
-                  <input type="hidden" name="candidateId" value={candidate.id} />
-                  <div className="grid gap-2">
-                    <Label>Entity</Label>
-                    <select name="entityId" defaultValue={candidate.suggestedEntityId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm" required>
-                      <option value="">Select entity</option>
-                      {dictionaries.entities.map((entity) => <option key={entity.id} value={entity.id}>{entity.entityName}</option>)}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Protocol</Label>
-                    <select name="protocolId" defaultValue={candidate.suggestedProtocolId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm">
-                      <option value="">No protocol</option>
-                      {dictionaries.protocols.map((protocol) => <option key={protocol.id} value={protocol.id}>{protocol.protocolName}</option>)}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Role</Label>
-                    <select name="roleId" defaultValue={candidate.suggestedRoleId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm" required>
-                      <option value="">Select role</option>
-                      {dictionaries.roles.map((role) => <option key={role.roleId} value={role.roleId}>{role.roleCode}</option>)}
-                    </select>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="grid gap-2">
-                      <Label>Confidence</Label>
-                      <Input name="confidenceScore" type="number" min="0" max="100" defaultValue={candidate.confidenceScore} />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Quality</Label>
-                      <Input name="qualityTier" type="number" min="0" max="5" defaultValue={candidate.qualityTier} />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Flags</Label>
-                      <Input name="flags" type="number" min="0" defaultValue={defaultApprovalFlags} />
-                    </div>
-                  </div>
-                  <FlagBadges flags={defaultApprovalFlags} />
-                  <div className="grid gap-2">
-                    <Label>Metric eligibility</Label>
-                    <select name="metricEligible" defaultValue={defaultMetricEligible ? "true" : "false"} className="h-10 rounded-md border bg-background px-3 text-sm">
-                      <option value="true">Eligible for metric groups</option>
-                      <option value="false">Not metric eligible</option>
-                    </select>
-                  </div>
-                  <input type="hidden" name="labelStatus" value="1" />
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Input name="validFromBlock" placeholder="valid from block" />
-                    <Input name="validToBlock" placeholder="valid to block" />
-                    <Input name="firstSeenBlock" placeholder="first seen block" defaultValue={candidate.firstSeenBlock ?? ""} />
-                    <Input name="lastSeenBlock" placeholder="last seen block" defaultValue={candidate.lastSeenBlock ?? ""} />
-                  </div>
-                  <Textarea name="notes" placeholder="Approval notes" rows={3} />
-                  <Button type="submit">Approve candidate</Button>
-                </form>
-              </CardContent>
-            </Card>
-            <Card className="rounded-lg">
-              <CardHeader><CardTitle>Review actions</CardTitle></CardHeader>
-              <CardContent>
-                <div className="grid gap-3">
-                  <form action={markCandidateNeedsMoreEvidenceAction} className="grid gap-2">
-                    <input type="hidden" name="candidateId" value={candidate.id} />
-                    <Textarea name="reason" placeholder="Needs more evidence reason" rows={2} />
-                    <Button type="submit" variant="outline">Needs more evidence</Button>
-                  </form>
-                  <form action={markCandidateConflictAction} className="grid gap-2">
-                    <input type="hidden" name="candidateId" value={candidate.id} />
-                    <Textarea name="reason" placeholder="Conflict reason" rows={2} />
-                    <Button type="submit" variant="outline">Mark conflict</Button>
-                  </form>
-                  <form action={markCandidateDuplicateAction} className="grid gap-2">
-                    <input type="hidden" name="candidateId" value={candidate.id} />
-                    <Input name="duplicateOfCandidateId" type="number" min="1" placeholder="Duplicate of candidate ID" required />
-                    <Textarea name="reason" placeholder="Duplicate reason" rows={2} />
-                    <Button type="submit" variant="outline">Merge duplicate</Button>
-                  </form>
-                  <form action={markCandidateMetricIneligibleAction} className="grid gap-2">
-                    <input type="hidden" name="candidateId" value={candidate.id} />
-                    <Textarea name="reason" placeholder="Metric-ineligible reason" rows={2} />
-                    <Button type="submit" variant="outline">Mark metric ineligible</Button>
-                  </form>
-                  <form action={markCandidateSupersedesRegistryAction} className="grid gap-2 rounded-md border p-3">
-                    <input type="hidden" name="candidateId" value={candidate.id} />
-                    <Label>Supersede registry row</Label>
-                    <select
-                      name="supersedesRegistryId"
-                      className="h-10 rounded-md border bg-background px-3 text-sm"
-                      required
-                      disabled={!detail.registryMatches.length}
-                    >
-                      <option value="">Select current registry match</option>
-                      {detail.registryMatches.map((match) => (
-                        <option key={match.registry.id} value={match.registry.id}>
-                          #{match.registry.id} / {match.role?.roleCode ?? "unknown role"} / confidence {match.registry.confidenceScore}
-                        </option>
-                      ))}
-                    </select>
-                    <Input name="validFromBlock" placeholder="new label valid from block" />
-                    <Textarea name="reason" placeholder="Supersession reason" rows={2} />
-                    <Button type="submit" variant="outline" disabled={!detail.registryMatches.length}>Supersede old label</Button>
-                  </form>
-                  <form action={markCandidateHistoricalOnlyAction} className="grid gap-2 rounded-md border p-3">
-                    <input type="hidden" name="candidateId" value={candidate.id} />
-                    <Label>Historical-only approval</Label>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <Input name="validFromBlock" placeholder="valid from block" defaultValue={candidate.firstSeenBlock ?? ""} />
-                      <Input name="validToBlock" placeholder="valid to block" defaultValue={candidate.lastSeenBlock ?? ""} />
-                    </div>
-                    <Textarea name="reason" placeholder="Historical-only reason" rows={2} />
-                    <Button type="submit" variant="outline">Mark historical only</Button>
-                  </form>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="rounded-lg">
-              <CardHeader><CardTitle>Reject</CardTitle></CardHeader>
-              <CardContent>
-                <form action={rejectCandidateAction} className="grid gap-3">
-                  <input type="hidden" name="candidateId" value={candidate.id} />
-                  <Textarea name="reason" placeholder="Reason" rows={3} required />
-                  <Button type="submit" variant="destructive">Reject candidate</Button>
-                </form>
-              </CardContent>
-            </Card>
+            <CandidateReviewForms
+              candidate={{
+                id: candidate.id,
+                suggestedEntityId: candidate.suggestedEntityId,
+                suggestedProtocolId: candidate.suggestedProtocolId,
+                suggestedRoleId: candidate.suggestedRoleId,
+                confidenceScore: candidate.confidenceScore,
+                qualityTier: candidate.qualityTier,
+                firstSeenBlock: candidate.firstSeenBlock,
+                lastSeenBlock: candidate.lastSeenBlock,
+              }}
+              dictionaries={{
+                entities: dictionaries.entities.map((entity) => ({ id: entity.id, entityName: entity.entityName })),
+                protocols: dictionaries.protocols.map((protocol) => ({ id: protocol.id, protocolName: protocol.protocolName })),
+                roles: dictionaries.roles.map((role) => ({ roleId: role.roleId, roleCode: role.roleCode })),
+              }}
+              registryMatches={detail.registryMatches.map((match) => ({
+                id: match.registry.id,
+                roleCode: match.role?.roleCode ?? null,
+                confidenceScore: match.registry.confidenceScore,
+              }))}
+              defaultApprovalFlags={defaultApprovalFlags}
+              defaultMetricEligible={defaultMetricEligible}
+            />
           </div>
         </section>
       </>

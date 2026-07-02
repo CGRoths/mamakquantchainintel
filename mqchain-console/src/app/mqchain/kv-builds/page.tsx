@@ -1,14 +1,10 @@
 import Link from "next/link";
 
-import { createKvBuildManifestAction } from "@/app/mqchain/actions";
 import { DbError } from "@/components/mqchain/db-error";
+import { CreateKvBuildManifestForm } from "@/components/mqchain/kv-build-forms";
 import { StatusBadge } from "@/components/mqchain/status-badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { listKvBuilds } from "@/lib/mqchain/services/kv-manifest-service";
 
 export default async function KvBuildsPage() {
@@ -23,39 +19,7 @@ export default async function KvBuildsPage() {
             <CardDescription>Record a worker-produced JSONL/RocksDB artifact without compiling inside Vercel.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={createKvBuildManifestAction} className="grid gap-4">
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="grid gap-2">
-                  <Label>Build hash</Label>
-                  <Input name="buildHash" placeholder="optional sha256" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Status</Label>
-                  <select name="status" defaultValue="compiled" className="h-9 rounded-lg border border-input bg-background px-3 text-sm">
-                    <option value="compiled">compiled</option>
-                    <option value="pending">pending</option>
-                    <option value="failed">failed</option>
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Rows</Label>
-                  <Input name="rowCount" type="number" min="0" defaultValue="0" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Dictionary version</Label>
-                  <Input name="dictionaryVersion" placeholder="version hash" />
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label>Storage URI</Label>
-                <Input name="storageUri" placeholder="s3://bucket/mqchain-kv/buildHash or D:/mqchain-artifacts/kv/buildHash" />
-              </div>
-              <div className="grid gap-2">
-                <Label>Manifest JSON</Label>
-                <Textarea name="manifestJson" rows={8} defaultValue={'{"artifactType":"rocksdb","source":"external-worker","notes":"ready for activation after artifact verification"}'} />
-              </div>
-              <Button type="submit" className="w-fit">Create manifest</Button>
-            </form>
+            <CreateKvBuildManifestForm />
           </CardContent>
         </Card>
         <Card className="rounded-lg">

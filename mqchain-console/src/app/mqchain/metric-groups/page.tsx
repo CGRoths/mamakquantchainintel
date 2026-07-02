@@ -1,14 +1,11 @@
 import Link from "next/link";
 
-import { addMetricGroupRuleAction, createMetricGroupAction, deactivateMetricGroupAction } from "@/app/mqchain/actions";
 import { DbError } from "@/components/mqchain/db-error";
 import { FlagBadges } from "@/components/mqchain/flag-badges";
+import { AddMetricGroupRuleForm, CreateMetricGroupForm, DeactivateMetricGroupForm } from "@/components/mqchain/metric-group-forms";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { listMetricGroups, previewMetricGroupMembers } from "@/lib/mqchain/services/metric-group-service";
 
 export default async function MetricGroupsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -31,87 +28,7 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
             <CardDescription>Define the countable universe that resolver and metrics code can test against.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={createMetricGroupAction} className="grid gap-3">
-              <div className="grid gap-3 md:grid-cols-4">
-                <div className="grid gap-2">
-                  <Label>Code</Label>
-                  <Input name="metricGroupCode" placeholder="btc_cex_flow_boundary" required />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Name</Label>
-                  <Input name="metricGroupName" placeholder="BTC CEX Flow Boundary" required />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Chain</Label>
-                  <Input name="chainCode" placeholder="btc" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Min confidence</Label>
-                  <Input name="minConfidence" type="number" min={0} max={100} defaultValue={70} />
-                </div>
-              </div>
-              <div className="grid gap-3 md:grid-cols-4">
-                <div className="grid gap-2">
-                  <Label>Require metric eligible</Label>
-                  <select
-                    name="requireMetricEligible"
-                    defaultValue="true"
-                    className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    <option value="true">Yes</option>
-                    <option value="false">No</option>
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Rule min confidence</Label>
-                  <Input name="ruleMinConfidence" type="number" min={0} max={100} placeholder="uses group default" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Rule metric eligible</Label>
-                  <select
-                    name="ruleRequireMetricEligible"
-                    defaultValue="true"
-                    className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    <option value="true">Required</option>
-                    <option value="false">Not required</option>
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Description</Label>
-                  <Input name="description" placeholder="Flow boundary for BTC exchange metrics" />
-                </div>
-              </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="grid gap-2">
-                  <Label>Include roles</Label>
-                  <Textarea name="includeRoles" rows={4} placeholder={"cex_hot_wallet\ncex_cold_wallet\ncex_por_cold_wallet"} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Include categories</Label>
-                  <Textarea name="includeCategories" rows={4} placeholder="cex_hot_cold" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Include entities</Label>
-                  <Textarea name="includeEntities" rows={4} placeholder="binance, coinbase, okx" />
-                </div>
-              </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="grid gap-2">
-                  <Label>Exclude roles</Label>
-                  <Textarea name="excludeRoles" rows={3} placeholder={"cex_gas_wallet\ncex_fee_wallet"} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Exclude categories</Label>
-                  <Textarea name="excludeCategories" rows={3} placeholder="risk, mixer" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Exclude entities</Label>
-                  <Textarea name="excludeEntities" rows={3} placeholder="sanctioned_entity" />
-                </div>
-              </div>
-              <Button type="submit">Create metric group</Button>
-            </form>
+            <CreateMetricGroupForm />
           </CardContent>
         </Card>
         <Card className="rounded-lg">
@@ -129,10 +46,7 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
                     <TableCell>{String(group.isActive)}</TableCell>
                     <TableCell className="flex justify-end gap-2">
                       <Button asChild size="sm" variant="outline"><Link href={`/mqchain/metric-groups?preview=${group.id}`}>Preview</Link></Button>
-                      <form action={deactivateMetricGroupAction}>
-                        <input type="hidden" name="id" value={group.id} />
-                        <Button size="sm" variant="outline" type="submit" disabled={!group.isActive}>Deactivate</Button>
-                      </form>
+                      <DeactivateMetricGroupForm id={group.id} disabled={!group.isActive} />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -154,51 +68,7 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
               <CardDescription>Append another include/exclude rule without replacing historical rules.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form action={addMetricGroupRuleAction} className="grid gap-3">
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="grid gap-2">
-                    <Label>Metric group</Label>
-                    <select name="metricGroupId" className="h-10 rounded-md border bg-background px-3 text-sm" required>
-                      {groups.map((group) => <option key={group.id} value={group.id}>{group.metricGroupCode}</option>)}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Rule min confidence</Label>
-                    <Input name="ruleMinConfidence" type="number" min={0} max={100} placeholder="uses group default" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Rule metric eligible</Label>
-                    <select
-                      name="ruleRequireMetricEligible"
-                      defaultValue="true"
-                      className="h-10 rounded-md border bg-background px-3 text-sm"
-                    >
-                      <option value="true">Required</option>
-                      <option value="false">Not required</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="grid gap-2">
-                    <Label>Include roles</Label>
-                    <Textarea name="includeRoles" rows={3} placeholder="cex_reserve_wallet" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Include categories</Label>
-                    <Textarea name="includeCategories" rows={3} placeholder="cex_reserve" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Include entities</Label>
-                    <Textarea name="includeEntities" rows={3} placeholder="coinbase" />
-                  </div>
-                </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <Textarea name="excludeRoles" rows={2} placeholder="exclude roles" />
-                  <Textarea name="excludeCategories" rows={2} placeholder="exclude categories" />
-                  <Textarea name="excludeEntities" rows={2} placeholder="exclude entities" />
-                </div>
-                <Button type="submit">Add rule</Button>
-              </form>
+              <AddMetricGroupRuleForm groups={groups} />
             </CardContent>
           </Card>
         ) : null}

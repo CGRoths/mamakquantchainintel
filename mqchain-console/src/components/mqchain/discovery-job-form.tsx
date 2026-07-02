@@ -1,8 +1,11 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertCircle, CheckCircle2, RotateCcw } from "lucide-react";
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
+import type { DiscoveryMutationState } from "@/app/mqchain/actions";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,13 +17,35 @@ import {
 } from "@/lib/mqchain/discovery-templates";
 
 type DiscoveryJobFormProps = {
-  action: (formData: FormData) => Promise<void>;
+  action: (previousState: DiscoveryMutationState, formData: FormData) => Promise<DiscoveryMutationState>;
 };
 
+const initialState: DiscoveryMutationState = null;
+
+function FieldError({ error }: { error?: string }) {
+  if (!error) {
+    return null;
+  }
+
+  return <p className="text-xs text-destructive">{error}</p>;
+}
+
 export function DiscoveryJobForm({ action }: DiscoveryJobFormProps) {
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState(action, initialState);
   const [discoveryType, setDiscoveryType] = useState<string>(DISCOVERY_SCANNER_TEMPLATES[0].type);
   const [configJson, setConfigJson] = useState(formatDiscoveryConfigTemplate(DISCOVERY_SCANNER_TEMPLATES[0].type));
   const template = useMemo(() => getDiscoveryTemplate(discoveryType), [discoveryType]);
+
+  useEffect(() => {
+    if (state?.ok) {
+      router.push(`/mqchain/discovery/jobs/${state.data.jobId}`);
+    }
+  }, [router, state]);
+
+  function fieldError(name: string) {
+    return state?.ok === false ? state.fieldErrors?.[name]?.[0] : undefined;
+  }
 
   function updateDiscoveryType(nextType: string) {
     setDiscoveryType(nextType);
@@ -28,7 +53,21 @@ export function DiscoveryJobForm({ action }: DiscoveryJobFormProps) {
   }
 
   return (
-    <form action={action} className="grid gap-3">
+    <form action={formAction} className="grid gap-3">
+      {state?.ok === false ? (
+        <Alert variant="destructive">
+          <AlertCircle />
+          <AlertTitle>Discovery job creation failed</AlertTitle>
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {state?.ok ? (
+        <Alert>
+          <CheckCircle2 />
+          <AlertTitle>Discovery job created</AlertTitle>
+          <AlertDescription>{state.data.message}</AlertDescription>
+        </Alert>
+      ) : null}
       <div className="grid gap-3 md:grid-cols-4">
         <div className="grid gap-2">
           <Label>Type</Label>
@@ -45,14 +84,17 @@ export function DiscoveryJobForm({ action }: DiscoveryJobFormProps) {
               </option>
             ))}
           </select>
+          <FieldError error={fieldError("discoveryType")} />
         </div>
         <div className="grid gap-2">
           <Label>Chain</Label>
           <Input name="chainCode" placeholder={template?.defaultChain ?? "ethereum"} />
+          <FieldError error={fieldError("chainCode")} />
         </div>
         <div className="grid gap-2 md:col-span-2">
           <Label>Seed address</Label>
           <Input name="seedAddress" placeholder="0x..." />
+          <FieldError error={fieldError("seedAddress")} />
         </div>
       </div>
       {template ? (
@@ -84,8 +126,69 @@ export function DiscoveryJobForm({ action }: DiscoveryJobFormProps) {
           </Button>
         </div>
         <Textarea name="configJson" rows={9} value={configJson} onChange={(event) => setConfigJson(event.target.value)} />
+        <FieldError error={fieldError("configJson")} />
       </div>
-      <Button type="submit">Create job</Button>
+      <Button type="submit" disabled={pending}>{pending ? "Creating..." : "Create job"}</Button>
+    </form>
+  );
+}
+
+export function DiscoveryCompletionForm({
+  action,
+  jobId,
+}: {
+  action: (previousState: DiscoveryMutationState, formData: FormData) => Promise<DiscoveryMutationState>;
+  jobId: number;
+}) {
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState(action, initialState);
+
+  useEffect(() => {
+    if (state?.ok) {
+      router.refresh();
+    }
+  }, [router, state]);
+
+  function fieldError(name: string) {
+    return state?.ok === false ? state.fieldErrors?.[name]?.[0] : undefined;
+  }
+
+  return (
+    <form action={formAction} className="grid gap-3">
+      {state?.ok === false ? (
+        <Alert variant="destructive">
+          <AlertCircle />
+          <AlertTitle>Discovery completion failed</AlertTitle>
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {state?.ok ? (
+        <Alert>
+          <CheckCircle2 />
+          <AlertTitle>Discovery results staged</AlertTitle>
+          <AlertDescription>{state.data.message}</AlertDescription>
+        </Alert>
+      ) : null}
+      <input type="hidden" name="jobId" value={jobId} />
+      <div className="grid gap-2">
+        <Label>Results JSON</Label>
+        <Textarea
+          name="resultsJson"
+          rows={14}
+          placeholder={'[{"address":"0x...","chain":"ethereum","entity":"uniswap","protocol":"uniswap_v3","role":"uniswap_v3_pool","evidence_type":"factory_event","confidence":65,"summary":"PoolCreated log","payload":{"tx_hash":"0x..."}}]'}
+          required
+        />
+        <FieldError error={fieldError("resultsJson")} />
+      </div>
+      {state?.ok ? (
+        <div className="grid gap-2 rounded-md border bg-muted/30 p-3 text-sm sm:grid-cols-4">
+          <div><span className="text-muted-foreground">Rows</span><div className="font-mono">{state.data.rows ?? "-"}</div></div>
+          <div><span className="text-muted-foreground">Candidates</span><div className="font-mono">{state.data.candidatesCreated ?? "-"}</div></div>
+          <div><span className="text-muted-foreground">Evidence</span><div className="font-mono">{state.data.evidenceCreated ?? "-"}</div></div>
+          <div><span className="text-muted-foreground">Invalid / duplicate</span><div className="font-mono">{state.data.invalidRows ?? 0} / {state.data.duplicates ?? 0}</div></div>
+        </div>
+      ) : null}
+      <Button type="submit" disabled={pending}>{pending ? "Creating candidates..." : "Create candidates from results"}</Button>
     </form>
   );
 }

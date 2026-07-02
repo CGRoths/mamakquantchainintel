@@ -1,14 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { approveBatchAction, commitBatchAction, failBatchAction, supersedeBatchAction } from "@/app/mqchain/actions";
+import { BatchLifecycleForms, BatchPrimaryActions } from "@/components/mqchain/batch-forms";
 import { DbError } from "@/components/mqchain/db-error";
 import { FlagBadges } from "@/components/mqchain/flag-badges";
 import { StatusBadge } from "@/components/mqchain/status-badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { batchLifecyclePermissions } from "@/lib/mqchain/batch-detail";
 import { getBatchDetail } from "@/lib/mqchain/services/batch-service";
 
@@ -65,16 +63,7 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
           </div>
           <StatusBadge status={detail.batch.status} />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <form action={approveBatchAction}>
-            <input type="hidden" name="batchId" value={detail.batch.id} />
-            <Button type="submit" variant="outline" disabled={!lifecycle.canApprove}>Approve batch</Button>
-          </form>
-          <form action={commitBatchAction}>
-            <input type="hidden" name="batchId" value={detail.batch.id} />
-            <Button type="submit" disabled={!lifecycle.canCommit}>Commit to registry</Button>
-          </form>
-        </div>
+        <BatchPrimaryActions batchId={detail.batch.id} canApprove={lifecycle.canApprove} canCommit={lifecycle.canCommit} />
         <section className="grid gap-4 xl:grid-cols-[1fr_420px]">
           <div className="grid gap-4">
             <Card className="rounded-lg">
@@ -322,16 +311,7 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
             <Card className="rounded-lg">
               <CardHeader><CardTitle>Lifecycle actions</CardTitle></CardHeader>
               <CardContent className="grid gap-4">
-                <form action={failBatchAction} className="grid gap-2">
-                  <input type="hidden" name="batchId" value={detail.batch.id} />
-                  <Textarea name="reason" rows={3} placeholder="Failure reason" />
-                  <Button type="submit" variant="destructive" disabled={!lifecycle.canFail}>Fail batch</Button>
-                </form>
-                <form action={supersedeBatchAction} className="grid gap-2">
-                  <input type="hidden" name="batchId" value={detail.batch.id} />
-                  <Textarea name="reason" rows={3} placeholder="Supersede reason" />
-                  <Button type="submit" variant="outline" disabled={!lifecycle.canSupersede}>Mark superseded</Button>
-                </form>
+                <BatchLifecycleForms batchId={detail.batch.id} canFail={lifecycle.canFail} canSupersede={lifecycle.canSupersede} />
               </CardContent>
             </Card>
           </div>
