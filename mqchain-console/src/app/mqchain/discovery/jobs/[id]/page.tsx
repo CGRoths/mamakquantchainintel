@@ -1,0 +1,188 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { completeDiscoveryJobAction } from "@/app/mqchain/actions";
+import { DbError } from "@/components/mqchain/db-error";
+import { StatusBadge } from "@/components/mqchain/status-badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { DistributionRow } from "@/lib/mqchain/batch-detail";
+import { discoveryTemplateSummary } from "@/lib/mqchain/discovery-config";
+import { getDiscoveryJobDetail } from "@/lib/mqchain/services/discovery-service";
+
+function DistributionTable({ rows, emptyLabel }: { rows: DistributionRow[]; emptyLabel: string }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Label</TableHead>
+          <TableHead className="text-right">Count</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row) => (
+          <TableRow key={row.label}>
+            <TableCell className="font-mono text-xs">{row.label}</TableCell>
+            <TableCell className="text-right font-mono">{row.count}</TableCell>
+          </TableRow>
+        ))}
+        {!rows.length ? (
+          <TableRow><TableCell colSpan={2} className="text-sm text-muted-foreground">{emptyLabel}</TableCell></TableRow>
+        ) : null}
+      </TableBody>
+    </Table>
+  );
+}
+
+export default async function DiscoveryJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
+  try {
+    const detail = await getDiscoveryJobDetail(Number(id));
+    if (!detail) notFound();
+
+    const { job } = detail;
+    const template = discoveryTemplateSummary(job.discoveryType);
+    const pendingReviewHref = `/mqchain/candidates?discoveryType=${encodeURIComponent(job.discoveryType)}&status=pending_review&sort=evidence_count`;
+
+    return (
+      <>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold">{job.discoveryType}</h1>
+            <p className="font-mono text-sm text-muted-foreground">{job.seedAddress ?? "no seed"}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline"><Link href={pendingReviewHref}>Send result group to review</Link></Button>
+            <StatusBadge status={job.status} />
+          </div>
+        </div>
+        <section className="grid gap-4 md:grid-cols-4 xl:grid-cols-8">
+          {[
+            ["Rows", detail.completion.rows ?? "-"],
+            ["Candidates", job.candidatesCreated],
+            ["Evidence", job.evidenceCreated],
+            ["Invalid", detail.completion.invalid],
+            ["Duplicates", detail.completion.duplicates],
+            ["Pending", detail.candidateRollup.pendingCount],
+            ["Approved", detail.candidateRollup.approvedCount],
+            ["Conflicts", detail.candidateRollup.conflictCount],
+          ].map(([label, value]) => (
+            <Card key={label} className="rounded-lg">
+              <CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">{label}</CardTitle></CardHeader>
+              <CardContent className="font-mono text-2xl">{value}</CardContent>
+            </Card>
+          ))}
+        </section>
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Scanner interface</CardTitle></CardHeader>
+          <CardContent className="grid gap-3 text-sm md:grid-cols-4">
+            <div><span className="text-muted-foreground">Root</span><div className="font-medium">{template.rootType}</div></div>
+            <div><span className="text-muted-foreground">Evidence</span><div className="font-mono text-xs">{template.evidenceType}</div></div>
+            <div><span className="text-muted-foreground">Required config</span><div className="font-mono text-xs">{template.requiredConfig.join(", ") || "-"}</div></div>
+            <div><span className="text-muted-foreground">Output fields</span><div className="font-mono text-xs">{template.outputFields.join(", ") || "-"}</div></div>
+          </CardContent>
+        </Card>
+        <section className="grid gap-4 xl:grid-cols-3">
+          <Card className="rounded-lg"><CardHeader><CardTitle>Status distribution</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.candidateRollup.statusDistribution} emptyLabel="No candidates." /></CardContent></Card>
+          <Card className="rounded-lg"><CardHeader><CardTitle>Evidence distribution</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.evidenceRollup.typeDistribution} emptyLabel="No evidence." /></CardContent></Card>
+          <Card className="rounded-lg"><CardHeader><CardTitle>Log distribution</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.logDistribution} emptyLabel="No logs." /></CardContent></Card>
+        </section>
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Discovery logs</CardTitle></CardHeader>
+          <CardContent>
+            <pre className="max-h-72 overflow-auto rounded-md bg-muted p-4 text-xs">{(job.logs ?? []).join("\n") || "No logs recorded."}</pre>
+          </CardContent>
+        </Card>
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Archived result source</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Source job</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Document</TableHead>
+                  <TableHead>Hash</TableHead>
+                  <TableHead>Storage</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detail.sourceJobs.map((sourceJob) => {
+                  const document = detail.documents.find((row) => row.sourceJobId === sourceJob.id);
+                  return (
+                    <TableRow key={sourceJob.id}>
+                      <TableCell className="font-mono"><Link className="text-primary hover:underline" href={`/mqchain/source-jobs/${sourceJob.id}`}>{sourceJob.id}</Link></TableCell>
+                      <TableCell><StatusBadge status={sourceJob.status} /></TableCell>
+                      <TableCell>{document?.originalName ?? "-"}</TableCell>
+                      <TableCell className="font-mono text-xs">{document?.contentHash ?? "-"}</TableCell>
+                      <TableCell className="max-w-80 truncate font-mono text-xs">{document?.storageUri ?? "-"}</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {!detail.sourceJobs.length ? (
+                  <TableRow><TableCell colSpan={5} className="text-sm text-muted-foreground">No result source job has been created yet.</TableCell></TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Discovered candidates</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Chain</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Role hint</TableHead>
+                  <TableHead>Confidence</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detail.candidates.map((candidate) => (
+                  <TableRow key={candidate.id}>
+                    <TableCell className="font-mono"><Link className="text-primary hover:underline" href={`/mqchain/candidates/${candidate.id}`}>{candidate.id}</Link></TableCell>
+                    <TableCell className="max-w-96 truncate font-mono text-xs">{candidate.normalizedAddress}</TableCell>
+                    <TableCell>{candidate.chainCode}</TableCell>
+                    <TableCell><StatusBadge status={candidate.candidateStatus} /></TableCell>
+                    <TableCell className="font-mono text-xs">{candidate.roleHint ?? "-"}</TableCell>
+                    <TableCell className="font-mono">{candidate.confidenceScore} / Q{candidate.qualityTier}</TableCell>
+                  </TableRow>
+                ))}
+                {!detail.candidates.length ? (
+                  <TableRow><TableCell colSpan={6} className="text-sm text-muted-foreground">No candidates have been staged from this job.</TableCell></TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Complete with discovered candidates</CardTitle></CardHeader>
+          <CardContent>
+            <form action={completeDiscoveryJobAction} className="grid gap-3">
+              <input type="hidden" name="jobId" value={job.id} />
+              <div className="grid gap-2">
+                <Label>Results JSON</Label>
+                <Textarea
+                  name="resultsJson"
+                  rows={14}
+                  placeholder={'[{"address":"0x...","chain":"ethereum","entity":"uniswap","protocol":"uniswap_v3","role":"uniswap_v3_pool","evidence_type":"factory_event","confidence":65,"summary":"PoolCreated log","payload":{"tx_hash":"0x..."}}]'}
+                  required
+                />
+              </div>
+              <Button type="submit">Create candidates from results</Button>
+            </form>
+          </CardContent>
+        </Card>
+      </>
+    );
+  } catch (error) {
+    return <DbError error={error} />;
+  }
+}
