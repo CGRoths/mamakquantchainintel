@@ -3,7 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { mqAddressRegistry, mqAuditLog, mqCategoryDict, mqEntities, mqKvRoleDict, mqMetricGroupRules, mqMetricGroups, mqProtocols } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
-import { buildMetricGroupCompilePreviewManifest, filterMetricGroupPreviewMembers } from "../metric-group-preview";
+import { buildMetricGroupCompilePreviewManifest, buildPendingMetricGroupKvManifest, filterMetricGroupPreviewMembers } from "../metric-group-preview";
 import type { MetricGroupRule } from "../types";
 import { buildMetricGroupRule, createMetricGroupRuleSchema, createMetricGroupSchema } from "../validators/metric-group";
 import { recordDictionaryVersion } from "./dictionary-service";
@@ -162,17 +162,20 @@ export async function previewMetricGroupMembers(metricGroupId: number, focusedRe
     })),
   );
 
+  const manifestInput = {
+    group,
+    rules: ruleJson,
+    members,
+    focusedRegistryId,
+  };
+
   return {
     group,
     members,
     rules,
     focusedMember: focusedRegistryId ? members.find((member) => member.registry.id === focusedRegistryId) ?? null : null,
     focusedRegistryId: focusedRegistryId ?? null,
-    manifest: buildMetricGroupCompilePreviewManifest({
-      group,
-      rules: ruleJson,
-      members,
-      focusedRegistryId,
-    }),
+    manifest: buildMetricGroupCompilePreviewManifest(manifestInput),
+    kvManifest: buildPendingMetricGroupKvManifest(manifestInput),
   };
 }

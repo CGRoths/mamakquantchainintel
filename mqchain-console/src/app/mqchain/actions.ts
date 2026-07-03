@@ -35,6 +35,11 @@ import {
   deactivateKeyPrefix,
   deactivateProtocol,
   deactivateRole,
+  updateCategory,
+  updateEntity,
+  updateKeyPrefix,
+  updateProtocol,
+  updateRole,
 } from "@/lib/mqchain/services/dictionary-service";
 import { completeDiscoveryJob, createDiscoveryJob, createDiscoveryJobFromRegistry } from "@/lib/mqchain/services/discovery-service";
 import { addCandidateEvidence, addRegistryEvidence } from "@/lib/mqchain/services/evidence-service";
@@ -113,6 +118,15 @@ export type DiscoveryMutationData = {
 
 export type DiscoveryMutationState = ActionResult<DiscoveryMutationData> | null;
 
+export type SourceJobMutationData = {
+  sourceJobId: number;
+  status?: string | null;
+  archiveStorageUri?: string | null;
+  message: string;
+};
+
+export type SourceJobMutationState = ActionResult<SourceJobMutationData> | null;
+
 export type KvBuildMutationData = {
   buildId: number;
   status?: string | null;
@@ -141,6 +155,16 @@ export type MetricGroupMutationData = {
 };
 
 export type MetricGroupMutationState = ActionResult<MetricGroupMutationData> | null;
+
+export type SettingsMutationData = {
+  userId: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  message: string;
+};
+
+export type SettingsMutationState = ActionResult<SettingsMutationData> | null;
 
 function reviewReturnPath(formData: FormData) {
   const returnTo = formValue(formData, "returnTo") ?? "";
@@ -180,6 +204,14 @@ function revalidateCandidatePaths(candidateId: number | string | undefined) {
   }
 }
 
+function revalidateReviewPaths(candidateId: number | string | undefined, returnTo?: string | null) {
+  revalidateCandidatePaths(candidateId);
+
+  if (returnTo?.startsWith("/mqchain/review/groups/")) {
+    revalidatePath(returnTo);
+  }
+}
+
 function revalidateBatchPaths(batchId: number | string | undefined) {
   revalidatePath("/mqchain");
   revalidatePath("/mqchain/batches");
@@ -216,6 +248,16 @@ function revalidateDiscoveryPaths(jobId: number | string | undefined) {
   }
 }
 
+function revalidateSourceJobPaths(sourceJobId: number | string | undefined) {
+  revalidatePath("/mqchain");
+  revalidatePath("/mqchain/source-jobs");
+  revalidatePath("/mqchain/audit-log");
+
+  if (sourceJobId) {
+    revalidatePath(`/mqchain/source-jobs/${sourceJobId}`);
+  }
+}
+
 function revalidateKvBuildPaths(buildId: number | string | undefined) {
   revalidatePath("/mqchain");
   revalidatePath("/mqchain/kv-builds");
@@ -237,6 +279,12 @@ function revalidateDictionaryPaths(section?: string) {
   if (section) {
     revalidatePath(`/mqchain/dictionaries/${section}`);
   }
+}
+
+function revalidateSettingsPaths() {
+  revalidatePath("/mqchain");
+  revalidatePath("/mqchain/settings");
+  revalidatePath("/mqchain/audit-log");
 }
 
 function revalidateMetricGroupPaths(groupId?: number | string | undefined) {
@@ -490,6 +538,43 @@ function keyPrefixInputFromFormData(formData: FormData) {
     payloadLen: formValue(formData, "payloadLen"),
     evmChainId: formValue(formData, "evmChainId"),
     description: formValue(formData, "description"),
+  };
+}
+
+function entityUpdateInputFromFormData(formData: FormData) {
+  return {
+    ...entityInputFromFormData(formData),
+    id: formValue(formData, "id"),
+    isActive: formData.has("isActive"),
+  };
+}
+
+function protocolUpdateInputFromFormData(formData: FormData) {
+  return {
+    ...protocolInputFromFormData(formData),
+    id: formValue(formData, "id"),
+    isActive: formData.has("isActive"),
+  };
+}
+
+function categoryUpdateInputFromFormData(formData: FormData) {
+  return {
+    ...categoryInputFromFormData(formData),
+    isActive: formData.has("isActive"),
+  };
+}
+
+function roleUpdateInputFromFormData(formData: FormData) {
+  return {
+    ...roleInputFromFormData(formData),
+    isActive: formData.has("isActive"),
+  };
+}
+
+function keyPrefixUpdateInputFromFormData(formData: FormData) {
+  return {
+    ...keyPrefixInputFromFormData(formData),
+    isActive: formData.has("isActive"),
   };
 }
 
@@ -762,6 +847,22 @@ export async function approveCandidateAsSuggestedAction(formData: FormData) {
   redirect(returnTo);
 }
 
+export async function approveCandidateAsSuggestedResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const returnTo = reviewReturnPath(formData);
+    const candidate = await approveCandidateAsSuggested({
+      candidateId: formValue(formData, "candidateId"),
+      reason: formValue(formData, "reason"),
+    });
+
+    revalidateReviewPaths(candidate.id, returnTo);
+    return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate approved as suggested." };
+  });
+}
+
 export async function rejectCandidateAction(formData: FormData) {
   const candidate = await rejectCandidate(candidateStatusInputFromFormData(formData));
 
@@ -792,6 +893,22 @@ export async function reviewRejectCandidateAction(formData: FormData) {
   revalidatePath("/mqchain/review");
   revalidatePath("/mqchain/review/groups");
   redirect(returnTo);
+}
+
+export async function reviewRejectCandidateResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const returnTo = reviewReturnPath(formData);
+    const candidate = await rejectCandidate({
+      candidateId: formValue(formData, "candidateId"),
+      reason: formValue(formData, "reason") || "Rejected from review queue.",
+    });
+
+    revalidateReviewPaths(candidate.id, returnTo);
+    return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate rejected from review." };
+  });
 }
 
 export async function addCandidateEvidenceAction(formData: FormData) {
@@ -882,6 +999,22 @@ export async function reviewMarkCandidateNeedsMoreEvidenceAction(formData: FormD
   redirect(returnTo);
 }
 
+export async function reviewMarkCandidateNeedsMoreEvidenceResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const returnTo = reviewReturnPath(formData);
+    const candidate = await markCandidateNeedsMoreEvidence({
+      candidateId: formValue(formData, "candidateId"),
+      reason: formValue(formData, "reason") || "Needs more evidence from review queue.",
+    });
+
+    revalidateReviewPaths(candidate.id, returnTo);
+    return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate marked as needing evidence." };
+  });
+}
+
 export async function markCandidateConflictAction(formData: FormData) {
   const candidate = await markCandidateConflict(candidateStatusInputFromFormData(formData));
 
@@ -912,6 +1045,22 @@ export async function reviewMarkCandidateConflictAction(formData: FormData) {
   revalidatePath("/mqchain/review");
   revalidatePath("/mqchain/review/groups");
   redirect(returnTo);
+}
+
+export async function reviewMarkCandidateConflictResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const returnTo = reviewReturnPath(formData);
+    const candidate = await markCandidateConflict({
+      candidateId: formValue(formData, "candidateId"),
+      reason: formValue(formData, "reason") || "Conflict marked from review queue.",
+    });
+
+    revalidateReviewPaths(candidate.id, returnTo);
+    return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate marked as conflict pending." };
+  });
 }
 
 export async function markCandidateDuplicateAction(formData: FormData) {
@@ -1004,6 +1153,22 @@ export async function reviewMarkCandidateMetricIneligibleAction(formData: FormDa
   redirect(returnTo);
 }
 
+export async function reviewMarkCandidateMetricIneligibleResultAction(
+  _previousState: CandidateMutationState,
+  formData: FormData,
+): Promise<CandidateMutationState> {
+  return runAction(async () => {
+    const returnTo = reviewReturnPath(formData);
+    const candidate = await markCandidateMetricIneligible({
+      candidateId: formValue(formData, "candidateId"),
+      reason: formValue(formData, "reason") || "Metric-ineligible from review queue.",
+    });
+
+    revalidateReviewPaths(candidate.id, returnTo);
+    return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate marked metric ineligible." };
+  });
+}
+
 export async function createBatchAction(formData: FormData) {
   const batch = await createBatchFromCandidates(createBatchInputFromFormData(formData));
 
@@ -1037,6 +1202,26 @@ export async function createReviewBatchFromSelectionAction(formData: FormData) {
   revalidatePath("/mqchain/batches");
   revalidatePath("/mqchain/review");
   redirect(`/mqchain/batches/${batch.id}`);
+}
+
+export async function createReviewBatchFromSelectionResultAction(
+  _previousState: BatchMutationState,
+  formData: FormData,
+): Promise<BatchMutationState> {
+  return runAction(async () => {
+    const candidateIds = formData
+      .getAll("candidateId")
+      .filter((value): value is string => typeof value === "string")
+      .join(", ");
+
+    const batch = await createBatchFromCandidates({
+      candidateIds,
+      sourceName: formValue(formData, "sourceName") || "Review queue selected batch",
+    });
+
+    revalidateBatchPaths(batch.id);
+    return { batchId: batch.id, status: batch.status, message: "Batch created from selected approved candidates." };
+  });
 }
 
 export async function approveBatchAction(formData: FormData) {
@@ -1348,6 +1533,23 @@ export async function createEntityResultAction(
   });
 }
 
+export async function updateEntityResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const entity = await updateEntity(entityUpdateInputFromFormData(formData));
+    revalidateDictionaryPaths("entities");
+    return {
+      dictionaryType: "entity",
+      id: entity.id,
+      code: entity.entityCode,
+      status: entity.isActive ? "active" : "inactive",
+      message: `Entity ${entity.entityCode} updated and dictionary version updated.`,
+    };
+  });
+}
+
 export async function deactivateEntityAction(formData: FormData) {
   await deactivateEntity(dictionaryIdInputFromFormData(formData));
   revalidateDictionaryPaths("entities");
@@ -1391,6 +1593,23 @@ export async function createProtocolResultAction(
       code: protocol.protocolCode,
       status: protocol.isActive ? "active" : "inactive",
       message: `Protocol ${protocol.protocolCode} created and dictionary version updated.`,
+    };
+  });
+}
+
+export async function updateProtocolResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const protocol = await updateProtocol(protocolUpdateInputFromFormData(formData));
+    revalidateDictionaryPaths("protocols");
+    return {
+      dictionaryType: "protocol",
+      id: protocol.id,
+      code: protocol.protocolCode,
+      status: protocol.isActive ? "active" : "inactive",
+      message: `Protocol ${protocol.protocolCode} updated and dictionary version updated.`,
     };
   });
 }
@@ -1442,6 +1661,23 @@ export async function createCategoryResultAction(
   });
 }
 
+export async function updateCategoryResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const category = await updateCategory(categoryUpdateInputFromFormData(formData));
+    revalidateDictionaryPaths("categories");
+    return {
+      dictionaryType: "category",
+      id: category.categoryId,
+      code: category.categoryCode,
+      status: category.isActive ? "active" : "inactive",
+      message: `Category ${category.categoryCode} updated and dictionary version updated.`,
+    };
+  });
+}
+
 export async function deactivateCategoryAction(formData: FormData) {
   await deactivateCategory(dictionaryIdInputFromFormData(formData));
   revalidateDictionaryPaths("categories");
@@ -1485,6 +1721,23 @@ export async function createRoleResultAction(
       code: role.roleCode,
       status: role.isActive ? "active" : "inactive",
       message: `Role ${role.roleCode} created and dictionary version updated.`,
+    };
+  });
+}
+
+export async function updateRoleResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const role = await updateRole(roleUpdateInputFromFormData(formData));
+    revalidateDictionaryPaths("roles");
+    return {
+      dictionaryType: "role",
+      id: role.roleId,
+      code: role.roleCode,
+      status: role.isActive ? "active" : "inactive",
+      message: `Role ${role.roleCode} updated and dictionary version updated.`,
     };
   });
 }
@@ -1536,6 +1789,23 @@ export async function createKeyPrefixResultAction(
   });
 }
 
+export async function updateKeyPrefixResultAction(
+  _previousState: DictionaryMutationState,
+  formData: FormData,
+): Promise<DictionaryMutationState> {
+  return runAction(async () => {
+    const prefix = await updateKeyPrefix(keyPrefixUpdateInputFromFormData(formData));
+    revalidateDictionaryPaths("key-prefixes");
+    return {
+      dictionaryType: "key_prefix",
+      id: prefix.prefixCode,
+      code: prefix.chainCode,
+      status: prefix.isActive ? "active" : "inactive",
+      message: `Key prefix 0x${prefix.prefixCode.toString(16).padStart(4, "0")} updated and dictionary version updated.`,
+    };
+  });
+}
+
 export async function deactivateKeyPrefixAction(formData: FormData) {
   await deactivateKeyPrefix(dictionaryIdInputFromFormData(formData));
   revalidateDictionaryPaths("key-prefixes");
@@ -1566,9 +1836,29 @@ export async function archiveSourceJobAction(formData: FormData) {
     reason: formValue(formData, "reason"),
   });
 
-  revalidatePath("/mqchain/source-jobs");
-  revalidatePath("/mqchain/audit-log");
+  revalidateSourceJobPaths(sourceJob.id);
   redirect(`/mqchain/source-jobs/${sourceJob.id}`);
+}
+
+export async function archiveSourceJobResultAction(
+  _previousState: SourceJobMutationState,
+  formData: FormData,
+): Promise<SourceJobMutationState> {
+  return runAction(async () => {
+    const sourceJob = await archiveSourceJob({
+      sourceJobId: formValue(formData, "sourceJobId"),
+      archiveStorageUri: formValue(formData, "archiveStorageUri"),
+      reason: formValue(formData, "reason"),
+    });
+
+    revalidateSourceJobPaths(sourceJob.id);
+    return {
+      sourceJobId: sourceJob.id,
+      status: sourceJob.status,
+      archiveStorageUri: sourceJob.archiveStorageUri,
+      message: `Source job ${sourceJob.id} marked archived and audit logged.`,
+    };
+  });
 }
 
 export async function updateRegistryLabelAction(formData: FormData) {
@@ -1683,6 +1973,29 @@ export async function createSettingsUserAction(formData: FormData) {
   redirect("/mqchain/settings");
 }
 
+export async function createSettingsUserResultAction(
+  _previousState: SettingsMutationState,
+  formData: FormData,
+): Promise<SettingsMutationState> {
+  return runAction(async () => {
+    const user = await createSettingsUser({
+      email: formValue(formData, "email"),
+      displayName: formValue(formData, "displayName"),
+      role: formValue(formData, "role"),
+      password: formValue(formData, "password"),
+    });
+
+    revalidateSettingsPaths();
+    return {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      message: `User ${user.email} created with ${user.role} access.`,
+    };
+  });
+}
+
 export async function updateSettingsUserAccessAction(formData: FormData) {
   await updateSettingsUserAccess({
     userId: formValue(formData, "userId"),
@@ -1692,4 +2005,26 @@ export async function updateSettingsUserAccessAction(formData: FormData) {
 
   revalidatePath("/mqchain/settings");
   redirect("/mqchain/settings");
+}
+
+export async function updateSettingsUserAccessResultAction(
+  _previousState: SettingsMutationState,
+  formData: FormData,
+): Promise<SettingsMutationState> {
+  return runAction(async () => {
+    const user = await updateSettingsUserAccess({
+      userId: formValue(formData, "userId"),
+      role: formValue(formData, "role"),
+      isActive: formData.has("isActive"),
+    });
+
+    revalidateSettingsPaths();
+    return {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      message: `${user.email} is now ${user.isActive ? "active" : "inactive"} with ${user.role} access.`,
+    };
+  });
 }

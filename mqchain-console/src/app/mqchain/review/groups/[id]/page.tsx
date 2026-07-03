@@ -1,14 +1,7 @@
 import Link from "next/link";
 
-import {
-  approveCandidateAsSuggestedAction,
-  createReviewBatchFromSelectionAction,
-  reviewMarkCandidateConflictAction,
-  reviewMarkCandidateMetricIneligibleAction,
-  reviewMarkCandidateNeedsMoreEvidenceAction,
-  reviewRejectCandidateAction,
-} from "@/app/mqchain/actions";
 import { DbError } from "@/components/mqchain/db-error";
+import { ReviewBatchSelectionForm, ReviewQuickActionForm, reviewQuickActions } from "@/components/mqchain/review-forms";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,36 +89,44 @@ export default async function ReviewGroupDetailPage({ params }: { params: Promis
                       <TableCell><StatusBadge status={candidate.candidateStatus} /></TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-2">
-                          <form action={approveCandidateAsSuggestedAction}>
-                            <input type="hidden" name="candidateId" value={candidate.id} />
-                            <input type="hidden" name="reason" value="Approved as suggested from review group." />
-                            <input type="hidden" name="returnTo" value={returnTo} />
-                            <Button type="submit" size="sm" disabled={!canQuickApprove}>Approve</Button>
-                          </form>
-                          <form action={reviewRejectCandidateAction}>
-                            <input type="hidden" name="candidateId" value={candidate.id} />
-                            <input type="hidden" name="reason" value="Rejected from review group." />
-                            <input type="hidden" name="returnTo" value={returnTo} />
-                            <Button type="submit" size="sm" variant="outline">Reject</Button>
-                          </form>
-                          <form action={reviewMarkCandidateNeedsMoreEvidenceAction}>
-                            <input type="hidden" name="candidateId" value={candidate.id} />
-                            <input type="hidden" name="reason" value="Needs more evidence from review group." />
-                            <input type="hidden" name="returnTo" value={returnTo} />
-                            <Button type="submit" size="sm" variant="outline">Evidence</Button>
-                          </form>
-                          <form action={reviewMarkCandidateConflictAction}>
-                            <input type="hidden" name="candidateId" value={candidate.id} />
-                            <input type="hidden" name="reason" value="Conflict marked from review group." />
-                            <input type="hidden" name="returnTo" value={returnTo} />
-                            <Button type="submit" size="sm" variant="outline">Conflict</Button>
-                          </form>
-                          <form action={reviewMarkCandidateMetricIneligibleAction}>
-                            <input type="hidden" name="candidateId" value={candidate.id} />
-                            <input type="hidden" name="reason" value="Metric-ineligible from review group." />
-                            <input type="hidden" name="returnTo" value={returnTo} />
-                            <Button type="submit" size="sm" variant="ghost">Metric off</Button>
-                          </form>
+                          <ReviewQuickActionForm
+                            action={reviewQuickActions.approve}
+                            candidateId={candidate.id}
+                            disabled={!canQuickApprove}
+                            reason="Approved as suggested from review group."
+                            returnTo={returnTo}
+                            variant="default"
+                          >
+                            Approve
+                          </ReviewQuickActionForm>
+                          <ReviewQuickActionForm action={reviewQuickActions.reject} candidateId={candidate.id} reason="Rejected from review group." returnTo={returnTo}>
+                            Reject
+                          </ReviewQuickActionForm>
+                          <ReviewQuickActionForm
+                            action={reviewQuickActions.evidence}
+                            candidateId={candidate.id}
+                            reason="Needs more evidence from review group."
+                            returnTo={returnTo}
+                          >
+                            Evidence
+                          </ReviewQuickActionForm>
+                          <ReviewQuickActionForm
+                            action={reviewQuickActions.conflict}
+                            candidateId={candidate.id}
+                            reason="Conflict marked from review group."
+                            returnTo={returnTo}
+                          >
+                            Conflict
+                          </ReviewQuickActionForm>
+                          <ReviewQuickActionForm
+                            action={reviewQuickActions.metricOff}
+                            candidateId={candidate.id}
+                            reason="Metric-ineligible from review group."
+                            returnTo={returnTo}
+                            variant="ghost"
+                          >
+                            Metric off
+                          </ReviewQuickActionForm>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -144,7 +145,7 @@ export default async function ReviewGroupDetailPage({ params }: { params: Promis
             <CardDescription>Only approved candidates can cross into a label batch; pending rows remain staged.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={createReviewBatchFromSelectionAction} className="space-y-4">
+            <ReviewBatchSelectionForm disabled={!detail.approvedRows.length}>
               <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Batch source name</p>
@@ -181,7 +182,7 @@ export default async function ReviewGroupDetailPage({ params }: { params: Promis
                   ) : null}
                 </TableBody>
               </Table>
-            </form>
+            </ReviewBatchSelectionForm>
           </CardContent>
         </Card>
       </>

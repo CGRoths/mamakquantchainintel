@@ -1,10 +1,7 @@
-import { createSettingsUserAction, updateSettingsUserAccessAction } from "@/app/mqchain/actions";
 import { DbError } from "@/components/mqchain/db-error";
+import { CreateSettingsUserForm, UpdateSettingsUserAccessForm } from "@/components/mqchain/settings-forms";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { MQCHAIN_ROLES } from "@/lib/mqchain/constants";
@@ -53,20 +50,12 @@ export default async function SettingsPage() {
                       <TableCell>{user.hasPassword ? "set" : "missing"}</TableCell>
                       <TableCell className="min-w-72">
                         {canEdit ? (
-                          <form action={updateSettingsUserAccessAction} className="flex items-end justify-end gap-2">
-                            <input type="hidden" name="userId" value={user.id} />
-                            <div className="grid gap-1 text-left">
-                              <Label className="text-xs">Role</Label>
-                              <select name="role" defaultValue={user.role} className="h-9 rounded-md border bg-background px-2 text-sm">
-                                {MQCHAIN_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
-                              </select>
-                            </div>
-                            <label className="flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
-                              <input type="checkbox" name="isActive" defaultChecked={user.isActive} />
-                              Active
-                            </label>
-                            <Button type="submit" size="sm" variant="outline">Update</Button>
-                          </form>
+                          <UpdateSettingsUserAccessForm
+                            isActive={user.isActive}
+                            role={user.role}
+                            roles={[...MQCHAIN_ROLES]}
+                            userId={user.id}
+                          />
                         ) : (
                           <span className="text-sm text-muted-foreground">Read only</span>
                         )}
@@ -82,18 +71,7 @@ export default async function SettingsPage() {
             <CardHeader><CardTitle>Create user</CardTitle></CardHeader>
             <CardContent>
               {canEdit ? (
-                <form action={createSettingsUserAction} className="grid gap-3">
-                  <div className="grid gap-2"><Label>Email</Label><Input name="email" type="email" placeholder="operator@mamakquant.local" required /></div>
-                  <div className="grid gap-2"><Label>Display name</Label><Input name="displayName" placeholder="Operator name" /></div>
-                  <div className="grid gap-2">
-                    <Label>Role</Label>
-                    <select name="role" defaultValue="analyst" className="h-10 rounded-md border bg-background px-3 text-sm">
-                      {MQCHAIN_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
-                    </select>
-                  </div>
-                  <div className="grid gap-2"><Label>Password</Label><Input name="password" type="password" minLength={12} required /></div>
-                  <Button type="submit">Create user</Button>
-                </form>
+                <CreateSettingsUserForm roles={[...MQCHAIN_ROLES]} />
               ) : (
                 <p className="text-sm text-muted-foreground">Only owners can create users or update access.</p>
               )}

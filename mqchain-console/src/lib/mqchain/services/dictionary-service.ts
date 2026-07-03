@@ -1,4 +1,3 @@
-import { createHash } from "crypto";
 import { asc, count, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
@@ -16,16 +15,22 @@ import {
   mqProtocols,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
+import { buildDictionaryInventory } from "../dictionary-overview";
 import { buildDefaultFlags } from "../flags";
 import {
   categorySchema,
+  categoryUpdateSchema,
   entitySchema,
+  entityUpdateSchema,
   idSchema,
   keyPrefixSchema,
+  keyPrefixUpdateSchema,
   protocolSchema,
+  protocolUpdateSchema,
   roleSchema,
+  roleUpdateSchema,
 } from "../validators/dictionary";
-import { optionalNumber } from "./service-utils";
+import { hashJson, optionalNumber } from "./service-utils";
 
 export async function listDictionaries() {
   const db = getDb();
@@ -113,7 +118,7 @@ export async function getDashboardStats() {
 }
 
 function versionHash(payload: unknown) {
-  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+  return hashJson(payload);
 }
 
 function parseList(value?: string) {
@@ -201,6 +206,7 @@ export async function recordDictionaryVersion(actorId?: string | null, reason = 
           prefixes: dictionaries.prefixes.length,
           roles: dictionaries.roles.length,
           metricGroups: dictionaries.metricGroups.length,
+          metricGroupRules: dictionaries.metricGroupRules.length,
         },
       },
       createdBy: actorId,
@@ -224,6 +230,19 @@ export async function listDictionaryVersions(limit = 20) {
   return getDb().select().from(mqDictionaryVersions).orderBy(desc(mqDictionaryVersions.createdAt)).limit(limit);
 }
 
+export async function getDictionaryOverview() {
+  const [dictionaries, versions] = await Promise.all([
+    listDictionaries(),
+    listDictionaryVersions(20),
+  ]);
+
+  return {
+    inventory: buildDictionaryInventory(dictionaries),
+    versions,
+    latestVersion: versions[0] ?? null,
+  };
+}
+
 export async function createEntity(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = entitySchema.parse(input);
@@ -242,6 +261,36 @@ export async function createEntity(input: unknown) {
 
   const hash = await recordDictionaryVersion(actor.id, "entity_created");
   await auditDictionaryChange(actor.id, "entity_created", "mq_entities", entity.id, { entity, dictionaryVersion: hash });
+  return entity;
+}
+
+export async function updateEntity(input: unknown) {
+  const actor = await assertPermission("dictionary:edit");
+  const parsed = entityUpdateSchema.parse(input);
+  const db = getDb();
+  const [before] = await db.select().from(mqEntities).where(eq(mqEntities.id, parsed.id)).limit(1);
+
+  if (!before) {
+    throw new Error("Entity not found.");
+  }
+
+  const [entity] = await db
+    .update(mqEntities)
+    .set({
+      entityCode: parsed.entityCode,
+      entityName: parsed.entityName,
+      entityType: parsed.entityType || null,
+      categoryId: optionalNumber(parsed.categoryId),
+      websiteUrl: parsed.websiteUrl || null,
+      description: parsed.description || null,
+      isActive: parsed.isActive,
+      updatedAt: new Date(),
+    })
+    .where(eq(mqEntities.id, parsed.id))
+    .returning();
+
+  const hash = await recordDictionaryVersion(actor.id, "entity_updated");
+  await auditDictionaryChange(actor.id, "entity_updated", "mq_entities", entity.id, { before, after: entity, dictionaryVersion: hash });
   return entity;
 }
 
@@ -283,6 +332,36 @@ export async function createProtocol(input: unknown) {
   return protocol;
 }
 
+export async function updateProtocol(input: unknown) {
+  const actor = await assertPermission("dictionary:edit");
+  const parsed = protocolUpdateSchema.parse(input);
+  const db = getDb();
+  const [before] = await db.select().from(mqProtocols).where(eq(mqProtocols.id, parsed.id)).limit(1);
+
+  if (!before) {
+    throw new Error("Protocol not found.");
+  }
+
+  const [protocol] = await db
+    .update(mqProtocols)
+    .set({
+      entityId: parsed.entityId,
+      protocolCode: parsed.protocolCode,
+      protocolName: parsed.protocolName,
+      protocolType: parsed.protocolType || null,
+      chainScope: parseList(parsed.chainScope),
+      description: parsed.description || null,
+      isActive: parsed.isActive,
+      updatedAt: new Date(),
+    })
+    .where(eq(mqProtocols.id, parsed.id))
+    .returning();
+
+  const hash = await recordDictionaryVersion(actor.id, "protocol_updated");
+  await auditDictionaryChange(actor.id, "protocol_updated", "mq_protocols", protocol.id, { before, after: protocol, dictionaryVersion: hash });
+  return protocol;
+}
+
 export async function deactivateProtocol(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = idSchema.parse(input);
@@ -319,6 +398,36 @@ export async function createCategory(input: unknown) {
 
   const hash = await recordDictionaryVersion(actor.id, "category_created");
   await auditDictionaryChange(actor.id, "category_created", "mq_category_dict", category.categoryId, { category, dictionaryVersion: hash });
+  return category;
+}
+
+export async function updateCategory(input: unknown) {
+  const actor = await assertPermission("dictionary:edit");
+  const parsed = categoryUpdateSchema.parse(input);
+  const db = getDb();
+  const [before] = await db.select().from(mqCategoryDict).where(eq(mqCategoryDict.categoryId, parsed.categoryId)).limit(1);
+
+  if (!before) {
+    throw new Error("Category not found.");
+  }
+
+  const [category] = await db
+    .update(mqCategoryDict)
+    .set({
+      categoryCode: parsed.categoryCode,
+      categoryName: parsed.categoryName,
+      parentCategoryId: optionalNumber(parsed.parentCategoryId),
+      domainCode: parsed.domainCode || null,
+      metricDomain: parsed.metricDomain || null,
+      description: parsed.description || null,
+      isActive: parsed.isActive,
+      updatedAt: new Date(),
+    })
+    .where(eq(mqCategoryDict.categoryId, parsed.categoryId))
+    .returning();
+
+  const hash = await recordDictionaryVersion(actor.id, "category_updated");
+  await auditDictionaryChange(actor.id, "category_updated", "mq_category_dict", category.categoryId, { before, after: category, dictionaryVersion: hash });
   return category;
 }
 
@@ -365,6 +474,39 @@ export async function createRole(input: unknown) {
   return role;
 }
 
+export async function updateRole(input: unknown) {
+  const actor = await assertPermission("dictionary:edit");
+  const parsed = roleUpdateSchema.parse(input);
+  const db = getDb();
+  const [before] = await db.select().from(mqKvRoleDict).where(eq(mqKvRoleDict.roleId, parsed.roleId)).limit(1);
+
+  if (!before) {
+    throw new Error("Role not found.");
+  }
+
+  const [role] = await db
+    .update(mqKvRoleDict)
+    .set({
+      roleCode: parsed.roleCode,
+      roleName: parsed.roleName,
+      categoryId: optionalNumber(parsed.categoryId),
+      roleGroup: parsed.roleGroup || null,
+      metricUsageDefault: parsed.metricUsageDefault || null,
+      boundaryClass: parsed.boundaryClass || null,
+      defaultQualityTier: parsed.defaultQualityTier,
+      defaultFlags: parsed.defaultFlags,
+      description: parsed.description || null,
+      isActive: parsed.isActive,
+      updatedAt: new Date(),
+    })
+    .where(eq(mqKvRoleDict.roleId, parsed.roleId))
+    .returning();
+
+  const hash = await recordDictionaryVersion(actor.id, "role_updated");
+  await auditDictionaryChange(actor.id, "role_updated", "mq_kv_role_dict", role.roleId, { before, after: role, dictionaryVersion: hash });
+  return role;
+}
+
 export async function deactivateRole(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = idSchema.parse(input);
@@ -403,6 +545,38 @@ export async function createKeyPrefix(input: unknown) {
 
   const hash = await recordDictionaryVersion(actor.id, "key_prefix_created");
   await auditDictionaryChange(actor.id, "key_prefix_created", "mq_kv_key_prefix_dict", prefix.prefixCode, { prefix, dictionaryVersion: hash });
+  return prefix;
+}
+
+export async function updateKeyPrefix(input: unknown) {
+  const actor = await assertPermission("dictionary:edit");
+  const parsed = keyPrefixUpdateSchema.parse(input);
+  const db = getDb();
+  const [before] = await db.select().from(mqKvKeyPrefixDict).where(eq(mqKvKeyPrefixDict.prefixCode, parsed.prefixCode)).limit(1);
+
+  if (!before) {
+    throw new Error("Key prefix not found.");
+  }
+
+  const [prefix] = await db
+    .update(mqKvKeyPrefixDict)
+    .set({
+      chainCode: parsed.chainCode,
+      chainName: parsed.chainName || null,
+      chainFamily: parsed.chainFamily,
+      addressFamily: parsed.addressFamily,
+      codec: parsed.codec,
+      payloadLen: optionalNumber(parsed.payloadLen),
+      evmChainId: optionalNumber(parsed.evmChainId),
+      description: parsed.description || null,
+      isActive: parsed.isActive,
+      updatedAt: new Date(),
+    })
+    .where(eq(mqKvKeyPrefixDict.prefixCode, parsed.prefixCode))
+    .returning();
+
+  const hash = await recordDictionaryVersion(actor.id, "key_prefix_updated");
+  await auditDictionaryChange(actor.id, "key_prefix_updated", "mq_kv_key_prefix_dict", prefix.prefixCode, { before, after: prefix, dictionaryVersion: hash });
   return prefix;
 }
 

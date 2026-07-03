@@ -1,5 +1,5 @@
 import { classifyCexFlowSides, type CexFlowSideLabel } from "../cex-flow";
-import { checkMetricGroup } from "./resolver-service";
+import { getAddressResolver, type AddressResolver } from "./resolver-service";
 
 export type CexFlowInput = {
   chainCode: string;
@@ -20,10 +20,16 @@ export function parseTransactionAddressSet(value: string) {
   return parseAddressLines(value);
 }
 
-async function resolveSide(chainCode: string, addresses: string[], metricGroupCode: string, blockNumber?: number | null): Promise<CexFlowSideLabel[]> {
+async function resolveSide(
+  resolver: AddressResolver,
+  chainCode: string,
+  addresses: string[],
+  metricGroupCode: string,
+  blockNumber?: number | null,
+): Promise<CexFlowSideLabel[]> {
   return Promise.all(
     addresses.map(async (address) => {
-      const resolved = await checkMetricGroup(chainCode, address, metricGroupCode, blockNumber);
+      const resolved = await resolver.checkMetricGroup(chainCode, address, metricGroupCode, blockNumber);
       return {
         address,
         normalizedAddress: resolved.normalized.isValid ? resolved.normalized.normalizedAddress : null,
@@ -37,11 +43,11 @@ async function resolveSide(chainCode: string, addresses: string[], metricGroupCo
   );
 }
 
-export async function classifyCexTransactionFlow(input: CexFlowInput) {
+export async function classifyCexTransactionFlow(input: CexFlowInput, resolver = getAddressResolver()) {
   const metricGroupCode = input.metricGroupCode || "btc_cex_flow_boundary";
   const [inputs, outputs] = await Promise.all([
-    resolveSide(input.chainCode, input.inputAddresses, metricGroupCode, input.blockNumber),
-    resolveSide(input.chainCode, input.outputAddresses, metricGroupCode, input.blockNumber),
+    resolveSide(resolver, input.chainCode, input.inputAddresses, metricGroupCode, input.blockNumber),
+    resolveSide(resolver, input.chainCode, input.outputAddresses, metricGroupCode, input.blockNumber),
   ]);
 
   return {

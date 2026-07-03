@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { classifyCexTransactionFlow, parseTransactionAddressSet } from "@/lib/mqchain/services/cex-flow-service";
-import { checkMetricGroup, resolveAt } from "@/lib/mqchain/services/resolver-service";
+import { getAddressResolver } from "@/lib/mqchain/services/resolver-service";
 import { resolverSchema, transactionFlowSchema } from "@/lib/mqchain/validators/registry";
 
 function SummaryMap({ values }: { values: Record<string, number> }) {
@@ -33,40 +33,42 @@ export default async function ResolverPage({ searchParams }: { searchParams: Pro
   const hasTxQuery = Boolean(params.inputAddresses && params.outputAddresses && params.txChainCode);
 
   try {
-    const result = hasQuery
-      ? params.metricGroupCode
-        ? await checkMetricGroup(params.chainCode!, params.address!, params.metricGroupCode, params.blockNumber ? Number(params.blockNumber) : null)
-        : await resolveAt(params.chainCode!, params.address!, params.blockNumber ? Number(params.blockNumber) : null)
-      : null;
-
-    if (hasQuery) {
-      resolverSchema.parse({
+    const resolverInput = hasQuery
+      ? resolverSchema.parse({
         chainCode: params.chainCode,
         address: params.address,
         blockNumber: params.blockNumber ?? "",
         metricGroupCode: params.metricGroupCode,
-      });
-    }
-
-    const txResult = hasTxQuery
-      ? await classifyCexTransactionFlow({
-          chainCode: params.txChainCode!,
-          inputAddresses: parseTransactionAddressSet(params.inputAddresses!),
-          outputAddresses: parseTransactionAddressSet(params.outputAddresses!),
-          blockNumber: params.txBlockNumber ? Number(params.txBlockNumber) : null,
-          metricGroupCode: params.txMetricGroupCode || "btc_cex_flow_boundary",
-        })
+      })
       : null;
-
-    if (hasTxQuery) {
-      transactionFlowSchema.parse({
+    const txInput = hasTxQuery
+      ? transactionFlowSchema.parse({
         txChainCode: params.txChainCode,
         inputAddresses: params.inputAddresses,
         outputAddresses: params.outputAddresses,
         txBlockNumber: params.txBlockNumber ?? "",
         txMetricGroupCode: params.txMetricGroupCode || "btc_cex_flow_boundary",
-      });
-    }
+      })
+      : null;
+
+    const resolver = getAddressResolver();
+    const resolverBlockNumber = typeof resolverInput?.blockNumber === "number" ? resolverInput.blockNumber : null;
+    const result = resolverInput
+      ? resolverInput.metricGroupCode
+        ? await resolver.checkMetricGroup(resolverInput.chainCode, resolverInput.address, resolverInput.metricGroupCode, resolverBlockNumber)
+        : await resolver.resolveAt(resolverInput.chainCode, resolverInput.address, resolverBlockNumber)
+      : null;
+
+    const txBlockNumber = typeof txInput?.txBlockNumber === "number" ? txInput.txBlockNumber : null;
+    const txResult = txInput
+      ? await classifyCexTransactionFlow({
+        chainCode: txInput.txChainCode,
+        inputAddresses: parseTransactionAddressSet(txInput.inputAddresses),
+        outputAddresses: parseTransactionAddressSet(txInput.outputAddresses),
+        blockNumber: txBlockNumber,
+        metricGroupCode: txInput.txMetricGroupCode,
+      }, resolver)
+      : null;
 
     return (
       <>

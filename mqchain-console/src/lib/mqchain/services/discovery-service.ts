@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import {
@@ -7,23 +7,108 @@ import {
   mqAddressRegistry,
   mqAuditLog,
   mqDiscoveryJobs,
+  mqEntities,
   mqKvRoleDict,
+  mqProtocols,
   mqSourceDocuments,
   mqSourceJobs,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
 import { normalizeAddress } from "../address/normalize";
-import { parseDiscoveryConfigJson, discoveryTemplateSummary } from "../discovery-config";
+import { attachDiscoveryRunnerTask, parseDiscoveryConfigJson, discoveryTemplateSummary } from "../discovery-config";
 import { buildDiscoveryJobDetailRollup } from "../discovery-detail";
 import { getDiscoveryTemplate } from "../discovery-templates";
 import { defaultEvidenceTypeForDiscovery, parseDiscoveryResultsJson } from "../discovery";
+import { parseDiscoveryJobListFilters, type DiscoveryJobListFilters } from "../list-filters";
 import { PARSER_VERSION } from "../constants";
 import { discoveryJobSchema, discoveryResultsSchema, registryDiscoveryJobSchema } from "../validators/discovery";
 import { getDictionaryMaps } from "./dictionary-service";
 import { hashJson, hashText, optionalNumber } from "./service-utils";
 
-export async function listDiscoveryJobs(limit = 100) {
-  return getDb().select().from(mqDiscoveryJobs).orderBy(desc(mqDiscoveryJobs.createdAt)).limit(limit);
+function discoveryJobOrderBy(sort: DiscoveryJobListFilters["sort"]) {
+  if (sort === "updated_at") return desc(mqDiscoveryJobs.updatedAt);
+  if (sort === "status") return asc(mqDiscoveryJobs.status);
+  if (sort === "candidates_created") return desc(mqDiscoveryJobs.candidatesCreated);
+  if (sort === "evidence_created") return desc(mqDiscoveryJobs.evidenceCreated);
+  return desc(mqDiscoveryJobs.createdAt);
+}
+
+function addCondition(conditions: SQL[], condition: SQL | undefined) {
+  if (condition) conditions.push(condition);
+}
+
+export async function listDiscoveryJobs(input: unknown = {}) {
+  const filters = typeof input === "number" ? parseDiscoveryJobListFilters({ pageSize: input }) : parseDiscoveryJobListFilters(input);
+  const conditions: SQL[] = [];
+
+  if (filters.q) {
+    addCondition(
+      conditions,
+      or(
+        ilike(mqDiscoveryJobs.discoveryType, `%${filters.q}%`),
+        ilike(mqDiscoveryJobs.seedAddress, `%${filters.q}%`),
+        ilike(mqDiscoveryJobs.error, `%${filters.q}%`),
+        sql`${mqDiscoveryJobs.config}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqDiscoveryJobs.logs}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqDiscoveryJobs.id}::text ilike ${`%${filters.q}%`}`,
+      ),
+    );
+  }
+
+  if (filters.discoveryType) conditions.push(ilike(mqDiscoveryJobs.discoveryType, `%${filters.discoveryType}%`));
+  if (filters.status) conditions.push(eq(mqDiscoveryJobs.status, filters.status));
+  if (filters.chain) conditions.push(eq(mqDiscoveryJobs.chainCode, filters.chain));
+  if (filters.seed) conditions.push(ilike(mqDiscoveryJobs.seedAddress, `%${filters.seed}%`));
+  if (typeof filters.minCandidates === "number") conditions.push(gte(mqDiscoveryJobs.candidatesCreated, filters.minCandidates));
+  if (typeof filters.minEvidence === "number") conditions.push(gte(mqDiscoveryJobs.evidenceCreated, filters.minEvidence));
+  if (filters.entity) {
+    addCondition(
+      conditions,
+      or(
+        sql`${mqDiscoveryJobs.entityId}::text ilike ${`%${filters.entity}%`}`,
+        ilike(mqEntities.entityCode, `%${filters.entity}%`),
+        ilike(mqEntities.entityName, `%${filters.entity}%`),
+      ),
+    );
+  }
+  if (filters.protocol) {
+    addCondition(
+      conditions,
+      or(
+        sql`${mqDiscoveryJobs.protocolId}::text ilike ${`%${filters.protocol}%`}`,
+        ilike(mqProtocols.protocolCode, `%${filters.protocol}%`),
+        ilike(mqProtocols.protocolName, `%${filters.protocol}%`),
+      ),
+    );
+  }
+
+  const db = getDb();
+  const where = conditions.length ? and(...conditions) : sql`true`;
+  const offset = (filters.page - 1) * filters.pageSize;
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(mqDiscoveryJobs)
+    .leftJoin(mqEntities, eq(mqDiscoveryJobs.entityId, mqEntities.id))
+    .leftJoin(mqProtocols, eq(mqDiscoveryJobs.protocolId, mqProtocols.id))
+    .where(where);
+  const rows = await db
+    .select({ job: mqDiscoveryJobs, entity: mqEntities, protocol: mqProtocols })
+    .from(mqDiscoveryJobs)
+    .leftJoin(mqEntities, eq(mqDiscoveryJobs.entityId, mqEntities.id))
+    .leftJoin(mqProtocols, eq(mqDiscoveryJobs.protocolId, mqProtocols.id))
+    .where(where)
+    .orderBy(discoveryJobOrderBy(filters.sort), desc(mqDiscoveryJobs.id))
+    .limit(filters.pageSize)
+    .offset(offset);
+
+  return {
+    rows,
+    filters,
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+  };
 }
 
 export async function getDiscoveryJob(id: number) {
@@ -88,6 +173,12 @@ export async function createDiscoveryJob(input: unknown) {
   const template = getDiscoveryTemplate(parsed.discoveryType);
   const templateSummary = discoveryTemplateSummary(parsed.discoveryType);
   const chainCode = parsed.chainCode || template?.defaultChain;
+  const jobConfig = attachDiscoveryRunnerTask({
+    discoveryType: parsed.discoveryType,
+    chainCode,
+    seedAddress: parsed.seedAddress,
+    config,
+  });
 
   const [job] = await getDb()
     .insert(mqDiscoveryJobs)
@@ -97,11 +188,12 @@ export async function createDiscoveryJob(input: unknown) {
       seedAddress: parsed.seedAddress,
       entityId: optionalConfigId(config, "entity_id"),
       protocolId: optionalConfigId(config, "protocol_id"),
-      config,
+      config: jobConfig,
       status: "draft",
       createdBy: actor.id,
       logs: [
         `template=${templateSummary.rootType} evidence=${templateSummary.evidenceType}`,
+        "runner_task=mqchain-discovery-task-v1",
         "Scanner execution is external; completing a job only stages candidates and evidence.",
       ],
     })
@@ -145,6 +237,12 @@ export async function createDiscoveryJobFromRegistry(input: unknown) {
       registry_flags: registry.flags,
       source: "registry_detail_action",
     };
+    const jobConfig = attachDiscoveryRunnerTask({
+      discoveryType: parsed.discoveryType,
+      chainCode: registry.chainCode,
+      seedAddress: registry.rawAddress || registry.normalizedAddress,
+      config,
+    });
 
     const [job] = await tx
       .insert(mqDiscoveryJobs)
@@ -154,12 +252,13 @@ export async function createDiscoveryJobFromRegistry(input: unknown) {
         seedAddress: registry.rawAddress || registry.normalizedAddress,
         entityId: registry.entityId,
         protocolId: registry.protocolId,
-        config,
+        config: jobConfig,
         status: "draft",
         createdBy: actor.id,
         logs: [
           `seeded_from_registry=${registry.id}`,
           `template=${templateSummary.rootType} evidence=${templateSummary.evidenceType}`,
+          "runner_task=mqchain-discovery-task-v1",
           "Discovery is a feedback loop from approved truth to staged candidates only.",
         ],
       })
@@ -175,7 +274,7 @@ export async function createDiscoveryJobFromRegistry(input: unknown) {
         discoveryType: parsed.discoveryType,
         chainCode: registry.chainCode,
         seedAddress: job.seedAddress,
-        config,
+        config: jobConfig,
       },
     });
 
@@ -206,6 +305,8 @@ export async function completeDiscoveryJob(input: unknown) {
       throw new Error("Discovery job not found.");
     }
 
+    const runnerTask = job.config?.runner_task ?? null;
+
     const [sourceJob] = await tx
       .insert(mqSourceJobs)
       .values({
@@ -221,6 +322,7 @@ export async function completeDiscoveryJob(input: unknown) {
           discoveryType: job.discoveryType,
           seedAddress: job.seedAddress,
           config: job.config,
+          runnerTask,
         },
       })
       .returning();
@@ -239,6 +341,7 @@ export async function completeDiscoveryJob(input: unknown) {
         metadata: {
           discoveryJobId: job.id,
           discoveryType: job.discoveryType,
+          runnerTask,
         },
       })
       .returning();
@@ -323,6 +426,8 @@ export async function completeDiscoveryJob(input: unknown) {
       const evidencePayload = {
         discoveryJobId: job.id,
         discoveryType: job.discoveryType,
+        runnerTaskVersion:
+          runnerTask && typeof runnerTask === "object" && "task_version" in runnerTask ? runnerTask.task_version : null,
         result,
         normalized,
         payload: result.payload ?? {},

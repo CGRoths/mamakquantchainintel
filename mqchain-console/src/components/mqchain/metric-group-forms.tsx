@@ -6,6 +6,8 @@ import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import {
+  createKvBuildManifestResultAction,
+  type KvBuildMutationState,
   addMetricGroupRuleResultAction,
   createMetricGroupResultAction,
   deactivateMetricGroupResultAction,
@@ -38,6 +40,7 @@ type MetricGroupFormShellProps = {
 };
 
 const initialState: MetricGroupMutationState = null;
+const kvInitialState: KvBuildMutationState = null;
 
 function FieldError({ error }: { error?: string }) {
   if (!error) {
@@ -292,5 +295,35 @@ export function DeactivateMetricGroupForm({ id, disabled }: { id: number; disabl
     >
       {() => <input type="hidden" name="id" value={id} />}
     </MetricGroupFormShell>
+  );
+}
+
+export function CreateMetricGroupKvManifestForm({
+  manifestJson,
+  rowCount,
+}: {
+  manifestJson: string;
+  rowCount: number;
+}) {
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState(createKvBuildManifestResultAction, kvInitialState);
+
+  useEffect(() => {
+    if (state?.ok) {
+      router.push(`/mqchain/kv-builds/${state.data.buildId}`);
+    }
+  }, [router, state]);
+
+  return (
+    <form action={formAction} className="grid gap-2 sm:justify-items-end">
+      <input type="hidden" name="status" value="pending" />
+      <input type="hidden" name="rowCount" value={rowCount} />
+      <input type="hidden" name="manifestJson" value={manifestJson} />
+      <Button type="submit" variant="outline" disabled={pending}>
+        {pending ? "Registering..." : "Register KV compile handoff"}
+      </Button>
+      {state?.ok === false ? <p className="max-w-xl text-sm text-destructive">{state.error}</p> : null}
+      {state?.ok ? <p className="max-w-xl text-sm text-muted-foreground">{state.data.message}</p> : null}
+    </form>
   );
 }

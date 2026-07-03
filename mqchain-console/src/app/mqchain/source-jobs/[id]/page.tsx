@@ -1,15 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { archiveSourceJobAction } from "@/app/mqchain/actions";
 import { DbError } from "@/components/mqchain/db-error";
+import { ArchiveSourceJobForm } from "@/components/mqchain/source-job-forms";
 import { StatusBadge } from "@/components/mqchain/status-badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import type { DistributionRow } from "@/lib/mqchain/batch-detail";
 import { getSourceJob } from "@/lib/mqchain/services/source-job-service";
 
@@ -107,20 +103,11 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
         <Card className="rounded-lg">
           <CardHeader><CardTitle>Archive source job</CardTitle></CardHeader>
           <CardContent>
-            <form action={archiveSourceJobAction} className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-              <input type="hidden" name="sourceJobId" value={detail.sourceJob.id} />
-              <div className="grid gap-2">
-                <Label>Archive storage URI</Label>
-                <Input name="archiveStorageUri" placeholder="s3://mqchain/sources/job-123" defaultValue={detail.sourceJob.archiveStorageUri ?? ""} />
-              </div>
-              <div className="grid gap-2">
-                <Label>Reason</Label>
-                <Textarea name="reason" rows={2} placeholder="Raw source reviewed and archived" />
-              </div>
-              <div className="flex items-end">
-                <Button type="submit" variant="outline" disabled={archived}>Mark archived</Button>
-              </div>
-            </form>
+            <ArchiveSourceJobForm
+              archiveStorageUri={detail.sourceJob.archiveStorageUri}
+              disabled={archived}
+              sourceJobId={detail.sourceJob.id}
+            />
           </CardContent>
         </Card>
         <section className="grid gap-4 xl:grid-cols-3">

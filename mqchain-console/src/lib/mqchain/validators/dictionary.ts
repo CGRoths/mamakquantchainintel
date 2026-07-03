@@ -56,3 +56,25 @@ export const keyPrefixSchema = z.object({
   evmChainId: z.coerce.number().int().positive().optional().or(z.literal("")),
   description: z.string().trim().optional(),
 });
+
+export const entityUpdateSchema = entitySchema.extend({
+  id: z.coerce.number().int().positive(),
+  isActive: z.boolean().default(false),
+});
+
+export const protocolUpdateSchema = protocolSchema.extend({
+  id: z.coerce.number().int().positive(),
+  isActive: z.boolean().default(false),
+});
+
+export const categoryUpdateSchema = categorySchema.extend({
+  isActive: z.boolean().default(false),
+});
+
+export const roleUpdateSchema = roleSchema.extend({
+  isActive: z.boolean().default(false),
+});
+
+export const keyPrefixUpdateSchema = keyPrefixSchema.extend({
+  isActive: z.boolean().default(false),
+});

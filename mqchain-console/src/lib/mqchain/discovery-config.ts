@@ -113,6 +113,91 @@ export function discoveryTemplateSummary(discoveryType: string) {
   };
 }
 
+export type DiscoveryRunnerTask = {
+  task_version: "mqchain-discovery-task-v1";
+  scanner_type: string;
+  root_type: string;
+  chain_code: string | null;
+  seed_address: string | null;
+  config: Record<string, unknown>;
+  evidence_type: string;
+  required_config: string[];
+  expected_output_fields: string[];
+  result_schema: {
+    required: string[];
+    optional: string[];
+  };
+  safety_policy: {
+    writes: "candidates_and_evidence_only";
+    approval_allowed: false;
+    registry_commit_allowed: false;
+    kv_write_allowed: false;
+  };
+};
+
+export function discoveryResultSchemaSummary(discoveryType: string) {
+  const template = discoveryTemplateSummary(discoveryType);
+
+  return {
+    required: ["address"],
+    optional: [
+      "chain",
+      "entity",
+      "protocol",
+      "role",
+      "evidence_type",
+      "source_url",
+      "confidence",
+      "quality_tier",
+      "first_seen_block",
+      "last_seen_block",
+      "summary",
+      "payload",
+      ...template.outputFields.map((field) => `payload.${field.toLowerCase().replaceAll(" ", "_")}`),
+    ],
+  };
+}
+
+export function buildDiscoveryRunnerTask(input: {
+  discoveryType: string;
+  chainCode?: string | null;
+  seedAddress?: string | null;
+  config: Record<string, unknown>;
+}): DiscoveryRunnerTask {
+  const template = discoveryTemplateSummary(input.discoveryType);
+
+  return {
+    task_version: "mqchain-discovery-task-v1",
+    scanner_type: template.discoveryType,
+    root_type: template.rootType,
+    chain_code: input.chainCode || null,
+    seed_address: input.seedAddress || null,
+    config: input.config,
+    evidence_type: template.evidenceType,
+    required_config: [...template.requiredConfig],
+    expected_output_fields: [...template.outputFields],
+    result_schema: discoveryResultSchemaSummary(input.discoveryType),
+    safety_policy: {
+      writes: "candidates_and_evidence_only",
+      approval_allowed: false,
+      registry_commit_allowed: false,
+      kv_write_allowed: false,
+    },
+  };
+}
+
+export function attachDiscoveryRunnerTask(input: {
+  discoveryType: string;
+  chainCode?: string | null;
+  seedAddress?: string | null;
+  config: Record<string, unknown>;
+}) {
+  return {
+    ...input.config,
+    runner_task: buildDiscoveryRunnerTask(input),
+  };
+}
+
 export function discoveryTemplateCount() {
   return DISCOVERY_SCANNER_TEMPLATES.length;
 }

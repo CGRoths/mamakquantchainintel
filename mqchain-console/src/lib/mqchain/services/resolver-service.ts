@@ -16,6 +16,7 @@ import { normalizeAddress } from "../address/normalize";
 import { FLAG_BITS, hasFlag, isMetricEligible } from "../flags";
 import { matchesMetricGroupRule } from "../metric-rules";
 import { summarizeResolverEvidence } from "../resolver-detail";
+import { getMqchainResolverBackend, type MqchainResolverBackend } from "../runtime-env";
 import type { MetricGroupRule } from "../types";
 
 export type ResolverOutput = {
@@ -38,6 +39,12 @@ export type ResolverLabel = {
   evidenceSummary: ReturnType<typeof summarizeResolverEvidence>;
   status: "active" | "historical" | "inactive";
   metricEligible: boolean;
+};
+
+export type AddressResolver = {
+  resolveCurrent(chainCode: string, address: string): Promise<ResolverOutput>;
+  resolveAt(chainCode: string, address: string, blockNumber?: number | null): Promise<ResolverOutput>;
+  checkMetricGroup(chainCode: string, address: string, metricGroupCode: string, blockNumber?: number | null): Promise<ResolverOutput>;
 };
 
 async function findRegistryLabel(chainCode: string, normalizedAddress: string, blockNumber?: number | null): Promise<ResolverLabel | null> {
@@ -106,82 +113,94 @@ async function findRegistryLabel(chainCode: string, normalizedAddress: string, b
   };
 }
 
-export async function resolveCurrent(chainCode: string, address: string): Promise<ResolverOutput> {
-  const normalized = normalizeAddress(address, chainCode);
-  if (!normalized.isValid || !normalized.chainCode) {
-    return { normalized, label: null, currentLabel: null, metricGroupMatch: null };
+class PostgresAddressResolverImpl implements AddressResolver {
+  async resolveCurrent(chainCode: string, address: string): Promise<ResolverOutput> {
+    const normalized = normalizeAddress(address, chainCode);
+    if (!normalized.isValid || !normalized.chainCode) {
+      return { normalized, label: null, currentLabel: null, metricGroupMatch: null };
+    }
+
+    const label = await findRegistryLabel(normalized.chainCode, normalized.normalizedAddress);
+    return { normalized, label, currentLabel: label, metricGroupMatch: null };
   }
 
-  const label = await findRegistryLabel(normalized.chainCode, normalized.normalizedAddress);
-  return { normalized, label, currentLabel: label, metricGroupMatch: null };
+  async resolveAt(chainCode: string, address: string, blockNumber?: number | null): Promise<ResolverOutput> {
+    const normalized = normalizeAddress(address, chainCode);
+    if (!normalized.isValid || !normalized.chainCode) {
+      return { normalized, label: null, currentLabel: null, metricGroupMatch: null, blockNumber };
+    }
+
+    const [label, currentLabel] = await Promise.all([
+      findRegistryLabel(normalized.chainCode, normalized.normalizedAddress, blockNumber),
+      blockNumber === undefined || blockNumber === null
+        ? Promise.resolve(null)
+        : findRegistryLabel(normalized.chainCode, normalized.normalizedAddress),
+    ]);
+
+    return {
+      normalized,
+      label,
+      currentLabel: currentLabel ?? label,
+      metricGroupMatch: null,
+      blockNumber,
+    };
+  }
+
+  async checkMetricGroup(chainCode: string, address: string, metricGroupCode: string, blockNumber?: number | null): Promise<ResolverOutput> {
+    const resolved = await this.resolveAt(chainCode, address, blockNumber);
+    if (!resolved.label) {
+      return { ...resolved, metricGroupMatch: false, metricGroupCode };
+    }
+
+    const db = getDb();
+    const [group] = await db
+      .select()
+      .from(mqMetricGroups)
+      .where(and(eq(mqMetricGroups.metricGroupCode, metricGroupCode), eq(mqMetricGroups.isActive, true)))
+      .limit(1);
+    if (!group) {
+      return { ...resolved, metricGroupMatch: false, metricGroupCode };
+    }
+
+    const rules = await db.select().from(mqMetricGroupRules).where(eq(mqMetricGroupRules.metricGroupId, group.id));
+    const row = {
+      roleCode: resolved.label.role?.roleCode,
+      categoryCode: resolved.label.category?.categoryCode,
+      entityCode: resolved.label.entity?.entityCode,
+      confidenceScore: resolved.label.registry.confidenceScore,
+      flags: resolved.label.registry.flags,
+    };
+
+    const metricGroupMatch = rules.some((rule) =>
+      matchesMetricGroupRule(row, {
+        ...(rule.ruleJson as MetricGroupRule),
+        minConfidence: (rule.ruleJson as MetricGroupRule).minConfidence ?? group.minConfidence,
+        requireMetricEligible: (rule.ruleJson as MetricGroupRule).requireMetricEligible ?? group.requireMetricEligible,
+      }),
+    );
+
+    return { ...resolved, metricGroupMatch, metricGroupCode };
+  }
+}
+
+export const PostgresAddressResolver: AddressResolver = new PostgresAddressResolverImpl();
+
+export function getAddressResolver(backend: MqchainResolverBackend = getMqchainResolverBackend()): AddressResolver {
+  if (backend === "postgres") {
+    return PostgresAddressResolver;
+  }
+
+  throw new Error("RocksDB resolver backend is external to Vercel and is not wired into MQCHAIN Console yet.");
+}
+
+export async function resolveCurrent(chainCode: string, address: string): Promise<ResolverOutput> {
+  return getAddressResolver().resolveCurrent(chainCode, address);
 }
 
 export async function resolveAt(chainCode: string, address: string, blockNumber?: number | null): Promise<ResolverOutput> {
-  const normalized = normalizeAddress(address, chainCode);
-  if (!normalized.isValid || !normalized.chainCode) {
-    return { normalized, label: null, currentLabel: null, metricGroupMatch: null, blockNumber };
-  }
-
-  const [label, currentLabel] = await Promise.all([
-    findRegistryLabel(normalized.chainCode, normalized.normalizedAddress, blockNumber),
-    blockNumber === undefined || blockNumber === null
-      ? Promise.resolve(null)
-      : findRegistryLabel(normalized.chainCode, normalized.normalizedAddress),
-  ]);
-
-  return {
-    normalized,
-    label,
-    currentLabel: currentLabel ?? label,
-    metricGroupMatch: null,
-    blockNumber,
-  };
+  return getAddressResolver().resolveAt(chainCode, address, blockNumber);
 }
 
-export async function checkMetricGroup(chainCode: string, address: string, metricGroupCode: string, blockNumber?: number | null) {
-  const resolved = await resolveAt(chainCode, address, blockNumber);
-  if (!resolved.label) {
-    return { ...resolved, metricGroupMatch: false, metricGroupCode };
-  }
-
-  const db = getDb();
-  const [group] = await db
-    .select()
-    .from(mqMetricGroups)
-    .where(and(eq(mqMetricGroups.metricGroupCode, metricGroupCode), eq(mqMetricGroups.isActive, true)))
-    .limit(1);
-  if (!group) {
-    return { ...resolved, metricGroupMatch: false, metricGroupCode };
-  }
-
-  const rules = await db.select().from(mqMetricGroupRules).where(eq(mqMetricGroupRules.metricGroupId, group.id));
-  const row = {
-    roleCode: resolved.label.role?.roleCode,
-    categoryCode: resolved.label.category?.categoryCode,
-    entityCode: resolved.label.entity?.entityCode,
-    confidenceScore: resolved.label.registry.confidenceScore,
-    flags: resolved.label.registry.flags,
-  };
-
-  const metricGroupMatch = rules.some((rule) =>
-    matchesMetricGroupRule(row, {
-      ...(rule.ruleJson as MetricGroupRule),
-      minConfidence: (rule.ruleJson as MetricGroupRule).minConfidence ?? group.minConfidence,
-      requireMetricEligible: (rule.ruleJson as MetricGroupRule).requireMetricEligible ?? group.requireMetricEligible,
-    }),
-  );
-
-  return { ...resolved, metricGroupMatch, metricGroupCode };
+export async function checkMetricGroup(chainCode: string, address: string, metricGroupCode: string, blockNumber?: number | null): Promise<ResolverOutput> {
+  return getAddressResolver().checkMetricGroup(chainCode, address, metricGroupCode, blockNumber);
 }
-
-export type AddressResolver = {
-  resolveCurrent: typeof resolveCurrent;
-  resolveAt: typeof resolveAt;
-  checkMetricGroup: typeof checkMetricGroup;
-};
-
-export const PostgresAddressResolver: AddressResolver = {
-  resolveCurrent,
-  resolveAt,
-  checkMetricGroup,
-};

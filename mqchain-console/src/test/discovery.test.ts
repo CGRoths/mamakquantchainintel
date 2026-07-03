@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { parseDiscoveryConfigJson, discoveryTemplateCount } from "@/lib/mqchain/discovery-config";
+import {
+  buildDiscoveryRunnerTask,
+  discoveryResultSchemaSummary,
+  discoveryTemplateCount,
+  parseDiscoveryConfigJson,
+} from "@/lib/mqchain/discovery-config";
 import { buildDiscoveryJobDetailRollup, parseDiscoveryCompletionLog } from "@/lib/mqchain/discovery-detail";
 import { defaultEvidenceTypeForDiscovery, parseDiscoveryResultsJson } from "@/lib/mqchain/discovery";
 import { formatDiscoveryConfigTemplate } from "@/lib/mqchain/discovery-templates";
@@ -53,6 +58,36 @@ describe("discovery result helpers", () => {
     expect(parsed.from_block).toBe(0);
     expect(defaultEvidenceTypeForDiscovery("factory_event_scanner")).toBe("factory_event");
     expect(discoveryTemplateCount()).toBeGreaterThanOrEqual(6);
+  });
+
+  it("builds an external runner task with discovery safety boundaries", () => {
+    const config = parseDiscoveryConfigJson("registry_address_provider_scanner", formatDiscoveryConfigTemplate("registry_address_provider_scanner"));
+    const task = buildDiscoveryRunnerTask({
+      discoveryType: "registry_address_provider_scanner",
+      chainCode: "ethereum",
+      seedAddress: "0x0000000000000000000000000000000000000001",
+      config,
+    });
+
+    expect(task.task_version).toBe("mqchain-discovery-task-v1");
+    expect(task.root_type).toBe("Registry");
+    expect(task.evidence_type).toBe("registry_call");
+    expect(task.result_schema.required).toEqual(["address"]);
+    expect(task.result_schema.optional).toContain("payload.function_name");
+    expect(task.safety_policy).toEqual({
+      writes: "candidates_and_evidence_only",
+      approval_allowed: false,
+      registry_commit_allowed: false,
+      kv_write_allowed: false,
+    });
+  });
+
+  it("summarizes result contracts for worker outputs", () => {
+    const schema = discoveryResultSchemaSummary("proxy_resolution_scanner");
+
+    expect(schema.required).toEqual(["address"]);
+    expect(schema.optional).toContain("payload.implementation_address");
+    expect(schema.optional).toContain("payload.proxy_admin");
   });
 
   it("rejects invalid scanner config shapes", () => {

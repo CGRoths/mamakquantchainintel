@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DistributionRow } from "@/lib/mqchain/batch-detail";
-import { discoveryTemplateSummary } from "@/lib/mqchain/discovery-config";
+import { buildDiscoveryRunnerTask, discoveryResultSchemaSummary, discoveryTemplateSummary } from "@/lib/mqchain/discovery-config";
 import { getDiscoveryJobDetail } from "@/lib/mqchain/services/discovery-service";
 
 function DistributionTable({ rows, emptyLabel }: { rows: DistributionRow[]; emptyLabel: string }) {
@@ -45,6 +45,19 @@ export default async function DiscoveryJobDetailPage({ params }: { params: Promi
 
     const { job } = detail;
     const template = discoveryTemplateSummary(job.discoveryType);
+    const jobConfig = job.config ?? {};
+    const runnerTask =
+      typeof jobConfig.runner_task === "object" && jobConfig.runner_task !== null
+        ? jobConfig.runner_task
+        : buildDiscoveryRunnerTask({
+            discoveryType: job.discoveryType,
+            chainCode: job.chainCode,
+            seedAddress: job.seedAddress,
+            config: jobConfig,
+          });
+    const operatorConfig = { ...jobConfig };
+    delete operatorConfig.runner_task;
+    const resultSchema = discoveryResultSchemaSummary(job.discoveryType);
     const pendingReviewHref = `/mqchain/candidates?discoveryType=${encodeURIComponent(job.discoveryType)}&status=pending_review&sort=evidence_count`;
 
     return (
@@ -83,6 +96,33 @@ export default async function DiscoveryJobDetailPage({ params }: { params: Promi
             <div><span className="text-muted-foreground">Evidence</span><div className="font-mono text-xs">{template.evidenceType}</div></div>
             <div><span className="text-muted-foreground">Required config</span><div className="font-mono text-xs">{template.requiredConfig.join(", ") || "-"}</div></div>
             <div><span className="text-muted-foreground">Output fields</span><div className="font-mono text-xs">{template.outputFields.join(", ") || "-"}</div></div>
+          </CardContent>
+        </Card>
+        <section className="grid gap-4 xl:grid-cols-2">
+          <Card className="rounded-lg">
+            <CardHeader><CardTitle>Operator config</CardTitle></CardHeader>
+            <CardContent>
+              <pre className="max-h-96 overflow-auto rounded-md bg-muted p-4 text-xs">{JSON.stringify(operatorConfig, null, 2)}</pre>
+            </CardContent>
+          </Card>
+          <Card className="rounded-lg">
+            <CardHeader><CardTitle>External runner task</CardTitle></CardHeader>
+            <CardContent>
+              <pre className="max-h-96 overflow-auto rounded-md bg-muted p-4 text-xs">{JSON.stringify(runnerTask, null, 2)}</pre>
+            </CardContent>
+          </Card>
+        </section>
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Result contract</CardTitle></CardHeader>
+          <CardContent className="grid gap-3 text-sm md:grid-cols-2">
+            <div>
+              <div className="text-muted-foreground">Required</div>
+              <div className="font-mono text-xs">{resultSchema.required.join(", ")}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Optional</div>
+              <div className="font-mono text-xs">{resultSchema.optional.join(", ")}</div>
+            </div>
           </CardContent>
         </Card>
         <section className="grid gap-4 xl:grid-cols-3">

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import {
@@ -22,6 +22,7 @@ import { buildBatchCandidateRollups, buildBatchEvidenceRollups } from "../batch-
 import { assertBatchCandidatesStillApproved, assertSelectedCandidatesApproved } from "../batch-readiness";
 import { markHistoricalOnlyFlags } from "../flags";
 import { buildPendingBatchKvManifest } from "../kv-manifest";
+import { parseBatchListFilters, type BatchListFilters } from "../list-filters";
 import {
   describeRegistryCommitTarget,
   findRegistryCommitConflict,
@@ -36,8 +37,99 @@ function getApprovalDraft(candidate: typeof mqAddressCandidates.$inferSelect) {
   return metadata?.approvalDraft ?? {};
 }
 
-export async function listBatches(limit = 100) {
-  return getDb().select().from(mqLabelBatches).orderBy(desc(mqLabelBatches.createdAt)).limit(limit);
+function batchOrderBy(sort: BatchListFilters["sort"]) {
+  if (sort === "updated_at") return desc(mqLabelBatches.updatedAt);
+  if (sort === "status") return asc(mqLabelBatches.status);
+  if (sort === "accepted_count") return desc(mqLabelBatches.acceptedCount);
+  if (sort === "committed_at") return desc(mqLabelBatches.committedAt);
+  return desc(mqLabelBatches.createdAt);
+}
+
+function addCondition(conditions: SQL[], condition: SQL | undefined) {
+  if (condition) conditions.push(condition);
+}
+
+export async function listBatches(input: unknown = {}) {
+  const filters = typeof input === "number" ? parseBatchListFilters({ pageSize: input }) : parseBatchListFilters(input);
+  const conditions: SQL[] = [];
+
+  if (filters.q) {
+    addCondition(
+      conditions,
+      or(
+        ilike(mqLabelBatches.sourceName, `%${filters.q}%`),
+        ilike(mqLabelBatches.sourceUrl, `%${filters.q}%`),
+        ilike(mqLabelBatches.batchHash, `%${filters.q}%`),
+        ilike(mqLabelBatches.evidenceHash, `%${filters.q}%`),
+        ilike(mqLabelBatches.storageUri, `%${filters.q}%`),
+        sql`${mqLabelBatches.id}::text ilike ${`%${filters.q}%`}`,
+      ),
+    );
+  }
+
+  if (filters.status) conditions.push(eq(mqLabelBatches.status, filters.status));
+  if (filters.sourceType) conditions.push(ilike(mqLabelBatches.sourceType, `%${filters.sourceType}%`));
+  if (filters.labelAction) conditions.push(ilike(mqLabelBatches.labelAction, `%${filters.labelAction}%`));
+  if (filters.entity) {
+    addCondition(
+      conditions,
+      or(
+        sql`${mqLabelBatches.entityId}::text ilike ${`%${filters.entity}%`}`,
+        ilike(mqEntities.entityCode, `%${filters.entity}%`),
+        ilike(mqEntities.entityName, `%${filters.entity}%`),
+      ),
+    );
+  }
+  if (filters.protocol) {
+    addCondition(
+      conditions,
+      or(
+        sql`${mqLabelBatches.protocolId}::text ilike ${`%${filters.protocol}%`}`,
+        ilike(mqProtocols.protocolCode, `%${filters.protocol}%`),
+        ilike(mqProtocols.protocolName, `%${filters.protocol}%`),
+      ),
+    );
+  }
+  if (filters.role) {
+    addCondition(
+      conditions,
+      or(
+        sql`${mqLabelBatches.roleId}::text ilike ${`%${filters.role}%`}`,
+        ilike(mqKvRoleDict.roleCode, `%${filters.role}%`),
+        ilike(mqKvRoleDict.roleName, `%${filters.role}%`),
+      ),
+    );
+  }
+
+  const db = getDb();
+  const where = conditions.length ? and(...conditions) : sql`true`;
+  const offset = (filters.page - 1) * filters.pageSize;
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(mqLabelBatches)
+    .leftJoin(mqEntities, eq(mqLabelBatches.entityId, mqEntities.id))
+    .leftJoin(mqProtocols, eq(mqLabelBatches.protocolId, mqProtocols.id))
+    .leftJoin(mqKvRoleDict, eq(mqLabelBatches.roleId, mqKvRoleDict.roleId))
+    .where(where);
+  const rows = await db
+    .select({ batch: mqLabelBatches, entity: mqEntities, protocol: mqProtocols, role: mqKvRoleDict })
+    .from(mqLabelBatches)
+    .leftJoin(mqEntities, eq(mqLabelBatches.entityId, mqEntities.id))
+    .leftJoin(mqProtocols, eq(mqLabelBatches.protocolId, mqProtocols.id))
+    .leftJoin(mqKvRoleDict, eq(mqLabelBatches.roleId, mqKvRoleDict.roleId))
+    .where(where)
+    .orderBy(batchOrderBy(filters.sort), desc(mqLabelBatches.id))
+    .limit(filters.pageSize)
+    .offset(offset);
+
+  return {
+    rows,
+    filters,
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+  };
 }
 
 export async function getBatchDetail(batchId: number) {

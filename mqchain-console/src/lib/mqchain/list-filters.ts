@@ -61,8 +61,75 @@ export const registryListFilterSchema = z.object({
   pageSize: pageSizeSchema,
 });
 
+export const sourceJobListFilterSchema = z.object({
+  q: optionalText(),
+  sourceType: optionalText(),
+  status: optionalText(),
+  entity: optionalText(),
+  protocol: optionalText(),
+  chain: optionalText(),
+  sort: z.enum(["created_at", "updated_at", "source_type", "status"]).default("created_at"),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
+export const auditListFilterSchema = z.object({
+  q: optionalText(),
+  source: z.enum(["all", "approval", "system"]).default("all"),
+  action: optionalText(),
+  actor: optionalText(),
+  target: optionalText(),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
+export const batchListFilterSchema = z.object({
+  q: optionalText(),
+  status: optionalText(),
+  sourceType: optionalText(),
+  entity: optionalText(),
+  protocol: optionalText(),
+  role: optionalText(),
+  labelAction: optionalText(),
+  sort: z.enum(["created_at", "updated_at", "status", "accepted_count", "committed_at"]).default("created_at"),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
+export const kvBuildListFilterSchema = z.object({
+  q: optionalText(),
+  status: optionalText(),
+  dictionaryVersion: optionalText(),
+  storage: optionalText(),
+  minRows: optionalInt(),
+  maxRows: optionalInt(),
+  sort: z.enum(["created_at", "activated_at", "row_count", "status"]).default("created_at"),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
+export const discoveryJobListFilterSchema = z.object({
+  q: optionalText(),
+  discoveryType: optionalText(),
+  status: optionalText(),
+  chain: optionalText(),
+  entity: optionalText(),
+  protocol: optionalText(),
+  seed: optionalText(),
+  minCandidates: optionalInt(),
+  minEvidence: optionalInt(),
+  sort: z.enum(["created_at", "updated_at", "status", "candidates_created", "evidence_created"]).default("created_at"),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
 export type CandidateListFilters = z.infer<typeof candidateListFilterSchema>;
 export type RegistryListFilters = z.infer<typeof registryListFilterSchema>;
+export type SourceJobListFilters = z.infer<typeof sourceJobListFilterSchema>;
+export type AuditListFilters = z.infer<typeof auditListFilterSchema>;
+export type BatchListFilters = z.infer<typeof batchListFilterSchema>;
+export type KvBuildListFilters = z.infer<typeof kvBuildListFilterSchema>;
+export type DiscoveryJobListFilters = z.infer<typeof discoveryJobListFilterSchema>;
 
 export function parseCandidateListFilters(input: unknown) {
   return candidateListFilterSchema.parse(input);
@@ -70,4 +137,24 @@ export function parseCandidateListFilters(input: unknown) {
 
 export function parseRegistryListFilters(input: unknown) {
   return registryListFilterSchema.parse(input);
+}
+
+export function parseSourceJobListFilters(input: unknown) {
+  return sourceJobListFilterSchema.parse(input);
+}
+
+export function parseAuditListFilters(input: unknown) {
+  return auditListFilterSchema.parse(input);
+}
+
+export function parseBatchListFilters(input: unknown) {
+  return batchListFilterSchema.parse(input);
+}
+
+export function parseKvBuildListFilters(input: unknown) {
+  return kvBuildListFilterSchema.parse(input);
+}
+
+export function parseDiscoveryJobListFilters(input: unknown) {
+  return discoveryJobListFilterSchema.parse(input);
 }

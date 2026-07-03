@@ -2,7 +2,12 @@ import Link from "next/link";
 
 import { DbError } from "@/components/mqchain/db-error";
 import { FlagBadges } from "@/components/mqchain/flag-badges";
-import { AddMetricGroupRuleForm, CreateMetricGroupForm, DeactivateMetricGroupForm } from "@/components/mqchain/metric-group-forms";
+import {
+  AddMetricGroupRuleForm,
+  CreateMetricGroupForm,
+  CreateMetricGroupKvManifestForm,
+  DeactivateMetricGroupForm,
+} from "@/components/mqchain/metric-group-forms";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -80,7 +85,21 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
                 <div><span className="text-muted-foreground">Rows</span><div className="font-mono text-lg">{preview.manifest.rowCount}</div></div>
                 <div><span className="text-muted-foreground">Rules</span><div className="font-mono text-lg">{preview.manifest.ruleCount}</div></div>
                 <div><span className="text-muted-foreground">Chain scope</span><div className="font-mono text-lg">{preview.manifest.chainCode ?? "all"}</div></div>
-                <div><span className="text-muted-foreground">Artifact</span><div className="font-mono text-xs">{preview.manifest.artifactStatus}</div></div>
+                <div><span className="text-muted-foreground">Compile status</span><div className="font-mono text-xs">{preview.kvManifest.artifactStatus}</div></div>
+              </div>
+              <div className="mb-4 rounded-md border bg-muted/30 p-3">
+                <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
+                  <div>
+                    <div className="text-sm font-medium">External KV compile handoff</div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Register this member universe as a pending KV/RocksDB compile task. The worker output is still external to Vercel.
+                    </p>
+                  </div>
+                  <CreateMetricGroupKvManifestForm
+                    rowCount={preview.kvManifest.rowCount}
+                    manifestJson={JSON.stringify(preview.kvManifest)}
+                  />
+                </div>
               </div>
               {preview.focusedRegistryId ? (
                 <div className="mb-4 rounded-md border bg-muted/30 p-3 text-sm">
@@ -121,8 +140,9 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
                 </TableBody>
               </Table>
               <details className="mt-4">
-                <summary className="cursor-pointer text-sm text-primary">Compile preview manifest</summary>
+                <summary className="cursor-pointer text-sm text-primary">Preview and KV handoff manifests</summary>
                 <pre className="mt-2 max-h-96 overflow-auto rounded-md bg-muted p-4 text-xs">{JSON.stringify(preview.manifest, null, 2)}</pre>
+                <pre className="mt-2 max-h-96 overflow-auto rounded-md bg-muted p-4 text-xs">{JSON.stringify(preview.kvManifest, null, 2)}</pre>
               </details>
             </CardContent>
           </Card>

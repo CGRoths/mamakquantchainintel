@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { FLAG_BITS, setFlag } from "@/lib/mqchain/flags";
-import { buildMetricGroupCompilePreviewManifest, filterMetricGroupPreviewMembers } from "@/lib/mqchain/metric-group-preview";
+import {
+  buildMetricGroupCompilePreviewManifest,
+  buildPendingMetricGroupKvManifest,
+  filterMetricGroupPreviewMembers,
+} from "@/lib/mqchain/metric-group-preview";
 import { matchesMetricGroupRule, matchingMetricGroupsForRow } from "@/lib/mqchain/metric-rules";
 import { buildMetricGroupRule, createMetricGroupRuleSchema, createMetricGroupSchema, parseMetricGroupRuleList } from "@/lib/mqchain/validators/metric-group";
 
@@ -202,6 +206,40 @@ describe("metric group rules", () => {
       ruleCount: 1,
     });
     expect(manifest.distributions.roles).toEqual([{ label: "cex_cold_wallet", count: 1 }]);
+  });
+
+  it("builds pending metric group KV compile handoffs from preview members", () => {
+    const flags = setFlag(0, FLAG_BITS.metricEligible);
+    const manifest = buildPendingMetricGroupKvManifest({
+      group: {
+        id: 7,
+        metricGroupCode: "btc_cex_reserve_boundary",
+        metricGroupName: "BTC CEX Reserve Boundary",
+        chainCode: "btc",
+        minConfidence: 80,
+        requireMetricEligible: true,
+      },
+      rules: [{ includeRoles: ["cex_cold_wallet"] }],
+      members: [
+        {
+          registry: { id: 11, chainCode: "btc", normalizedAddress: "bc1q1", confidenceScore: 90, qualityTier: 3, flags, isActive: true },
+          entity: { entityCode: "coinbase", entityName: "Coinbase" },
+          role: { roleCode: "cex_cold_wallet" },
+          category: { categoryCode: "cex_hot_cold" },
+        },
+      ],
+    });
+
+    expect(manifest).toMatchObject({
+      reason: "metric_group_compile",
+      artifactType: "metric_group_kv",
+      artifactStatus: "pending_external_compile",
+      source: "metric_group_preview",
+      metricGroupCode: "btc_cex_reserve_boundary",
+      rowCount: 1,
+      registryIds: [11],
+      ruleCount: 1,
+    });
   });
 
   it("records when a focused registry row is outside the preview", () => {

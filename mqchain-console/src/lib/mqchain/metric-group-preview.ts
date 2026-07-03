@@ -104,3 +104,21 @@ export function buildMetricGroupCompilePreviewManifest(input: {
     note: "Preview uses active registry rows only and enforces the metric group's chain scope before rule matching.",
   };
 }
+
+export function buildPendingMetricGroupKvManifest(input: {
+  group: MetricGroupPreviewGroup;
+  rules: MetricGroupRule[];
+  members: MetricGroupPreviewRow[];
+  focusedRegistryId?: number | null;
+}) {
+  const preview = buildMetricGroupCompilePreviewManifest(input);
+
+  return {
+    ...preview,
+    reason: "metric_group_compile",
+    artifactType: "metric_group_kv",
+    artifactStatus: "pending_external_compile",
+    source: "metric_group_preview",
+    note: "External worker should compile this metric-group member universe into a KV/RocksDB artifact; MQCHAIN Console only tracks the manifest.",
+  };
+}

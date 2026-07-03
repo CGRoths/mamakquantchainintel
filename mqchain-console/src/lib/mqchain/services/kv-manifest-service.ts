@@ -1,14 +1,67 @@
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import { mqAuditLog, mqKvBuilds } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildKvManifestActivationPreflight } from "../kv-manifest";
+import { parseKvBuildListFilters, type KvBuildListFilters } from "../list-filters";
 import { createKvBuildManifestSchema, kvBuildIdSchema } from "../validators/kv-manifest";
 import { hashJson } from "./service-utils";
 
-export async function listKvBuilds(limit = 100) {
-  return getDb().select().from(mqKvBuilds).orderBy(desc(mqKvBuilds.createdAt)).limit(limit);
+function kvBuildOrderBy(sort: KvBuildListFilters["sort"]) {
+  if (sort === "activated_at") return desc(mqKvBuilds.activatedAt);
+  if (sort === "row_count") return desc(mqKvBuilds.rowCount);
+  if (sort === "status") return asc(mqKvBuilds.status);
+  return desc(mqKvBuilds.createdAt);
+}
+
+function addCondition(conditions: SQL[], condition: SQL | undefined) {
+  if (condition) conditions.push(condition);
+}
+
+export async function listKvBuilds(input: unknown = {}) {
+  const filters = typeof input === "number" ? parseKvBuildListFilters({ pageSize: input }) : parseKvBuildListFilters(input);
+  const conditions: SQL[] = [];
+
+  if (filters.q) {
+    addCondition(
+      conditions,
+      or(
+        ilike(mqKvBuilds.buildHash, `%${filters.q}%`),
+        ilike(mqKvBuilds.dictionaryVersion, `%${filters.q}%`),
+        ilike(mqKvBuilds.storageUri, `%${filters.q}%`),
+        sql`${mqKvBuilds.manifest}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqKvBuilds.id}::text ilike ${`%${filters.q}%`}`,
+      ),
+    );
+  }
+
+  if (filters.status) conditions.push(eq(mqKvBuilds.status, filters.status));
+  if (filters.dictionaryVersion) conditions.push(ilike(mqKvBuilds.dictionaryVersion, `%${filters.dictionaryVersion}%`));
+  if (filters.storage) conditions.push(ilike(mqKvBuilds.storageUri, `%${filters.storage}%`));
+  if (typeof filters.minRows === "number") conditions.push(gte(mqKvBuilds.rowCount, filters.minRows));
+  if (typeof filters.maxRows === "number") conditions.push(lte(mqKvBuilds.rowCount, filters.maxRows));
+
+  const db = getDb();
+  const where = conditions.length ? and(...conditions) : sql`true`;
+  const offset = (filters.page - 1) * filters.pageSize;
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(mqKvBuilds).where(where);
+  const rows = await db
+    .select()
+    .from(mqKvBuilds)
+    .where(where)
+    .orderBy(kvBuildOrderBy(filters.sort), desc(mqKvBuilds.id))
+    .limit(filters.pageSize)
+    .offset(offset);
+
+  return {
+    rows,
+    filters,
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+  };
 }
 
 export async function getKvBuild(id: number) {
@@ -19,11 +72,15 @@ export async function getKvBuild(id: number) {
 export async function createKvBuildManifest(input: unknown) {
   const actor = await assertPermission("batch:commit");
   const parsed = createKvBuildManifestSchema.parse(input);
+  const manifestArtifactStatus =
+    typeof parsed.manifestJson.artifactStatus === "string" && parsed.manifestJson.artifactStatus.trim()
+      ? parsed.manifestJson.artifactStatus
+      : parsed.status;
   const baseManifest = {
     ...parsed.manifestJson,
     dictionaryVersion: parsed.dictionaryVersion ?? null,
     rowCount: parsed.rowCount,
-    artifactStatus: parsed.status,
+    artifactStatus: manifestArtifactStatus,
     storageUri: parsed.storageUri ?? null,
   };
   const buildHash = parsed.buildHash || hashJson({

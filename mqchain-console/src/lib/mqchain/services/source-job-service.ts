@@ -1,13 +1,79 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import { mqAddressCandidates, mqAddressEvidence, mqAuditLog, mqSourceDocuments, mqSourceJobs } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
+import { parseSourceJobListFilters, type SourceJobListFilters } from "../list-filters";
 import { buildSourceJobArchiveMetadata, buildSourceJobCandidateRollup, buildSourceJobEvidenceRollup } from "../source-job";
 import { sourceJobArchiveSchema } from "../validators/source-job";
 
-export async function listSourceJobs(limit = 50) {
-  return getDb().select().from(mqSourceJobs).orderBy(desc(mqSourceJobs.createdAt)).limit(limit);
+function sourceJobOrderBy(sort: SourceJobListFilters["sort"]) {
+  if (sort === "updated_at") return desc(mqSourceJobs.updatedAt);
+  if (sort === "source_type") return asc(mqSourceJobs.sourceType);
+  if (sort === "status") return asc(mqSourceJobs.status);
+  return desc(mqSourceJobs.createdAt);
+}
+
+function addCondition(conditions: SQL[], condition: SQL | undefined) {
+  if (condition) conditions.push(condition);
+}
+
+export async function listSourceJobs(input?: unknown) {
+  const filters = parseSourceJobListFilters(input ?? {});
+  const conditions: SQL[] = [];
+
+  if (filters.q) {
+    addCondition(
+      conditions,
+      or(
+        ilike(mqSourceJobs.sourceName, `%${filters.q}%`),
+        ilike(mqSourceJobs.sourceUrl, `%${filters.q}%`),
+        ilike(mqSourceJobs.localFileName, `%${filters.q}%`),
+        ilike(mqSourceJobs.archiveStorageUri, `%${filters.q}%`),
+      ),
+    );
+  }
+
+  if (filters.sourceType) {
+    conditions.push(eq(mqSourceJobs.sourceType, filters.sourceType));
+  }
+
+  if (filters.status) {
+    conditions.push(eq(mqSourceJobs.status, filters.status));
+  }
+
+  if (filters.entity) {
+    conditions.push(ilike(mqSourceJobs.entityHint, `%${filters.entity}%`));
+  }
+
+  if (filters.protocol) {
+    conditions.push(ilike(mqSourceJobs.protocolHint, `%${filters.protocol}%`));
+  }
+
+  if (filters.chain) {
+    conditions.push(sql`${filters.chain} = any(${mqSourceJobs.chainScope})`);
+  }
+
+  const db = getDb();
+  const where = conditions.length ? and(...conditions) : sql`true`;
+  const offset = (filters.page - 1) * filters.pageSize;
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(mqSourceJobs).where(where);
+  const rows = await db
+    .select()
+    .from(mqSourceJobs)
+    .where(where)
+    .orderBy(sourceJobOrderBy(filters.sort), desc(mqSourceJobs.id))
+    .limit(filters.pageSize)
+    .offset(offset);
+
+  return {
+    rows,
+    filters,
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+  };
 }
 
 export async function getSourceJob(id: number) {

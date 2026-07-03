@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "../src/db/client";
 import { mqAddressRegistry, mqCategoryDict, mqEntities, mqKvBuilds, mqKvRoleDict, mqProtocols } from "../src/db/schema";
 import { buildKvKey, type MqKvAddressValue } from "../src/lib/mqchain/kv/schema";
+import { getMqchainKvArtifactRoot } from "../src/lib/mqchain/runtime-env";
 import { recordDictionaryVersion } from "../src/lib/mqchain/services/dictionary-service";
 
 function argValue(name: string, fallback: string) {
@@ -22,7 +23,7 @@ function sha256(value: string) {
 }
 
 async function main() {
-  const outDir = path.resolve(argValue("--out", "build/mqchain-kv"));
+  const outDir = path.resolve(argValue("--out", getMqchainKvArtifactRoot()));
   const db = getDb();
   const rows = await db
     .select({

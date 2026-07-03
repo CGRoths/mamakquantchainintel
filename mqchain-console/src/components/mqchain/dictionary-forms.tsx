@@ -16,6 +16,11 @@ import {
   deactivateKeyPrefixResultAction,
   deactivateProtocolResultAction,
   deactivateRoleResultAction,
+  updateCategoryResultAction,
+  updateEntityResultAction,
+  updateKeyPrefixResultAction,
+  updateProtocolResultAction,
+  updateRoleResultAction,
   type DictionaryMutationState,
 } from "@/app/mqchain/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -34,6 +39,66 @@ type CategoryOption = {
 type EntityOption = {
   id: number;
   entityName: string;
+};
+
+type EntityFormRow = {
+  id: number;
+  entityCode: string;
+  entityName: string;
+  entityType: string | null;
+  categoryId: number | null;
+  websiteUrl: string | null;
+  description: string | null;
+  isActive: boolean;
+};
+
+type ProtocolFormRow = {
+  id: number;
+  entityId: number | null;
+  protocolCode: string;
+  protocolName: string;
+  protocolType: string | null;
+  chainScope: string[] | null;
+  description: string | null;
+  isActive: boolean;
+};
+
+type CategoryFormRow = {
+  categoryId: number;
+  categoryCode: string;
+  categoryName: string;
+  parentCategoryId: number | null;
+  domainCode: string | null;
+  metricDomain: string | null;
+  description: string | null;
+  isActive: boolean;
+};
+
+type RoleFormRow = {
+  roleId: number;
+  roleCode: string;
+  roleName: string;
+  categoryId: number | null;
+  roleGroup: string | null;
+  metricUsageDefault: string | null;
+  boundaryClass: string | null;
+  defaultQualityTier: number;
+  defaultFlags: number;
+  description: string | null;
+  isActive: boolean;
+};
+
+type KeyPrefixFormRow = {
+  prefixCode: number;
+  chainCode: string;
+  chainName: string | null;
+  chainFamily: string;
+  addressFamily: string;
+  codec: string;
+  payloadLen: number | null;
+  evmChainId: number | null;
+  description: string | null;
+  isActive: boolean;
 };
 
 type DictionaryFormShellProps = {
@@ -56,6 +121,15 @@ function FieldError({ error }: { error?: string }) {
   }
 
   return <p className="text-xs text-destructive">{error}</p>;
+}
+
+function ActiveCheckbox({ defaultChecked }: { defaultChecked: boolean }) {
+  return (
+    <label className="flex h-10 items-center gap-2 rounded-md border px-3 text-sm">
+      <input name="isActive" type="checkbox" defaultChecked={defaultChecked} className="h-4 w-4 accent-primary" />
+      Active
+    </label>
+  );
 }
 
 function DictionaryFormShell({
@@ -412,6 +486,334 @@ export function CreateKeyPrefixForm() {
           <div className="grid gap-2 md:col-span-4">
             <Label>Description</Label>
             <Textarea name="description" rows={2} />
+            <FieldError error={fieldError("description")} />
+          </div>
+        </>
+      )}
+    </DictionaryFormShell>
+  );
+}
+
+export function UpdateEntityForm({ entity, categories }: { entity: EntityFormRow; categories: CategoryOption[] }) {
+  return (
+    <DictionaryFormShell
+      action={updateEntityResultAction}
+      failureTitle="Entity update failed"
+      pendingLabel="Saving..."
+      submitLabel="Save entity"
+      successTitle="Entity updated"
+      className="grid gap-3 md:grid-cols-3"
+    >
+      {({ fieldError }) => (
+        <>
+          <input type="hidden" name="id" value={entity.id} />
+          <div className="grid gap-2">
+            <Label>Code</Label>
+            <Input name="entityCode" defaultValue={entity.entityCode} required />
+            <FieldError error={fieldError("entityCode")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Name</Label>
+            <Input name="entityName" defaultValue={entity.entityName} required />
+            <FieldError error={fieldError("entityName")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Type</Label>
+            <Input name="entityType" defaultValue={entity.entityType ?? ""} />
+            <FieldError error={fieldError("entityType")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Category</Label>
+            <select name="categoryId" defaultValue={entity.categoryId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm">
+              <option value="">None</option>
+              {categories.map((category) => (
+                <option key={category.categoryId} value={category.categoryId}>
+                  {category.categoryCode}
+                </option>
+              ))}
+            </select>
+            <FieldError error={fieldError("categoryId")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Status</Label>
+            <ActiveCheckbox defaultChecked={entity.isActive} />
+            <FieldError error={fieldError("isActive")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Website</Label>
+            <Input name="websiteUrl" defaultValue={entity.websiteUrl ?? ""} />
+            <FieldError error={fieldError("websiteUrl")} />
+          </div>
+          <div className="grid gap-2 md:col-span-3">
+            <Label>Description</Label>
+            <Textarea name="description" rows={2} defaultValue={entity.description ?? ""} />
+            <FieldError error={fieldError("description")} />
+          </div>
+        </>
+      )}
+    </DictionaryFormShell>
+  );
+}
+
+export function UpdateProtocolForm({ protocol, entities }: { protocol: ProtocolFormRow; entities: EntityOption[] }) {
+  return (
+    <DictionaryFormShell
+      action={updateProtocolResultAction}
+      failureTitle="Protocol update failed"
+      pendingLabel="Saving..."
+      submitLabel="Save protocol"
+      successTitle="Protocol updated"
+      className="grid gap-3 md:grid-cols-3"
+      disabled={!entities.length}
+    >
+      {({ fieldError }) => (
+        <>
+          <input type="hidden" name="id" value={protocol.id} />
+          <div className="grid gap-2">
+            <Label>Entity</Label>
+            <select name="entityId" defaultValue={protocol.entityId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm" required>
+              {entities.map((entity) => (
+                <option key={entity.id} value={entity.id}>
+                  {entity.entityName}
+                </option>
+              ))}
+            </select>
+            <FieldError error={fieldError("entityId")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Code</Label>
+            <Input name="protocolCode" defaultValue={protocol.protocolCode} required />
+            <FieldError error={fieldError("protocolCode")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Name</Label>
+            <Input name="protocolName" defaultValue={protocol.protocolName} required />
+            <FieldError error={fieldError("protocolName")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Type</Label>
+            <Input name="protocolType" defaultValue={protocol.protocolType ?? ""} />
+            <FieldError error={fieldError("protocolType")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Status</Label>
+            <ActiveCheckbox defaultChecked={protocol.isActive} />
+            <FieldError error={fieldError("isActive")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Chains</Label>
+            <Input name="chainScope" defaultValue={protocol.chainScope?.join(", ") ?? ""} />
+            <FieldError error={fieldError("chainScope")} />
+          </div>
+          <div className="grid gap-2 md:col-span-3">
+            <Label>Description</Label>
+            <Textarea name="description" rows={2} defaultValue={protocol.description ?? ""} />
+            <FieldError error={fieldError("description")} />
+          </div>
+        </>
+      )}
+    </DictionaryFormShell>
+  );
+}
+
+export function UpdateCategoryForm({ category }: { category: CategoryFormRow }) {
+  return (
+    <DictionaryFormShell
+      action={updateCategoryResultAction}
+      failureTitle="Category update failed"
+      pendingLabel="Saving..."
+      submitLabel="Save category"
+      successTitle="Category updated"
+      className="grid gap-3 md:grid-cols-4"
+    >
+      {({ fieldError }) => (
+        <>
+          <input type="hidden" name="categoryId" value={category.categoryId} />
+          <div className="grid gap-2">
+            <Label>ID</Label>
+            <Input value={category.categoryId} readOnly />
+          </div>
+          <div className="grid gap-2">
+            <Label>Code</Label>
+            <Input name="categoryCode" defaultValue={category.categoryCode} required />
+            <FieldError error={fieldError("categoryCode")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Name</Label>
+            <Input name="categoryName" defaultValue={category.categoryName} required />
+            <FieldError error={fieldError("categoryName")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Parent</Label>
+            <Input name="parentCategoryId" type="number" defaultValue={category.parentCategoryId ?? ""} />
+            <FieldError error={fieldError("parentCategoryId")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Domain</Label>
+            <Input name="domainCode" defaultValue={category.domainCode ?? ""} />
+            <FieldError error={fieldError("domainCode")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Metric domain</Label>
+            <Input name="metricDomain" defaultValue={category.metricDomain ?? ""} />
+            <FieldError error={fieldError("metricDomain")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Status</Label>
+            <ActiveCheckbox defaultChecked={category.isActive} />
+            <FieldError error={fieldError("isActive")} />
+          </div>
+          <div className="grid gap-2 md:col-span-4">
+            <Label>Description</Label>
+            <Textarea name="description" rows={2} defaultValue={category.description ?? ""} />
+            <FieldError error={fieldError("description")} />
+          </div>
+        </>
+      )}
+    </DictionaryFormShell>
+  );
+}
+
+export function UpdateRoleForm({ role, categories }: { role: RoleFormRow; categories: CategoryOption[] }) {
+  return (
+    <DictionaryFormShell
+      action={updateRoleResultAction}
+      failureTitle="Role update failed"
+      pendingLabel="Saving..."
+      submitLabel="Save role"
+      successTitle="Role updated"
+      className="grid gap-3 md:grid-cols-4"
+    >
+      {({ fieldError }) => (
+        <>
+          <input type="hidden" name="roleId" value={role.roleId} />
+          <div className="grid gap-2">
+            <Label>ID</Label>
+            <Input value={role.roleId} readOnly />
+          </div>
+          <div className="grid gap-2">
+            <Label>Code</Label>
+            <Input name="roleCode" defaultValue={role.roleCode} required />
+            <FieldError error={fieldError("roleCode")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Name</Label>
+            <Input name="roleName" defaultValue={role.roleName} required />
+            <FieldError error={fieldError("roleName")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Category</Label>
+            <select name="categoryId" defaultValue={role.categoryId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm">
+              <option value="">None</option>
+              {categories.map((category) => (
+                <option key={category.categoryId} value={category.categoryId}>
+                  {category.categoryCode}
+                </option>
+              ))}
+            </select>
+            <FieldError error={fieldError("categoryId")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Group</Label>
+            <Input name="roleGroup" defaultValue={role.roleGroup ?? ""} />
+            <FieldError error={fieldError("roleGroup")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Metric usage</Label>
+            <Input name="metricUsageDefault" defaultValue={role.metricUsageDefault ?? ""} />
+            <FieldError error={fieldError("metricUsageDefault")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Boundary</Label>
+            <Input name="boundaryClass" defaultValue={role.boundaryClass ?? ""} />
+            <FieldError error={fieldError("boundaryClass")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Quality</Label>
+            <Input name="defaultQualityTier" type="number" min="0" max="5" defaultValue={role.defaultQualityTier} />
+            <FieldError error={fieldError("defaultQualityTier")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Flags</Label>
+            <Input name="defaultFlags" type="number" min="0" defaultValue={role.defaultFlags} />
+            <FieldError error={fieldError("defaultFlags")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Status</Label>
+            <ActiveCheckbox defaultChecked={role.isActive} />
+            <FieldError error={fieldError("isActive")} />
+          </div>
+          <div className="grid gap-2 md:col-span-4">
+            <Label>Description</Label>
+            <Textarea name="description" rows={2} defaultValue={role.description ?? ""} />
+            <FieldError error={fieldError("description")} />
+          </div>
+        </>
+      )}
+    </DictionaryFormShell>
+  );
+}
+
+export function UpdateKeyPrefixForm({ prefix }: { prefix: KeyPrefixFormRow }) {
+  return (
+    <DictionaryFormShell
+      action={updateKeyPrefixResultAction}
+      failureTitle="Key prefix update failed"
+      pendingLabel="Saving..."
+      submitLabel="Save prefix"
+      successTitle="Key prefix updated"
+      className="grid gap-3 md:grid-cols-4"
+    >
+      {({ fieldError }) => (
+        <>
+          <input type="hidden" name="prefixCode" value={prefix.prefixCode} />
+          <div className="grid gap-2">
+            <Label>Prefix code</Label>
+            <Input value={`0x${prefix.prefixCode.toString(16).padStart(4, "0")}`} readOnly />
+          </div>
+          <div className="grid gap-2">
+            <Label>Chain code</Label>
+            <Input name="chainCode" defaultValue={prefix.chainCode} required />
+            <FieldError error={fieldError("chainCode")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Chain name</Label>
+            <Input name="chainName" defaultValue={prefix.chainName ?? ""} />
+            <FieldError error={fieldError("chainName")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Chain family</Label>
+            <Input name="chainFamily" defaultValue={prefix.chainFamily} required />
+            <FieldError error={fieldError("chainFamily")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Address family</Label>
+            <Input name="addressFamily" defaultValue={prefix.addressFamily} required />
+            <FieldError error={fieldError("addressFamily")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Codec</Label>
+            <Input name="codec" defaultValue={prefix.codec} required />
+            <FieldError error={fieldError("codec")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Payload length</Label>
+            <Input name="payloadLen" type="number" defaultValue={prefix.payloadLen ?? ""} />
+            <FieldError error={fieldError("payloadLen")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>EVM chain ID</Label>
+            <Input name="evmChainId" type="number" defaultValue={prefix.evmChainId ?? ""} />
+            <FieldError error={fieldError("evmChainId")} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Status</Label>
+            <ActiveCheckbox defaultChecked={prefix.isActive} />
+            <FieldError error={fieldError("isActive")} />
+          </div>
+          <div className="grid gap-2 md:col-span-4">
+            <Label>Description</Label>
+            <Textarea name="description" rows={2} defaultValue={prefix.description ?? ""} />
             <FieldError error={fieldError("description")} />
           </div>
         </>

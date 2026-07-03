@@ -1,16 +1,9 @@
 import Link from "next/link";
 import { AlertTriangle, Boxes, CheckCircle2, CircleHelp, ListChecks } from "lucide-react";
 
-import {
-  approveCandidateAsSuggestedAction,
-  createReviewBatchFromSelectionAction,
-  reviewMarkCandidateConflictAction,
-  reviewMarkCandidateMetricIneligibleAction,
-  reviewMarkCandidateNeedsMoreEvidenceAction,
-  reviewRejectCandidateAction,
-} from "@/app/mqchain/actions";
 import { DbError } from "@/components/mqchain/db-error";
 import { MetricCard } from "@/components/mqchain/metric-card";
+import { ReviewBatchSelectionForm, ReviewQuickActionForm, reviewQuickActions } from "@/components/mqchain/review-forms";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,28 +102,27 @@ export default async function ReviewPage() {
                         <TableCell className="font-mono">{candidate.confidenceScore} / Q{candidate.qualityTier}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap justify-end gap-2">
-                            <form action={approveCandidateAsSuggestedAction}>
-                              <input type="hidden" name="candidateId" value={candidate.id} />
-                              <input type="hidden" name="reason" value="Approved as suggested from review queue." />
-                              <Button type="submit" size="sm" disabled={!canQuickApprove}>Approve</Button>
-                            </form>
-                            <form action={reviewRejectCandidateAction}>
-                              <input type="hidden" name="candidateId" value={candidate.id} />
-                              <input type="hidden" name="reason" value="Rejected from review queue." />
-                              <Button type="submit" size="sm" variant="outline">Reject</Button>
-                            </form>
-                            <form action={reviewMarkCandidateNeedsMoreEvidenceAction}>
-                              <input type="hidden" name="candidateId" value={candidate.id} />
-                              <Button type="submit" size="sm" variant="outline">Evidence</Button>
-                            </form>
-                            <form action={reviewMarkCandidateConflictAction}>
-                              <input type="hidden" name="candidateId" value={candidate.id} />
-                              <Button type="submit" size="sm" variant="outline">Conflict</Button>
-                            </form>
-                            <form action={reviewMarkCandidateMetricIneligibleAction}>
-                              <input type="hidden" name="candidateId" value={candidate.id} />
-                              <Button type="submit" size="sm" variant="ghost">Metric off</Button>
-                            </form>
+                            <ReviewQuickActionForm
+                              action={reviewQuickActions.approve}
+                              candidateId={candidate.id}
+                              disabled={!canQuickApprove}
+                              reason="Approved as suggested from review queue."
+                              variant="default"
+                            >
+                              Approve
+                            </ReviewQuickActionForm>
+                            <ReviewQuickActionForm action={reviewQuickActions.reject} candidateId={candidate.id} reason="Rejected from review queue.">
+                              Reject
+                            </ReviewQuickActionForm>
+                            <ReviewQuickActionForm action={reviewQuickActions.evidence} candidateId={candidate.id}>
+                              Evidence
+                            </ReviewQuickActionForm>
+                            <ReviewQuickActionForm action={reviewQuickActions.conflict} candidateId={candidate.id}>
+                              Conflict
+                            </ReviewQuickActionForm>
+                            <ReviewQuickActionForm action={reviewQuickActions.metricOff} candidateId={candidate.id} variant="ghost">
+                              Metric off
+                            </ReviewQuickActionForm>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -150,7 +142,7 @@ export default async function ReviewPage() {
             <CardDescription>Approved candidates ready for label batch creation.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={createReviewBatchFromSelectionAction} className="space-y-4">
+            <ReviewBatchSelectionForm disabled={!workspace.approvedRows.length}>
               <div className="grid gap-3 md:grid-cols-[1fr_auto]">
                 <div className="grid gap-2">
                   <Label>Batch name</Label>
@@ -185,7 +177,7 @@ export default async function ReviewPage() {
                   ) : null}
                 </TableBody>
               </Table>
-            </form>
+            </ReviewBatchSelectionForm>
           </CardContent>
         </Card>
       </>
