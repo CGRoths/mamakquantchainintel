@@ -130,7 +130,7 @@ export default async function ResolverPage({ searchParams }: { searchParams: Pro
                 </CardContent>
               </Card>
             ) : null}
-            <Card className="rounded-lg">
+            <Card className="rounded-lg xl:col-span-2">
               <CardHeader><CardTitle>Normalized key</CardTitle></CardHeader>
               <CardContent className="grid gap-3 text-sm">
                 <div><span className="text-muted-foreground">Valid</span><div>{String(result.normalized.isValid)}</div></div>
@@ -202,7 +202,7 @@ export default async function ResolverPage({ searchParams }: { searchParams: Pro
             ) : null}
           </section>
         ) : null}
-        <Card className="rounded-lg">
+        <Card id="cex-flow" className="rounded-lg">
           <CardHeader><CardTitle>BTC CEX flow classifier</CardTitle></CardHeader>
           <CardContent>
             <form className="grid gap-3 md:grid-cols-4">
@@ -238,6 +238,33 @@ export default async function ResolverPage({ searchParams }: { searchParams: Pro
                 <div><span className="text-muted-foreground">Flow</span><div className="font-mono text-lg">{txResult.classification}</div></div>
                 <div><span className="text-muted-foreground">Metric group</span><div className="font-mono">{txResult.metricGroupCode}</div></div>
                 <div><span className="text-muted-foreground">Block</span><div className="font-mono">{txResult.blockNumber ?? "-"}</div></div>
+                <div><span className="text-muted-foreground">Boundary addresses</span><div className="font-mono">{txResult.metricsSummary.countableBoundaryAddresses}</div></div>
+                <div><span className="text-muted-foreground">External addresses</span><div className="font-mono">{txResult.metricsSummary.externalAddresses}</div></div>
+                <div><span className="text-muted-foreground">Entities</span><div className="font-mono">{txResult.metricsSummary.entityCount}</div></div>
+                <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Counts use metric-group membership only. Raw resolver matches classify the transaction but do not write registry or KV labels.
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-lg">
+              <CardHeader><CardTitle>Metric boundary summary</CardTitle></CardHeader>
+              <CardContent className="grid gap-4 text-sm md:grid-cols-2">
+                {[
+                  ["Inputs", txResult.metricsSummary.input],
+                  ["Outputs", txResult.metricsSummary.output],
+                ].map(([title, summary]) => (
+                  <div key={title as string} className="grid gap-3 rounded-md border p-3">
+                    <div className="font-medium">{title as string}</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><span className="text-muted-foreground">Total</span><div className="font-mono">{(summary as typeof txResult.metricsSummary.input).totalAddresses}</div></div>
+                      <div><span className="text-muted-foreground">Matched</span><div className="font-mono">{(summary as typeof txResult.metricsSummary.input).matchedAddresses}</div></div>
+                      <div><span className="text-muted-foreground">External</span><div className="font-mono">{(summary as typeof txResult.metricsSummary.input).unmatchedAddresses}</div></div>
+                      <div><span className="text-muted-foreground">Entities</span><div className="font-mono">{(summary as typeof txResult.metricsSummary.input).entityCount}</div></div>
+                    </div>
+                    <div><span className="text-muted-foreground">Entity codes</span><div className="font-mono text-xs">{(summary as typeof txResult.metricsSummary.input).entities.join(", ") || "-"}</div></div>
+                    <div><span className="text-muted-foreground">Roles</span><SummaryMap values={(summary as typeof txResult.metricsSummary.input).roles} /></div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
             <Card className="rounded-lg">

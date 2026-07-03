@@ -8,6 +8,20 @@
       "when": 1782947571734,
       "tag": "0000_low_maria_hill",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783116254864,
+      "tag": "0001_kv_index_manifest_shards",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783116995456,
+      "tag": "0002_freezing_nekra",
+      "breakpoints": true
     }
   ]
 }

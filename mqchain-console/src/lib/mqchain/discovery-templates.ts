@@ -1,4 +1,69 @@
+export const PROTOCOL_ROOT_TYPES = [
+  "Factory",
+  "Registry",
+  "Router",
+  "Pool",
+  "Vault",
+  "Proxy",
+  "Treasury",
+  "Oracle",
+  "Governance",
+  "Timelock",
+  "Multisig",
+  "DataProvider",
+  "IncentivesController",
+  "RewardDistributor",
+  "BridgeRelayer",
+  "Keeper",
+] as const;
+
+export type ProtocolRootType = (typeof PROTOCOL_ROOT_TYPES)[number];
+
+export const PROTOCOL_ROOT_DEFAULT_ROLES: Record<ProtocolRootType, string> = {
+  Factory: "protocol_factory",
+  Registry: "protocol_registry",
+  Router: "protocol_router",
+  Pool: "protocol_pool",
+  Vault: "protocol_vault",
+  Proxy: "protocol_proxy",
+  Treasury: "protocol_treasury",
+  Oracle: "protocol_oracle",
+  Governance: "protocol_governance",
+  Timelock: "protocol_timelock",
+  Multisig: "protocol_multisig",
+  DataProvider: "protocol_data_provider",
+  IncentivesController: "protocol_incentives_controller",
+  RewardDistributor: "protocol_reward_distributor",
+  BridgeRelayer: "bridge_relayer",
+  Keeper: "protocol_keeper",
+};
+
 export const DISCOVERY_SCANNER_TEMPLATES = [
+  {
+    type: "protocol_root_inventory_scanner",
+    label: "Protocol root inventory scanner",
+    rootType: "ProtocolRootInventory",
+    evidenceType: "official_deployment",
+    description: "Extracts and classifies protocol root addresses from official deployment pages, docs, or registry manifests.",
+    defaultChain: "ethereum",
+    requiredConfig: ["official_url", "root_addresses"],
+    outputFields: ["root type", "role", "source pointer", "deployment evidence", "block"],
+    defaultConfig: {
+      official_url: "",
+      protocol_id: "",
+      entity_id: "",
+      root_addresses: [
+        {
+          address: "",
+          root_type: "Registry",
+          role: "protocol_registry",
+          source_url: "",
+          summary: "Official deployment entry",
+        },
+      ],
+      attach_official_evidence: true,
+    },
+  },
   {
     type: "factory_event_scanner",
     label: "Factory event scanner",

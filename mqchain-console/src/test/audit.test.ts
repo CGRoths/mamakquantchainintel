@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildApprovalEventTargetLinks, buildAuditTimeline } from "@/lib/mqchain/audit";
+import { buildApprovalEventTargetLinks, buildAuditTimeline, summarizeAuditPayload } from "@/lib/mqchain/audit";
 
 describe("audit timeline", () => {
   it("merges approval and system audit events into a newest-first timeline", () => {
@@ -22,6 +22,10 @@ describe("audit timeline", () => {
         actorId: null,
         targetTable: "mq_kv_key_prefix_dict",
         targetId: "257",
+        payload: {
+          before: { isActive: true, role: "admin" },
+          after: { isActive: false, role: "admin" },
+        },
         createdAt: new Date("2026-07-02T02:00:00.000Z"),
       },
     ]);
@@ -33,7 +37,7 @@ describe("audit timeline", () => {
         action: "key_prefix_deactivated",
         actor: "system",
         target: "mq_kv_key_prefix_dict:257",
-        reason: "-",
+        reason: "1 field changed",
         createdAt: new Date("2026-07-02T02:00:00.000Z"),
       },
       {
@@ -60,5 +64,54 @@ describe("audit timeline", () => {
     expect(buildApprovalEventTargetLinks({ candidateId: null, registryId: undefined, batchId: 3 })).toEqual([
       { key: "batch", label: "batch:3", href: "/mqchain/batches/3", id: 3 },
     ]);
+  });
+
+  it("summarizes before and after audit payloads as changed fields", () => {
+    expect(
+      summarizeAuditPayload({
+        before: { role: "reviewer", isActive: true, displayName: "Review A" },
+        after: { role: "admin", isActive: true, displayName: "Admin A" },
+      }),
+    ).toEqual({
+      summary: "2 fields changed",
+      details: ["displayName: Review A -> Admin A", "role: reviewer -> admin"],
+    });
+  });
+
+  it("detects nested metadata changes in before and after payloads", () => {
+    expect(
+      summarizeAuditPayload({
+        before: { metadata: { labels: ["cex"], source: { type: "manual" } } },
+        after: { metadata: { labels: ["cex"], source: { type: "official_url" } } },
+      }),
+    ).toEqual({
+      summary: "1 field changed",
+      details: ["metadata: 2 keys -> 2 keys"],
+    });
+  });
+
+  it("summarizes user payloads without exposing password hashes", () => {
+    expect(
+      summarizeAuditPayload({
+        user: {
+          id: "user-1",
+          email: "admin@mamakquant.local",
+          role: "owner",
+          isActive: true,
+          passwordHash: "secret-hash",
+          hasPassword: true,
+        },
+      }),
+    ).toEqual({
+      summary: "User admin@mamakquant.local / owner / active",
+      details: [
+        "id: user-1",
+        "email: admin@mamakquant.local",
+        "role: owner",
+        "isActive: true",
+        "passwordHash: [redacted]",
+        "hasPassword: true",
+      ],
+    });
   });
 });

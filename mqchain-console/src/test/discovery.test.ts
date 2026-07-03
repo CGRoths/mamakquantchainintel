@@ -2,12 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildDiscoveryRunnerTask,
+  defaultRoleForProtocolRootType,
   discoveryResultSchemaSummary,
   discoveryTemplateCount,
   parseDiscoveryConfigJson,
 } from "@/lib/mqchain/discovery-config";
 import { buildDiscoveryJobDetailRollup, parseDiscoveryCompletionLog } from "@/lib/mqchain/discovery-detail";
-import { defaultEvidenceTypeForDiscovery, parseDiscoveryResultsJson } from "@/lib/mqchain/discovery";
+import {
+  buildDiscoveryJobCompletedAuditPayload,
+  buildDiscoveryJobCreatedAuditPayload,
+  defaultEvidenceTypeForDiscovery,
+  parseDiscoveryResultsJson,
+} from "@/lib/mqchain/discovery";
 import { formatDiscoveryConfigTemplate } from "@/lib/mqchain/discovery-templates";
 import { registryDiscoveryJobSchema } from "@/lib/mqchain/validators/discovery";
 
@@ -60,6 +66,45 @@ describe("discovery result helpers", () => {
     expect(discoveryTemplateCount()).toBeGreaterThanOrEqual(6);
   });
 
+  it("validates protocol root inventory config and default role mapping", () => {
+    const parsed = parseDiscoveryConfigJson(
+      "protocol_root_inventory_scanner",
+      JSON.stringify({
+        official_url: "https://docs.example.org/deployments",
+        protocol_id: 3,
+        root_addresses: [
+          {
+            address: "0x0000000000000000000000000000000000000001",
+            root_type: "Router",
+            source_url: "https://docs.example.org/deployments#router",
+          },
+          {
+            address: "0x0000000000000000000000000000000000000002",
+            root_type: "Treasury",
+            role: "protocol_treasury",
+          },
+        ],
+      }),
+    );
+
+    expect(parsed.root_addresses).toHaveLength(2);
+    expect(defaultRoleForProtocolRootType("Router")).toBe("protocol_router");
+    expect(defaultRoleForProtocolRootType("Treasury")).toBe("protocol_treasury");
+    expect(defaultEvidenceTypeForDiscovery("protocol_root_inventory_scanner")).toBe("official_deployment");
+    expect(discoveryTemplateCount()).toBeGreaterThanOrEqual(7);
+  });
+
+  it("rejects invalid protocol root inventory types", () => {
+    expect(() =>
+      parseDiscoveryConfigJson(
+        "protocol_root_inventory_scanner",
+        JSON.stringify({
+          root_addresses: [{ address: "0x0000000000000000000000000000000000000001", root_type: "LiquidationBot" }],
+        }),
+      ),
+    ).toThrow();
+  });
+
   it("builds an external runner task with discovery safety boundaries", () => {
     const config = parseDiscoveryConfigJson("registry_address_provider_scanner", formatDiscoveryConfigTemplate("registry_address_provider_scanner"));
     const task = buildDiscoveryRunnerTask({
@@ -82,12 +127,139 @@ describe("discovery result helpers", () => {
     });
   });
 
+  it("builds discovery creation audit payloads with safety boundaries", () => {
+    const payload = buildDiscoveryJobCreatedAuditPayload({
+      discoveryJobId: 7,
+      discoveryType: "factory_event_scanner",
+      chainCode: "ethereum",
+      seedAddress: "0x0000000000000000000000000000000000000001",
+      entityId: 3,
+      protocolId: 4,
+      config: {
+        runner_task: {
+          task_version: "mqchain-discovery-task-v1",
+          safety_policy: {
+            writes: "candidates_and_evidence_only",
+            approval_allowed: false,
+            registry_commit_allowed: false,
+            kv_write_allowed: false,
+          },
+        },
+      },
+    });
+
+    expect(payload).toMatchObject({
+      discoveryJobId: 7,
+      discoveryType: "factory_event_scanner",
+      chainCode: "ethereum",
+      entityId: 3,
+      protocolId: 4,
+      runnerTaskVersion: "mqchain-discovery-task-v1",
+      safetyPolicy: {
+        writes: "candidates_and_evidence_only",
+        approvalAllowed: false,
+        registryCommitAllowed: false,
+        kvWriteAllowed: false,
+      },
+    });
+  });
+
+  it("builds registry-seeded discovery audit payloads without canonical write permissions", () => {
+    const payload = buildDiscoveryJobCreatedAuditPayload({
+      discoveryJobId: 11,
+      discoveryType: "tx_graph_scanner",
+      chainCode: "ethereum",
+      seedAddress: "0x0000000000000000000000000000000000000002",
+      seededFromRegistryId: 99,
+      entityId: 3,
+      protocolId: 4,
+      config: {
+        runner_task: {
+          task_version: "mqchain-discovery-task-v1",
+        },
+      },
+    });
+
+    expect(payload.seededFromRegistryId).toBe(99);
+    expect(payload.safetyPolicy.registryCommitAllowed).toBe(false);
+    expect(payload.safetyPolicy.kvWriteAllowed).toBe(false);
+  });
+
+  it("builds discovery completion audit payloads with staged IDs and zero canonical writes", () => {
+    const payload = buildDiscoveryJobCompletedAuditPayload({
+      discoveryJobId: 7,
+      discoveryType: "factory_event_scanner",
+      status: "completed",
+      sourceJobId: 31,
+      sourceDocumentId: 41,
+      rows: 3,
+      candidatesCreated: 2,
+      evidenceCreated: 2,
+      invalidRows: 1,
+      duplicates: 0,
+      candidateIds: [101, 102],
+      evidenceIds: [201, 202],
+      config: {
+        runner_task: {
+          task_version: "mqchain-discovery-task-v1",
+        },
+      },
+    });
+
+    expect(payload).toMatchObject({
+      discoveryJobId: 7,
+      sourceJobId: 31,
+      sourceDocumentId: 41,
+      candidateIds: [101, 102],
+      evidenceIds: [201, 202],
+      stagedArtifacts: {
+        sourceJobsCreated: 1,
+        sourceDocumentsCreated: 1,
+        candidatesCreated: 2,
+        evidenceCreated: 2,
+      },
+      canonicalWrites: {
+        registryRowsCreated: 0,
+        approvalsCreated: 0,
+        batchesCreated: 0,
+        kvBuildsCreated: 0,
+      },
+      safetyPolicy: {
+        writes: "candidates_and_evidence_only",
+        approvalAllowed: false,
+        registryCommitAllowed: false,
+        kvWriteAllowed: false,
+      },
+    });
+  });
+
   it("summarizes result contracts for worker outputs", () => {
     const schema = discoveryResultSchemaSummary("proxy_resolution_scanner");
 
     expect(schema.required).toEqual(["address"]);
     expect(schema.optional).toContain("payload.implementation_address");
     expect(schema.optional).toContain("payload.proxy_admin");
+  });
+
+  it("includes protocol root inventory fields in runner output contracts", () => {
+    const task = buildDiscoveryRunnerTask({
+      discoveryType: "protocol_root_inventory_scanner",
+      chainCode: "ethereum",
+      seedAddress: "https://docs.example.org/deployments",
+      config: parseDiscoveryConfigJson(
+        "protocol_root_inventory_scanner",
+        JSON.stringify({
+          official_url: "https://docs.example.org/deployments",
+          root_addresses: [{ address: "0x0000000000000000000000000000000000000001", root_type: "Registry" }],
+        }),
+      ),
+    });
+
+    expect(task.root_type).toBe("ProtocolRootInventory");
+    expect(task.evidence_type).toBe("official_deployment");
+    expect(task.result_schema.optional).toContain("root_type");
+    expect(task.result_schema.optional).toContain("payload.root_type");
+    expect(task.safety_policy.registry_commit_allowed).toBe(false);
   });
 
   it("rejects invalid scanner config shapes", () => {

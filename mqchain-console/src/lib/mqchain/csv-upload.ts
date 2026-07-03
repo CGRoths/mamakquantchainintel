@@ -47,6 +47,16 @@ function assertCsvFileMetadata(file: CsvUploadFile) {
   }
 }
 
+export function assertCsvTextSize(text: string, label = "CSV input") {
+  const sizeBytes = Buffer.byteLength(text);
+
+  if (sizeBytes > CSV_UPLOAD_MAX_BYTES) {
+    throw new Error(`${label} exceeds ${CSV_UPLOAD_MAX_BYTES} bytes.`);
+  }
+
+  return sizeBytes;
+}
+
 export async function csvInputFromUpload(file: unknown): Promise<CsvInputPayload | null> {
   if (!isCsvUploadFile(file)) {
     return null;
@@ -54,6 +64,7 @@ export async function csvInputFromUpload(file: unknown): Promise<CsvInputPayload
 
   assertCsvFileMetadata(file);
   const text = await file.text();
+  const sizeBytes = assertCsvTextSize(text, "CSV upload");
   if (!text.trim()) {
     throw new Error("CSV upload does not contain any rows.");
   }
@@ -63,7 +74,7 @@ export async function csvInputFromUpload(file: unknown): Promise<CsvInputPayload
     inputMode: "file_upload",
     fileName: file.name,
     mimeType: file.type,
-    sizeBytes: file.size,
+    sizeBytes,
   };
 }
 
@@ -79,10 +90,7 @@ export async function csvInputFromFormData(formData: FormData, textKey: string, 
 
   const pasted = formData.get(textKey);
   if (typeof pasted === "string" && pasted.trim()) {
-    const sizeBytes = Buffer.byteLength(pasted);
-    if (sizeBytes > CSV_UPLOAD_MAX_BYTES) {
-      throw new Error(`CSV input exceeds ${CSV_UPLOAD_MAX_BYTES} bytes.`);
-    }
+    const sizeBytes = assertCsvTextSize(pasted);
     return {
       text: pasted,
       inputMode: "pasted_text",

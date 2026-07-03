@@ -44,6 +44,65 @@ export type KvManifestIndexSummary = {
   rowCountMissing: string[];
 };
 
+export type KvIndexManifestRecord = {
+  indexKey: string;
+  indexName: string;
+  rowCount: number;
+  storageUri: string | null;
+  manifestHash: string | null;
+  lastCommittedBatchId: number | null;
+  metadata: Record<string, unknown>;
+  shards: KvIndexShardRecord[];
+};
+
+export type KvIndexShardRecord = {
+  shardId: string;
+  shardKey: string;
+  shardHash: string | null;
+  storageUri: string | null;
+  rowCount: number;
+  metadata: Record<string, unknown>;
+};
+
+export type PersistedKvIndexManifestInput = {
+  id: number;
+  indexName: string;
+  dictionaryVersion: string | null;
+  status: string;
+  rowCount: number;
+  storageUri: string | null;
+  manifestHash: string | null;
+  lastCommittedBatchId: number | null;
+  activatedAt?: Date | null;
+};
+
+export type PersistedKvIndexShardInput = {
+  manifestId: number | null;
+  shardId: string;
+  shardKey: string;
+  shardHash: string | null;
+  storageUri: string | null;
+  rowCount: number;
+};
+
+export type PersistedKvIndexSummaryRow = PersistedKvIndexManifestInput & {
+  requiredKey: string | null;
+  requiredLabel: string | null;
+  shardCount: number;
+  shardRowCount: number;
+  shards: PersistedKvIndexShardInput[];
+};
+
+export type PersistedKvIndexSummary = {
+  rows: PersistedKvIndexSummaryRow[];
+  indexCount: number;
+  shardCount: number;
+  totalRowCount: number;
+  totalShardRowCount: number;
+  missingRequired: string[];
+  statusCounts: Record<string, number>;
+};
+
 export const REQUIRED_KV_INDEXES = [
   { key: "addressLabelCurrent", indexName: "address_label_current", label: "Address label current" },
   { key: "addressLabelTimeline", indexName: "address_label_timeline", label: "Address label timeline" },
@@ -79,6 +138,128 @@ function findIndexManifest(indexes: Record<string, unknown>, key: string, indexN
   }
 
   return null;
+}
+
+function positiveInteger(value: unknown) {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function nonNegativeInteger(value: unknown) {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
+}
+
+function indexStorageUri(indexManifest: Record<string, unknown>, fallbackStorageUri?: string | null) {
+  if (hasText(indexManifest.storageUri)) return indexManifest.storageUri;
+  if (hasText(indexManifest.path)) return indexManifest.path;
+  return fallbackStorageUri ?? null;
+}
+
+function shardRows(indexKey: string, indexName: string, indexManifest: Record<string, unknown>, fallbackStorageUri?: string | null) {
+  if (!Array.isArray(indexManifest.shards)) {
+    return [];
+  }
+
+  const rows: KvIndexShardRecord[] = [];
+  for (const [position, shard] of indexManifest.shards.entries()) {
+    if (!isRecord(shard)) {
+      continue;
+    }
+
+    const shardId = hasText(shard.shardId) ? shard.shardId : hasText(shard.id) ? shard.id : `${indexName}-${position + 1}`;
+    const shardKey = hasText(shard.shardKey) ? shard.shardKey : hasText(shard.key) ? shard.key : shardId;
+    rows.push({
+      shardId,
+      shardKey,
+      shardHash: hasText(shard.shardHash) ? shard.shardHash : hasText(shard.hash) ? shard.hash : null,
+      storageUri: indexStorageUri(shard, indexStorageUri(indexManifest, fallbackStorageUri)),
+      rowCount: nonNegativeInteger(shard.rowCount) ?? 0,
+      metadata: {
+        indexKey,
+        indexName,
+        source: "kv_manifest_indexes",
+        shard,
+      },
+    });
+  }
+
+  return rows;
+}
+
+export function extractKvIndexManifestRecords(
+  manifest: Record<string, unknown> | null | undefined,
+  fallbackStorageUri?: string | null,
+): KvIndexManifestRecord[] {
+  const indexes = isRecord(manifest?.indexes) ? manifest.indexes : null;
+  if (!indexes) {
+    return [];
+  }
+
+  return Object.entries(indexes)
+    .filter(([, value]) => isRecord(value))
+    .map(([indexKey, value]) => {
+      const indexManifest = value as Record<string, unknown>;
+      const indexName = hasText(indexManifest.indexName) ? indexManifest.indexName : indexKey;
+      return {
+        indexKey,
+        indexName,
+        rowCount: nonNegativeInteger(indexManifest.rowCount) ?? 0,
+        storageUri: indexStorageUri(indexManifest, fallbackStorageUri),
+        manifestHash: hasText(indexManifest.hash) ? indexManifest.hash : hasText(indexManifest.manifestHash) ? indexManifest.manifestHash : null,
+        lastCommittedBatchId: positiveInteger(manifest?.lastCommittedBatchId) ?? positiveInteger(manifest?.batchId),
+        metadata: {
+          indexKey,
+          indexName,
+          source: "kv_manifest_indexes",
+          indexManifest,
+        },
+        shards: shardRows(indexKey, indexName, indexManifest, fallbackStorageUri),
+      };
+    });
+}
+
+export function summarizePersistedKvIndexRecords(
+  indexManifests: PersistedKvIndexManifestInput[],
+  indexShards: PersistedKvIndexShardInput[],
+): PersistedKvIndexSummary {
+  const requiredByName: Map<string, (typeof REQUIRED_KV_INDEXES)[number]> = new Map(
+    REQUIRED_KV_INDEXES.map((index) => [index.indexName, index]),
+  );
+  const presentNames = new Set(indexManifests.map((index) => index.indexName));
+  const shardsByManifestId = new Map<number, PersistedKvIndexShardInput[]>();
+  for (const shard of indexShards) {
+    if (typeof shard.manifestId !== "number") {
+      continue;
+    }
+    const current = shardsByManifestId.get(shard.manifestId) ?? [];
+    current.push(shard);
+    shardsByManifestId.set(shard.manifestId, current);
+  }
+
+  const statusCounts: Record<string, number> = {};
+  const rows = indexManifests.map((indexManifest) => {
+    const required = requiredByName.get(indexManifest.indexName) ?? null;
+    const shards = shardsByManifestId.get(indexManifest.id) ?? [];
+    statusCounts[indexManifest.status] = (statusCounts[indexManifest.status] ?? 0) + 1;
+
+    return {
+      ...indexManifest,
+      requiredKey: required?.key ?? null,
+      requiredLabel: required?.label ?? null,
+      shardCount: shards.length,
+      shardRowCount: shards.reduce((total, shard) => total + shard.rowCount, 0),
+      shards,
+    };
+  });
+
+  return {
+    rows,
+    indexCount: indexManifests.length,
+    shardCount: indexShards.length,
+    totalRowCount: indexManifests.reduce((total, indexManifest) => total + indexManifest.rowCount, 0),
+    totalShardRowCount: indexShards.reduce((total, shard) => total + shard.rowCount, 0),
+    missingRequired: REQUIRED_KV_INDEXES.filter((index) => !presentNames.has(index.indexName)).map((index) => index.label),
+    statusCounts,
+  };
 }
 
 export function summarizeKvManifestIndexes(manifest: Record<string, unknown> | null | undefined): KvManifestIndexSummary {

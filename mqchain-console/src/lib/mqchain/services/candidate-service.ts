@@ -7,6 +7,7 @@ import {
   mqAddressEvidence,
   mqAddressRegistry,
   mqApprovalEvents,
+  mqAuditLog,
   mqCategoryDict,
   mqDiscoveryJobs,
   mqEntities,
@@ -15,12 +16,12 @@ import {
   mqSourceDocuments,
   mqSourceJobs,
 } from "@/db/schema";
-import { getCurrentUser } from "@/lib/auth/permissions";
+import { assertPermission } from "@/lib/auth/permissions";
 import { normalizeAddress } from "../address/normalize";
 import { PARSER_VERSION } from "../constants";
 import { extractAddressRowsFromText, extractDeploymentRowsFromText, parseJsonEvidenceRows, stripHtmlToText } from "../intake-extraction";
 import { parseCandidateListFilters, type CandidateListFilters } from "../list-filters";
-import { buildSourceJobScopeSummary, type SourceJobScopeInput } from "../source-job";
+import { buildSourceJobIntakeAuditPayload, buildSourceJobScopeSummary, type SourceJobScopeInput } from "../source-job";
 import { fetchSourceText } from "../source-url";
 import type { CsvIntakeRow } from "../types";
 import {
@@ -299,7 +300,7 @@ async function createCandidatesFromRows(
     metadata?: Record<string, unknown>;
   },
 ): Promise<IntakeSummary> {
-  const user = await getCurrentUser();
+  const user = await assertPermission("intake:create");
   const db = getDb();
   const seen = new Set<string>();
   const errors: string[] = [];
@@ -460,31 +461,60 @@ async function createCandidatesFromRows(
     }
 
     const sourceScope = buildSourceJobScopeSummary(sourceScopeRows);
+    const finalStatus = candidatesCreated ? "candidate_created" : "failed";
+    const summaryMetadata = {
+      intakeMode: source.documentType,
+      localFileName: source.localFileName,
+      ...(source.metadata ?? {}),
+      chainScope: sourceScope.chainScope,
+      expectedRoles: sourceScope.expectedRoles,
+      totalRows: rows.length,
+      validAddresses,
+      invalidAddresses,
+      duplicates,
+      candidatesCreated,
+      candidatesUpdated: 0,
+      evidenceCreated,
+      conflictsFound,
+      errors,
+    };
 
     await tx
       .update(mqSourceJobs)
       .set({
-        status: candidatesCreated ? "candidate_created" : "failed",
+        status: finalStatus,
         chainScope: sourceScope.chainScope,
         expectedRoles: sourceScope.expectedRoles,
-        metadata: {
-          intakeMode: source.documentType,
-          localFileName: source.localFileName,
-          ...(source.metadata ?? {}),
-          chainScope: sourceScope.chainScope,
-          expectedRoles: sourceScope.expectedRoles,
-          totalRows: rows.length,
-          validAddresses,
-          invalidAddresses,
-          duplicates,
-          candidatesCreated,
-          candidatesUpdated: 0,
-          evidenceCreated,
-          conflictsFound,
-          errors,
-        },
+        metadata: summaryMetadata,
       })
       .where(eq(mqSourceJobs.id, sourceJob.id));
+
+    await tx.insert(mqAuditLog).values({
+      actorId: user.id,
+      action: "source_job_intake_created",
+      targetTable: "mq_source_jobs",
+      targetId: String(sourceJob.id),
+      payload: buildSourceJobIntakeAuditPayload({
+        sourceJobId: sourceJob.id,
+        sourceDocumentId: document.id,
+        sourceType: source.sourceType,
+        sourceName: source.sourceName,
+        sourceUrl: source.sourceUrl,
+        documentType: source.documentType,
+        status: finalStatus,
+        chainScope: sourceScope.chainScope,
+        expectedRoles: sourceScope.expectedRoles,
+        totalRows: rows.length,
+        validAddresses,
+        invalidAddresses,
+        duplicates,
+        candidatesCreated,
+        candidatesUpdated: 0,
+        evidenceCreated,
+        conflictsFound,
+        errors,
+      }),
+    });
 
     return sourceJob.id;
   });

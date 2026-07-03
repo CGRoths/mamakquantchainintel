@@ -15,10 +15,15 @@ import {
 } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
 import { normalizeAddress } from "../address/normalize";
-import { attachDiscoveryRunnerTask, parseDiscoveryConfigJson, discoveryTemplateSummary } from "../discovery-config";
+import { attachDiscoveryRunnerTask, defaultRoleForProtocolRootType, parseDiscoveryConfigJson, discoveryTemplateSummary } from "../discovery-config";
 import { buildDiscoveryJobDetailRollup } from "../discovery-detail";
 import { getDiscoveryTemplate } from "../discovery-templates";
-import { defaultEvidenceTypeForDiscovery, parseDiscoveryResultsJson } from "../discovery";
+import {
+  buildDiscoveryJobCompletedAuditPayload,
+  buildDiscoveryJobCreatedAuditPayload,
+  defaultEvidenceTypeForDiscovery,
+  parseDiscoveryResultsJson,
+} from "../discovery";
 import { parseDiscoveryJobListFilters, type DiscoveryJobListFilters } from "../list-filters";
 import { PARSER_VERSION } from "../constants";
 import { discoveryJobSchema, discoveryResultsSchema, registryDiscoveryJobSchema } from "../validators/discovery";
@@ -180,26 +185,46 @@ export async function createDiscoveryJob(input: unknown) {
     config,
   });
 
-  const [job] = await getDb()
-    .insert(mqDiscoveryJobs)
-    .values({
-      discoveryType: parsed.discoveryType,
-      chainCode,
-      seedAddress: parsed.seedAddress,
-      entityId: optionalConfigId(config, "entity_id"),
-      protocolId: optionalConfigId(config, "protocol_id"),
-      config: jobConfig,
-      status: "draft",
-      createdBy: actor.id,
-      logs: [
-        `template=${templateSummary.rootType} evidence=${templateSummary.evidenceType}`,
-        "runner_task=mqchain-discovery-task-v1",
-        "Scanner execution is external; completing a job only stages candidates and evidence.",
-      ],
-    })
-    .returning();
+  const db = getDb();
 
-  return job;
+  return db.transaction(async (tx) => {
+    const [job] = await tx
+      .insert(mqDiscoveryJobs)
+      .values({
+        discoveryType: parsed.discoveryType,
+        chainCode,
+        seedAddress: parsed.seedAddress,
+        entityId: optionalConfigId(config, "entity_id"),
+        protocolId: optionalConfigId(config, "protocol_id"),
+        config: jobConfig,
+        status: "draft",
+        createdBy: actor.id,
+        logs: [
+          `template=${templateSummary.rootType} evidence=${templateSummary.evidenceType}`,
+          "runner_task=mqchain-discovery-task-v1",
+          "Scanner execution is external; completing a job only stages candidates and evidence.",
+        ],
+      })
+      .returning();
+
+    await tx.insert(mqAuditLog).values({
+      actorId: actor.id,
+      action: "discovery_job_created",
+      targetTable: "mq_discovery_jobs",
+      targetId: String(job.id),
+      payload: buildDiscoveryJobCreatedAuditPayload({
+        discoveryJobId: job.id,
+        discoveryType: job.discoveryType,
+        chainCode: job.chainCode,
+        seedAddress: job.seedAddress,
+        entityId: job.entityId,
+        protocolId: job.protocolId,
+        config: jobConfig,
+      }),
+    });
+
+    return job;
+  });
 }
 
 export async function createDiscoveryJobFromRegistry(input: unknown) {
@@ -269,13 +294,16 @@ export async function createDiscoveryJobFromRegistry(input: unknown) {
       action: "registry_discovery_job_created",
       targetTable: "mq_discovery_jobs",
       targetId: String(job.id),
-      payload: {
-        registryId: registry.id,
-        discoveryType: parsed.discoveryType,
-        chainCode: registry.chainCode,
+      payload: buildDiscoveryJobCreatedAuditPayload({
+        discoveryJobId: job.id,
+        discoveryType: job.discoveryType,
+        chainCode: job.chainCode,
         seedAddress: job.seedAddress,
+        seededFromRegistryId: registry.id,
+        entityId: job.entityId,
+        protocolId: job.protocolId,
         config: jobConfig,
-      },
+      }),
     });
 
     return job;
@@ -352,6 +380,8 @@ export async function completeDiscoveryJob(input: unknown) {
     let duplicates = 0;
     const logs: string[] = [...(job.logs ?? [])];
     const seen = new Set<string>();
+    const candidateIds: number[] = [];
+    const evidenceIds: number[] = [];
 
     for (const [index, result] of results.entries()) {
       const normalized = normalizeAddress(result.address, result.chain || job.chainCode);
@@ -383,7 +413,8 @@ export async function completeDiscoveryJob(input: unknown) {
 
       const entity = dictionaries.entityByKey.get(cleanKey(result.entity));
       const protocol = dictionaries.protocolByKey.get(cleanKey(result.protocol));
-      const role = dictionaries.roleByKey.get(cleanKey(result.role));
+      const roleHint = result.role || defaultRoleForProtocolRootType(result.root_type);
+      const role = dictionaries.roleByKey.get(cleanKey(roleHint));
       const candidateStatus = existing.length ? "duplicate" : "pending_review";
       if (existing.length) {
         duplicates += 1;
@@ -402,7 +433,7 @@ export async function completeDiscoveryJob(input: unknown) {
           payloadHex: normalized.payloadHex,
           entityHint: result.entity,
           protocolHint: result.protocol,
-          roleHint: result.role,
+          roleHint,
           suggestedEntityId: entity?.id,
           suggestedProtocolId: protocol?.id,
           suggestedRoleId: role?.roleId,
@@ -419,9 +450,11 @@ export async function completeDiscoveryJob(input: unknown) {
             discoveryJobId: job.id,
             discoveryType: job.discoveryType,
             resultIndex: index + 1,
+            protocolRootType: result.root_type ?? null,
           },
         })
         .returning();
+      candidateIds.push(candidate.id);
 
       const evidencePayload = {
         discoveryJobId: job.id,
@@ -430,21 +463,27 @@ export async function completeDiscoveryJob(input: unknown) {
           runnerTask && typeof runnerTask === "object" && "task_version" in runnerTask ? runnerTask.task_version : null,
         result,
         normalized,
+        protocolRootType: result.root_type ?? null,
+        roleHint,
         payload: result.payload ?? {},
       };
 
-      await tx.insert(mqAddressEvidence).values({
-        candidateId: candidate.id,
-        sourceDocumentId: document.id,
-        evidenceType: result.evidence_type || defaultEvidenceTypeForDiscovery(job.discoveryType),
-        sourceUrl: result.source_url || job.seedAddress,
-        evidenceHash: hashJson(evidencePayload),
-        trustTier: "inferred",
-        confidenceDelta: 0,
-        summary: result.summary || `Discovered by ${job.discoveryType}`,
-        payload: evidencePayload,
-        createdBy: actor.id,
-      });
+      const [evidence] = await tx
+        .insert(mqAddressEvidence)
+        .values({
+          candidateId: candidate.id,
+          sourceDocumentId: document.id,
+          evidenceType: result.evidence_type || defaultEvidenceTypeForDiscovery(job.discoveryType),
+          sourceUrl: result.source_url || job.seedAddress,
+          evidenceHash: hashJson(evidencePayload),
+          trustTier: "inferred",
+          confidenceDelta: 0,
+          summary: result.summary || `Discovered by ${job.discoveryType}`,
+          payload: evidencePayload,
+          createdBy: actor.id,
+        })
+        .returning({ id: mqAddressEvidence.id });
+      if (evidence) evidenceIds.push(evidence.id);
 
       candidatesCreated += 1;
       evidenceCreated += 1;
@@ -470,7 +509,10 @@ export async function completeDiscoveryJob(input: unknown) {
       action: "discovery_job_completed",
       targetTable: "mq_discovery_jobs",
       targetId: String(job.id),
-      payload: {
+      payload: buildDiscoveryJobCompletedAuditPayload({
+        discoveryJobId: job.id,
+        discoveryType: job.discoveryType,
+        status: updatedJob.status,
         sourceJobId: sourceJob.id,
         sourceDocumentId: document.id,
         rows: results.length,
@@ -478,7 +520,10 @@ export async function completeDiscoveryJob(input: unknown) {
         evidenceCreated,
         invalidRows,
         duplicates,
-      },
+        candidateIds,
+        evidenceIds,
+        config: job.config ?? {},
+      }),
     });
 
     return {

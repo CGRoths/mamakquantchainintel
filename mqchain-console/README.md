@@ -68,6 +68,8 @@ Resolver lookups show normalized key data, current or point-in-time registry lab
 
 Resolver reads now go through an `AddressResolver` abstraction. `MQCHAIN_RESOLVER_BACKEND=postgres` is the supported in-app backend; `rocksdb` is intentionally left as an explicit external backend placeholder so compiled artifacts can be wired later without changing resolver UI or CEX-flow classification callers.
 
+Read-only MamakQuantNode-facing APIs are available under `/api/mqchain` after authentication. `/api/mqchain/resolver` resolves a single address by current or point-in-time registry state, POSTs classify CEX transaction flow from input/output address sets, and `/api/mqchain/metric-groups/[code]/members` exports a paginated metric-group member universe plus preview and pending external KV compile manifests. These endpoints are explicitly non-mutating: they expose PostgreSQL-derived truth and mark RocksDB/KV as external compiled artifacts.
+
 Address normalization is checksum-aware for BTC P2PKH/P2SH Base58Check, BTC Bech32/Bech32m witness addresses, Tron Base58Check, and length-aware for EVM 20-byte and Solana 32-byte payloads. The normalizer returns the canonical chain, address family, key prefix, and payload hex used by resolver and KV-key preview paths, while invalid inputs stay as structured validation errors.
 
 Discovery jobs at `/mqchain/discovery/jobs` can be completed from structured JSON result rows. Creation and completion forms return structured action states so scanner-config JSON errors, results JSON errors, and staging counts render inline. Completion archives the JSON as a source document, creates staged candidates and inferred evidence, and still requires the normal candidate review and batch commit flow before any registry row exists. Discovery job detail pages now show scanner interface metadata, result summary counts, logs, generated source-job/document archive links, discovered candidates, evidence/status rollups, and a filtered handoff link for sending pending results into review.
@@ -76,7 +78,7 @@ CSV intake accepts either a `.csv`/`.txt` upload or pasted text, enforces a 1,00
 
 Fetched source URLs are constrained before network access: only HTTP/S URLs without embedded credentials are allowed, localhost/private/metadata literal hosts are blocked, GitHub blob URLs are rewritten to raw content, redirects are validated and bounded, and response reads are capped at 1,000,000 bytes. This keeps source archive capture useful without letting intake become an arbitrary internal fetch surface.
 
-Source job detail pages now expose the full import summary, invalid-row errors, parser/source metadata, archived document storage/hash data, candidate status/chain/confidence distributions, evidence type/trust rollups, and raw summary JSON so intake provenance can be audited before review. Operators can mark a source job archived with an archive URI and reason; the archive form returns structured action states for validation and permission failures, preserves candidates/evidence, updates source metadata, and writes an immutable audit row.
+Source job detail pages now expose the full import summary, invalid-row errors, parser/source metadata, archived document coverage, storage/hash/text snapshot diagnostics, candidate status/chain/confidence distributions, evidence type/trust rollups, and raw summary JSON so intake provenance can be audited before review. Operators can mark a source job archived with an archive URI and reason; the archive form returns structured action states for validation and permission failures, preserves candidates/evidence, updates source metadata, and writes an immutable audit row.
 
 Discovery job creation includes typed scanner templates for factory events, registry/address-provider calls, proxy resolution, pool/vault inspection, TX graph scanning, and LLM/ML evidence review. These templates validate operator config and define the expected evidence shape; actual RPC or worker execution remains outside the Vercel request path.
 
@@ -102,7 +104,7 @@ Registry detail pages also show resolver key data, source batch, metric-group me
 
 Settings at `/mqchain/settings` expose the active user roster, role-permission matrix, and owner-only user creation/access updates. User management forms return structured action states so validation, uniqueness, permission, and final-owner failures render inline. These mutations never return password hashes to the UI, write immutable audit rows, and prevent the final active owner account from being deactivated or demoted.
 
-Audit log at `/mqchain/audit-log` merges approval events and system audit rows into a newest-first control-plane timeline, with raw approval and system tables retained for detailed inspection.
+Audit log at `/mqchain/audit-log` merges approval events and system audit rows into a newest-first control-plane timeline, with system payload summaries for before/after changes and user/access mutations. Raw approval and system JSON remain expandable for detailed inspection, and sensitive payload keys are redacted in summaries.
 
 ## Architecture Rules
 

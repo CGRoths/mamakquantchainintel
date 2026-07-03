@@ -69,6 +69,7 @@ export default async function DashboardPage() {
   try {
     const overview = await getDashboardOverview();
     const { stats } = overview;
+    const latestKvSummary = overview.latestKvBuildSummary;
 
     return (
       <>
@@ -123,10 +124,29 @@ export default async function DashboardPage() {
                   </Link>
                   <div className="grid grid-cols-2 gap-3">
                     <div><span className="text-muted-foreground">Status</span><div><StatusBadge status={overview.latestKvBuild.status} /></div></div>
+                    <div><span className="text-muted-foreground">Serving</span><div><StatusBadge status={latestKvSummary.servingStatus} /></div></div>
                     <div><span className="text-muted-foreground">Rows</span><div className="font-mono">{overview.latestKvBuild.rowCount}</div></div>
+                    <div>
+                      <span className="text-muted-foreground">Required indexes</span>
+                      <div className="font-mono">
+                        {latestKvSummary.servingIndexesDeclared
+                          ? `${latestKvSummary.requiredIndexesPresent}/${latestKvSummary.requiredIndexesTotal}`
+                          : "not declared"}
+                      </div>
+                    </div>
                     <div><span className="text-muted-foreground">Dictionary</span><div className="truncate font-mono text-xs">{overview.latestKvBuild.dictionaryVersion ?? "-"}</div></div>
                     <div><span className="text-muted-foreground">Created</span><div className="font-mono text-xs">{overview.latestKvBuild.createdAt.toISOString()}</div></div>
                   </div>
+                  {!latestKvSummary.canServe && latestKvSummary.blockerCount ? (
+                    <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                      <div className="mb-1 font-medium text-foreground">Activation blockers</div>
+                      <div className="grid gap-1">
+                        {latestKvSummary.blockers.map((blocker) => (
+                          <span key={blocker}>{blocker}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : <div className="text-sm text-muted-foreground">No KV build manifest yet.</div>}
             </CardContent>

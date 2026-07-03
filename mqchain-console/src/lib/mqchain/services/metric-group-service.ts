@@ -250,3 +250,17 @@ export async function previewMetricGroupMembers(metricGroupId: number, focusedRe
     kvManifest: buildPendingMetricGroupKvManifest(manifestInput),
   };
 }
+
+export async function previewMetricGroupMembersByCode(metricGroupCode: string, focusedRegistryId?: number | null) {
+  const [group] = await getDb()
+    .select({ id: mqMetricGroups.id })
+    .from(mqMetricGroups)
+    .where(eq(mqMetricGroups.metricGroupCode, metricGroupCode))
+    .limit(1);
+
+  if (!group) {
+    return null;
+  }
+
+  return previewMetricGroupMembers(group.id, focusedRegistryId);
+}

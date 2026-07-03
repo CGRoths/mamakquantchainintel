@@ -4,6 +4,8 @@ import {
   batchLifecyclePermissions,
   buildBatchCandidateRollups,
   buildBatchEvidenceRollups,
+  buildBatchKvHandoffAuditPayload,
+  buildBatchLifecycleAuditPayload,
   buildBatchRegistryRollup,
   confidenceBucket,
 } from "@/lib/mqchain/batch-detail";
@@ -94,6 +96,61 @@ describe("batch detail rollups", () => {
       canCommit: false,
       canFail: false,
       canSupersede: false,
+    });
+  });
+
+  it("builds stable batch lifecycle audit payloads", () => {
+    expect(
+      buildBatchLifecycleAuditPayload({
+        batchId: 42,
+        action: "batch_committed",
+        beforeStatus: "approved",
+        afterStatus: "committed",
+        reason: "Committed to canonical registry and queued KV manifest.",
+        registryIds: [100, 101],
+        dictionaryVersion: "dict-abc",
+      }),
+    ).toEqual({
+      batchId: 42,
+      action: "batch_committed",
+      beforeStatus: "approved",
+      afterStatus: "committed",
+      reason: "Committed to canonical registry and queued KV manifest.",
+      candidateIds: [],
+      registryIds: [100, 101],
+      dictionaryVersion: "dict-abc",
+    });
+  });
+
+  it("builds batch KV handoff audit payloads without embedding large manifests", () => {
+    expect(
+      buildBatchKvHandoffAuditPayload({
+        batchId: 42,
+        buildId: 7,
+        buildHash: "build-hash",
+        dictionaryVersion: "dict-abc",
+        rowCount: 2,
+        registryIds: [100, 101],
+        manifest: {
+          reason: "batch_commit",
+          artifactType: "rocksdb",
+          artifactStatus: "pending_external_compile",
+          registryIds: [100, 101],
+          note: "long handoff detail",
+        },
+      }),
+    ).toEqual({
+      batchId: 42,
+      buildId: 7,
+      buildHash: "build-hash",
+      dictionaryVersion: "dict-abc",
+      rowCount: 2,
+      registryIds: [100, 101],
+      manifest: {
+        reason: "batch_commit",
+        artifactType: "rocksdb",
+        artifactStatus: "pending_external_compile",
+      },
     });
   });
 });

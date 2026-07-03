@@ -54,6 +54,20 @@ function ChipList({ values, emptyLabel }: { values: string[]; emptyLabel: string
   );
 }
 
+function formatBytes(value: number) {
+  if (!value) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  let size = value;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${size >= 10 || unitIndex === 0 ? Math.round(size) : size.toFixed(1)} ${units[unitIndex]}`;
+}
+
 export default async function SourceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -137,6 +151,22 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
             <CardContent className="grid gap-3 text-sm">
               <div><span className="text-muted-foreground">Evidence rows</span><div className="font-mono">{detail.evidenceRollup.totalEvidence}</div></div>
               <DistributionTable rows={detail.evidenceRollup.typeDistribution} emptyLabel="No evidence." />
+            </CardContent>
+          </Card>
+          <Card className="rounded-lg">
+            <CardHeader><CardTitle>Archive coverage</CardTitle></CardHeader>
+            <CardContent className="grid gap-3 text-sm">
+              <div className="grid grid-cols-3 gap-3">
+                <div><span className="text-muted-foreground">Documents</span><div className="font-mono">{detail.documentRollup.totalDocuments}</div></div>
+                <div><span className="text-muted-foreground">Stored</span><div className="font-mono">{detail.documentRollup.withStorageUri}</div></div>
+                <div><span className="text-muted-foreground">Missing URI</span><div className="font-mono">{detail.documentRollup.missingStorageUri}</div></div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div><span className="text-muted-foreground">Has hash</span><div className="font-mono">{detail.documentRollup.withContentHash}</div></div>
+                <div><span className="text-muted-foreground">Text snapshots</span><div className="font-mono">{detail.documentRollup.withExtractedText}</div></div>
+                <div><span className="text-muted-foreground">Bytes</span><div className="font-mono">{formatBytes(detail.documentRollup.totalSizeBytes)}</div></div>
+              </div>
+              <DistributionTable rows={detail.documentRollup.typeDistribution} emptyLabel="No archived documents." />
             </CardContent>
           </Card>
           <Card className="rounded-lg xl:col-span-3">
@@ -373,6 +403,7 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
                   <TableHead>Hash</TableHead>
                   <TableHead>Storage</TableHead>
                   <TableHead>Size</TableHead>
+                  <TableHead>Extracted text</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -382,11 +413,12 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
                     <TableCell>{document.originalName}</TableCell>
                     <TableCell className="font-mono text-xs">{document.contentHash}</TableCell>
                     <TableCell className="max-w-96 truncate font-mono text-xs">{document.storageUri ?? "-"}</TableCell>
-                    <TableCell className="font-mono">{document.sizeBytes ?? "-"}</TableCell>
+                    <TableCell className="font-mono">{document.sizeBytes ? formatBytes(document.sizeBytes) : "-"}</TableCell>
+                    <TableCell className="font-mono">{document.extractedText ? `${document.extractedText.length} chars` : "-"}</TableCell>
                   </TableRow>
                 ))}
                 {!detail.documents.length ? (
-                  <TableRow><TableCell colSpan={5} className="text-sm text-muted-foreground">No archived documents.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-sm text-muted-foreground">No archived documents.</TableCell></TableRow>
                 ) : null}
               </TableBody>
             </Table>

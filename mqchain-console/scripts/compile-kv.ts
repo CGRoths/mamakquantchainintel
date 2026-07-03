@@ -9,11 +9,13 @@ import {
   mqCategoryDict,
   mqEntities,
   mqKvBuilds,
+  mqKvIndexManifests,
   mqKvRoleDict,
   mqMetricGroupRules,
   mqMetricGroups,
   mqProtocols,
 } from "../src/db/schema";
+import { extractKvIndexManifestRecords } from "../src/lib/mqchain/kv-manifest";
 import {
   buildKvKey,
   encodeCurrentLabelKey,
@@ -243,7 +245,7 @@ async function main() {
   await writeFile(metricGroupsPath, metricGroupBody, "utf8");
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
 
-  await db
+  const [build] = await db
     .insert(mqKvBuilds)
     .values({
       buildHash,
@@ -262,7 +264,37 @@ async function main() {
         storageUri: buildDir,
         manifest,
       },
-    });
+    })
+    .returning();
+
+  const indexRecords = extractKvIndexManifestRecords(manifest, buildDir);
+  for (const record of indexRecords) {
+    await db
+      .insert(mqKvIndexManifests)
+      .values({
+        buildId: build.id,
+        indexName: record.indexName,
+        dictionaryVersion,
+        status: "compiled",
+        rowCount: record.rowCount,
+        storageUri: record.storageUri,
+        manifestHash: record.manifestHash,
+        lastCommittedBatchId: record.lastCommittedBatchId,
+        metadata: record.metadata,
+      })
+      .onConflictDoUpdate({
+        target: [mqKvIndexManifests.buildId, mqKvIndexManifests.indexName],
+        set: {
+          dictionaryVersion,
+          status: "compiled",
+          rowCount: record.rowCount,
+          storageUri: record.storageUri,
+          manifestHash: record.manifestHash,
+          lastCommittedBatchId: record.lastCommittedBatchId,
+          metadata: record.metadata,
+        },
+      });
+  }
 
   console.log(JSON.stringify(manifest, null, 2));
 }

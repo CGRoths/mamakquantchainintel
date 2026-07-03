@@ -18,6 +18,7 @@ import { parseSourceJobListFilters, type SourceJobListFilters } from "../list-fi
 import {
   buildSourceJobArchiveMetadata,
   buildSourceJobCandidateRollup,
+  buildSourceJobDocumentRollup,
   buildSourceJobDownstreamRollup,
   buildSourceJobEvidenceRollup,
 } from "../source-job";
@@ -135,6 +136,7 @@ export async function getSourceJob(id: number) {
     evidence,
     downstreamBatches,
     downstreamRegistryRows,
+    documentRollup: buildSourceJobDocumentRollup(documents),
     candidateRollup: buildSourceJobCandidateRollup(candidates),
     evidenceRollup: buildSourceJobEvidenceRollup(evidence),
     downstreamRollup: buildSourceJobDownstreamRollup(downstreamBatches, downstreamRegistryRows.map((row) => row.registry)),
@@ -153,8 +155,13 @@ export async function archiveSourceJob(input: unknown) {
       throw new Error("Source job not found.");
     }
 
+    const archiveStorageUri = parsed.archiveStorageUri || before.archiveStorageUri;
+    if (!archiveStorageUri) {
+      throw new Error("Archive storage URI is required before archiving a source job.");
+    }
+
     const metadata = buildSourceJobArchiveMetadata(before.metadata, {
-      archiveStorageUri: parsed.archiveStorageUri,
+      archiveStorageUri,
       reason: parsed.reason,
       actorEmail: actor.email,
     });
@@ -163,7 +170,7 @@ export async function archiveSourceJob(input: unknown) {
       .update(mqSourceJobs)
       .set({
         status: "archived",
-        archiveStorageUri: parsed.archiveStorageUri || before.archiveStorageUri,
+        archiveStorageUri,
         metadata,
         updatedAt: new Date(),
       })
@@ -180,6 +187,12 @@ export async function archiveSourceJob(input: unknown) {
         afterStatus: updated.status,
         archiveStorageUri: updated.archiveStorageUri,
         reason: parsed.reason,
+        snapshotPolicy: {
+          archivedSourceSnapshotRequired: true,
+          sourceDocumentsImmutable: true,
+          registryWriteAllowed: false,
+          kvWriteAllowed: false,
+        },
       },
     });
 

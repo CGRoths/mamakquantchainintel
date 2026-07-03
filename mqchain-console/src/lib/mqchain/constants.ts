@@ -3,8 +3,27 @@ export const MQCHAIN_ROLES = ["owner", "admin", "analyst", "reviewer", "readonly
 export type MqUserRole = (typeof MQCHAIN_ROLES)[number];
 
 export const ROLE_PERMISSIONS: Record<MqUserRole, string[]> = {
-  owner: ["view", "intake:create", "candidate:review", "candidate:evidence", "batch:commit", "dictionary:edit", "settings:edit", "discovery:create"],
-  admin: ["view", "intake:create", "candidate:review", "candidate:evidence", "batch:commit", "dictionary:edit", "discovery:create"],
+  owner: [
+    "view",
+    "intake:create",
+    "candidate:review",
+    "candidate:evidence",
+    "batch:commit",
+    "registry:edit",
+    "dictionary:edit",
+    "settings:edit",
+    "discovery:create",
+  ],
+  admin: [
+    "view",
+    "intake:create",
+    "candidate:review",
+    "candidate:evidence",
+    "batch:commit",
+    "registry:edit",
+    "dictionary:edit",
+    "discovery:create",
+  ],
   analyst: ["view", "intake:create", "candidate:propose", "candidate:evidence", "discovery:create"],
   reviewer: ["view", "candidate:review", "candidate:evidence"],
   readonly: ["view"],

@@ -5,6 +5,7 @@ import { mqAddressCandidates, mqAddressEvidence, mqAddressRegistry, mqApprovalEv
 import { assertPermission } from "@/lib/auth/permissions";
 import { LABEL_STATUS } from "../constants";
 import { FLAG_BITS, applyMetricEligibilityToFlags, clearFlag, markHistoricalOnlyFlags } from "../flags";
+import { buildCandidateReviewAuditPayload } from "../review";
 import {
   approvalEditSchema,
   candidateHistoricalOnlySchema,
@@ -101,12 +102,27 @@ export async function approveCandidate(input: unknown) {
 
     await tx.insert(mqApprovalEvents).values({
       candidateId: parsed.candidateId,
-        action: "candidate_approved",
-        actorId: actor.id,
-        reason: parsed.notes || "Approved with review edits.",
-        beforeJson: candidate,
-        afterJson: updated,
+      action: "candidate_approved",
+      actorId: actor.id,
+      reason: parsed.notes || "Approved with review edits.",
+      beforeJson: candidate,
+      afterJson: updated,
       metadata: { approvalDraft, metricEligible: parsed.metricEligible === "true" },
+    });
+
+    await tx.insert(mqAuditLog).values({
+      actorId: actor.id,
+      action: "candidate_approved",
+      targetTable: "mq_address_candidates",
+      targetId: String(parsed.candidateId),
+      payload: buildCandidateReviewAuditPayload({
+        candidateId: parsed.candidateId,
+        action: "candidate_approved",
+        beforeStatus: candidate.candidateStatus,
+        afterStatus: updated.candidateStatus,
+        reason: parsed.notes || "Approved with review edits.",
+        approvalDraft,
+      }),
     });
 
     return updated;
@@ -169,6 +185,21 @@ export async function approveCandidateAsSuggested(input: unknown) {
       metadata: { approvalDraft },
     });
 
+    await tx.insert(mqAuditLog).values({
+      actorId: actor.id,
+      action: "candidate_approved_as_suggested",
+      targetTable: "mq_address_candidates",
+      targetId: String(parsed.candidateId),
+      payload: buildCandidateReviewAuditPayload({
+        candidateId: parsed.candidateId,
+        action: "candidate_approved_as_suggested",
+        beforeStatus: candidate.candidateStatus,
+        afterStatus: updated.candidateStatus,
+        reason: approvalDraft.notes,
+        approvalDraft,
+      }),
+    });
+
     return updated;
   });
 }
@@ -205,6 +236,20 @@ export async function rejectCandidate(input: unknown) {
       reason: parsed.reason,
       beforeJson: candidate,
       afterJson: updated,
+    });
+
+    await tx.insert(mqAuditLog).values({
+      actorId: actor.id,
+      action: "candidate_rejected",
+      targetTable: "mq_address_candidates",
+      targetId: String(parsed.candidateId),
+      payload: buildCandidateReviewAuditPayload({
+        candidateId: parsed.candidateId,
+        action: "candidate_rejected",
+        beforeStatus: candidate.candidateStatus,
+        afterStatus: updated.candidateStatus,
+        reason: parsed.reason,
+      }),
     });
 
     return updated;

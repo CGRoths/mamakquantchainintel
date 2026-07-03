@@ -319,7 +319,7 @@ export async function getRegistryDetail(id: number) {
 }
 
 export async function updateRegistryLabel(input: unknown) {
-  const actor = await assertPermission("candidate:review");
+  const actor = await assertPermission("registry:edit");
   const parsed = registryEditSchema.parse(input);
   const db = getDb();
 
@@ -378,7 +378,7 @@ export async function updateRegistryLabel(input: unknown) {
 }
 
 export async function addRegistrySecondaryRole(input: unknown) {
-  const actor = await assertPermission("candidate:review");
+  const actor = await assertPermission("registry:edit");
   const parsed = addRegistrySecondaryRoleSchema.parse(input);
   const db = getDb();
 
@@ -443,7 +443,7 @@ export async function addRegistrySecondaryRole(input: unknown) {
 }
 
 export async function supersedeRegistryLabel(input: unknown) {
-  const actor = await assertPermission("candidate:review");
+  const actor = await assertPermission("registry:edit");
   const parsed = registrySupersedeSchema.parse(input);
   const db = getDb();
 
@@ -514,7 +514,7 @@ export async function supersedeRegistryLabel(input: unknown) {
 }
 
 export async function deactivateRegistryLabel(input: unknown) {
-  const actor = await assertPermission("candidate:review");
+  const actor = await assertPermission("registry:edit");
   const parsed = registryIdSchema.parse(input);
   const db = getDb();
 
@@ -562,7 +562,7 @@ export async function deactivateRegistryLabel(input: unknown) {
 }
 
 export async function markRegistryHistorical(input: unknown) {
-  const actor = await assertPermission("candidate:review");
+  const actor = await assertPermission("registry:edit");
   const parsed = registryIdSchema.parse(input);
   const db = getDb();
 

@@ -246,3 +246,23 @@ export function buildReviewGroupRollups(rows: ReviewGroupRollupInput[]) {
     trustTiers: toSortedEntries(trustTierCounts),
   };
 }
+
+export type CandidateReviewAuditInput = {
+  candidateId: number;
+  action: string;
+  beforeStatus?: string | null;
+  afterStatus: string;
+  reason?: string | null;
+  approvalDraft?: Record<string, unknown> | null;
+};
+
+export function buildCandidateReviewAuditPayload(input: CandidateReviewAuditInput) {
+  return {
+    candidateId: input.candidateId,
+    action: input.action,
+    beforeStatus: input.beforeStatus ?? null,
+    afterStatus: input.afterStatus,
+    reason: input.reason ?? null,
+    approvalDraft: input.approvalDraft ?? null,
+  };
+}

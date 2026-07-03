@@ -1,6 +1,15 @@
 import { z } from "zod";
 
 import { SOURCE_TYPES } from "../constants";
+import { CSV_UPLOAD_MAX_BYTES } from "../csv-upload";
+
+const boundedCsvText = z
+  .string()
+  .trim()
+  .min(1, "CSV input is required")
+  .refine((value) => Buffer.byteLength(value) <= CSV_UPLOAD_MAX_BYTES, {
+    message: `CSV input exceeds ${CSV_UPLOAD_MAX_BYTES} bytes.`,
+  });
 
 export const manualIntakeSchema = z.object({
   sourceType: z.enum(SOURCE_TYPES).default("manual_input"),
@@ -22,10 +31,10 @@ export const csvIntakeSchema = z.object({
   sourceUrl: z.string().trim().url().optional().or(z.literal("")),
   entityHint: z.string().trim().optional(),
   protocolHint: z.string().trim().optional(),
-  csvText: z.string().trim().min(1, "CSV input is required"),
+  csvText: boundedCsvText,
   localFileName: z.string().trim().optional(),
   uploadMimeType: z.string().trim().optional(),
-  uploadSizeBytes: z.coerce.number().int().nonnegative().optional(),
+  uploadSizeBytes: z.coerce.number().int().nonnegative().max(CSV_UPLOAD_MAX_BYTES).optional(),
   csvInputMode: z.enum(["file_upload", "pasted_text"]).optional(),
 });
 

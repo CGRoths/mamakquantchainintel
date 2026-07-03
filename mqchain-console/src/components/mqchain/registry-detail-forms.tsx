@@ -86,6 +86,7 @@ type RegistryDetailFormsProps = {
   }>;
   discoveryConfig: string;
   isHistorical: boolean;
+  canEditRegistry: boolean;
 };
 
 const initialState: RegistryMutationState = null;
@@ -152,6 +153,7 @@ export function RegistryDetailForms({
   relatedRegistryRows,
   discoveryConfig,
   isHistorical,
+  canEditRegistry,
 }: RegistryDetailFormsProps) {
   const availableSecondaryRoles = dictionaries.roles.filter(
     (role) => role.roleId !== registry.roleId && !secondaryRoles.some((secondary) => secondary.roleId === role.roleId),
@@ -161,78 +163,87 @@ export function RegistryDetailForms({
 
   return (
     <>
-      <Card className="rounded-lg">
-        <CardHeader><CardTitle>Edit label</CardTitle></CardHeader>
-        <CardContent>
-          <RegistryFormShell
-            action={updateRegistryLabelResultAction}
-            failureTitle="Registry label update failed"
-            pendingLabel="Saving..."
-            submitLabel="Save registry label"
-            submitVariant="default"
-          >
-            {({ fieldError }) => (
-              <>
-                <input type="hidden" name="registryId" value={registry.id} />
-                <div className="grid gap-2">
-                  <Label>Entity</Label>
-                  <select name="entityId" defaultValue={registry.entityId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm" required>
-                    <option value="">Select entity</option>
-                    {dictionaries.entities.map((entity) => <option key={entity.id} value={entity.id}>{entity.entityName}</option>)}
-                  </select>
-                  <FieldError error={fieldError("entityId")} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Protocol</Label>
-                  <select name="protocolId" defaultValue={registry.protocolId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm">
-                    <option value="">No protocol</option>
-                    {dictionaries.protocols.map((protocol) => <option key={protocol.id} value={protocol.id}>{protocol.protocolName}</option>)}
-                  </select>
-                  <FieldError error={fieldError("protocolId")} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Role</Label>
-                  <select name="roleId" defaultValue={registry.roleId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm" required>
-                    <option value="">Select role</option>
-                    {dictionaries.roles.map((role) => <option key={role.roleId} value={role.roleId}>{role.roleCode}</option>)}
-                  </select>
-                  <FieldError error={fieldError("roleId")} />
-                </div>
-                <div className="grid gap-3 sm:grid-cols-3">
+      {canEditRegistry ? (
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Edit label</CardTitle></CardHeader>
+          <CardContent>
+            <RegistryFormShell
+              action={updateRegistryLabelResultAction}
+              failureTitle="Registry label update failed"
+              pendingLabel="Saving..."
+              submitLabel="Save registry label"
+              submitVariant="default"
+            >
+              {({ fieldError }) => (
+                <>
+                  <input type="hidden" name="registryId" value={registry.id} />
                   <div className="grid gap-2">
-                    <Label>Confidence</Label>
-                    <Input name="confidenceScore" type="number" min="0" max="100" defaultValue={registry.confidenceScore} />
-                    <FieldError error={fieldError("confidenceScore")} />
+                    <Label>Entity</Label>
+                    <select name="entityId" defaultValue={registry.entityId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm" required>
+                      <option value="">Select entity</option>
+                      {dictionaries.entities.map((entity) => <option key={entity.id} value={entity.id}>{entity.entityName}</option>)}
+                    </select>
+                    <FieldError error={fieldError("entityId")} />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Quality</Label>
-                    <Input name="qualityTier" type="number" min="0" max="5" defaultValue={registry.qualityTier} />
-                    <FieldError error={fieldError("qualityTier")} />
+                    <Label>Protocol</Label>
+                    <select name="protocolId" defaultValue={registry.protocolId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm">
+                      <option value="">No protocol</option>
+                      {dictionaries.protocols.map((protocol) => <option key={protocol.id} value={protocol.id}>{protocol.protocolName}</option>)}
+                    </select>
+                    <FieldError error={fieldError("protocolId")} />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Flags</Label>
-                    <Input name="flags" type="number" min="0" defaultValue={registry.flags} />
-                    <FieldError error={fieldError("flags")} />
+                    <Label>Role</Label>
+                    <select name="roleId" defaultValue={registry.roleId ?? ""} className="h-10 rounded-md border bg-background px-3 text-sm" required>
+                      <option value="">Select role</option>
+                      {dictionaries.roles.map((role) => <option key={role.roleId} value={role.roleId}>{role.roleCode}</option>)}
+                    </select>
+                    <FieldError error={fieldError("roleId")} />
                   </div>
-                </div>
-                <FlagBadges flags={registry.flags} />
-                <input type="hidden" name="labelStatus" value={registry.labelStatus} />
-                <Input name="metricUsage" placeholder="metric usage" defaultValue={registry.metricUsage ?? ""} />
-                <FieldError error={fieldError("metricUsage")} />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Input name="validFromBlock" placeholder="valid from block" defaultValue={registry.validFromBlock ?? ""} />
-                  <Input name="validToBlock" placeholder="valid to block" defaultValue={registry.validToBlock ?? ""} />
-                  <Input name="firstSeenBlock" placeholder="first seen block" defaultValue={registry.firstSeenBlock ?? ""} />
-                  <Input name="lastSeenBlock" placeholder="last seen block" defaultValue={registry.lastSeenBlock ?? ""} />
-                </div>
-                <FieldError error={fieldError("validFromBlock") ?? fieldError("validToBlock") ?? fieldError("firstSeenBlock") ?? fieldError("lastSeenBlock")} />
-                <Textarea name="notes" rows={3} defaultValue={registry.notes ?? ""} />
-                <FieldError error={fieldError("notes")} />
-              </>
-            )}
-          </RegistryFormShell>
-        </CardContent>
-      </Card>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-2">
+                      <Label>Confidence</Label>
+                      <Input name="confidenceScore" type="number" min="0" max="100" defaultValue={registry.confidenceScore} />
+                      <FieldError error={fieldError("confidenceScore")} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Quality</Label>
+                      <Input name="qualityTier" type="number" min="0" max="5" defaultValue={registry.qualityTier} />
+                      <FieldError error={fieldError("qualityTier")} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Flags</Label>
+                      <Input name="flags" type="number" min="0" defaultValue={registry.flags} />
+                      <FieldError error={fieldError("flags")} />
+                    </div>
+                  </div>
+                  <FlagBadges flags={registry.flags} />
+                  <input type="hidden" name="labelStatus" value={registry.labelStatus} />
+                  <Input name="metricUsage" placeholder="metric usage" defaultValue={registry.metricUsage ?? ""} />
+                  <FieldError error={fieldError("metricUsage")} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Input name="validFromBlock" placeholder="valid from block" defaultValue={registry.validFromBlock ?? ""} />
+                    <Input name="validToBlock" placeholder="valid to block" defaultValue={registry.validToBlock ?? ""} />
+                    <Input name="firstSeenBlock" placeholder="first seen block" defaultValue={registry.firstSeenBlock ?? ""} />
+                    <Input name="lastSeenBlock" placeholder="last seen block" defaultValue={registry.lastSeenBlock ?? ""} />
+                  </div>
+                  <FieldError error={fieldError("validFromBlock") ?? fieldError("validToBlock") ?? fieldError("firstSeenBlock") ?? fieldError("lastSeenBlock")} />
+                  <Textarea name="notes" rows={3} defaultValue={registry.notes ?? ""} />
+                  <FieldError error={fieldError("notes")} />
+                </>
+              )}
+            </RegistryFormShell>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Registry controls</CardTitle></CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Canonical registry edits, supersession, and deactivation are limited to operators with registry edit access.
+          </CardContent>
+        </Card>
+      )}
       <Card className="rounded-lg">
         <CardHeader><CardTitle>Secondary roles</CardTitle></CardHeader>
         <CardContent className="grid gap-4">
@@ -266,34 +277,36 @@ export function RegistryDetailForms({
               ) : null}
             </TableBody>
           </Table>
-          <RegistryFormShell
-            action={addRegistrySecondaryRoleResultAction}
-            failureTitle="Secondary role attachment failed"
-            pendingLabel="Adding..."
-            submitLabel="Add secondary role"
-            disabled={!availableSecondaryRoles.length}
-          >
-            {({ fieldError }) => (
-              <>
-                <input type="hidden" name="registryId" value={registry.id} />
-                <div className="grid gap-2">
-                  <Label>Role</Label>
-                  <select
-                    name="roleId"
-                    className="h-10 rounded-md border bg-background px-3 text-sm"
-                    required
-                    disabled={!availableSecondaryRoles.length}
-                  >
-                    <option value="">Select secondary role</option>
-                    {availableSecondaryRoles.map((role) => <option key={role.roleId} value={role.roleId}>{role.roleCode}</option>)}
-                  </select>
-                  <FieldError error={fieldError("roleId")} />
-                </div>
-                <Textarea name="reason" rows={3} placeholder="Why this approved label also carries this role" />
-                <FieldError error={fieldError("reason")} />
-              </>
-            )}
-          </RegistryFormShell>
+          {canEditRegistry ? (
+            <RegistryFormShell
+              action={addRegistrySecondaryRoleResultAction}
+              failureTitle="Secondary role attachment failed"
+              pendingLabel="Adding..."
+              submitLabel="Add secondary role"
+              disabled={!availableSecondaryRoles.length}
+            >
+              {({ fieldError }) => (
+                <>
+                  <input type="hidden" name="registryId" value={registry.id} />
+                  <div className="grid gap-2">
+                    <Label>Role</Label>
+                    <select
+                      name="roleId"
+                      className="h-10 rounded-md border bg-background px-3 text-sm"
+                      required
+                      disabled={!availableSecondaryRoles.length}
+                    >
+                      <option value="">Select secondary role</option>
+                      {availableSecondaryRoles.map((role) => <option key={role.roleId} value={role.roleId}>{role.roleCode}</option>)}
+                    </select>
+                    <FieldError error={fieldError("roleId")} />
+                  </div>
+                  <Textarea name="reason" rows={3} placeholder="Why this approved label also carries this role" />
+                  <FieldError error={fieldError("reason")} />
+                </>
+              )}
+            </RegistryFormShell>
+          ) : null}
         </CardContent>
       </Card>
       <Card className="rounded-lg">
@@ -330,40 +343,42 @@ export function RegistryDetailForms({
               ) : null}
             </TableBody>
           </Table>
-          <RegistryFormShell
-            action={supersedeRegistryLabelResultAction}
-            failureTitle="Registry supersession failed"
-            pendingLabel="Superseding..."
-            submitLabel="Supersede with replacement"
-            disabled={!registry.isActive || !activeSiblingRows.length}
-          >
-            {({ fieldError }) => (
-              <>
-                <input type="hidden" name="registryId" value={registry.id} />
-                <div className="grid gap-2">
-                  <Label>Replacement registry row</Label>
-                  <select
-                    name="replacementRegistryId"
-                    className="h-10 rounded-md border bg-background px-3 text-sm"
-                    required
-                    disabled={!registry.isActive || !activeSiblingRows.length}
-                  >
-                    <option value="">Select active replacement</option>
-                    {activeSiblingRows.map((row) => (
-                      <option key={row.registry.id} value={row.registry.id}>
-                        #{row.registry.id} {row.roleCode ?? `role ${row.registry.roleId}`} {row.entityName ? `- ${row.entityName}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <FieldError error={fieldError("replacementRegistryId")} />
-                </div>
-                <Input name="validToBlock" type="number" min="1" placeholder="valid to block (optional)" disabled={!registry.isActive} />
-                <FieldError error={fieldError("validToBlock")} />
-                <Textarea name="reason" rows={3} placeholder="Reason this registry row is superseded" disabled={!registry.isActive} />
-                <FieldError error={fieldError("reason")} />
-              </>
-            )}
-          </RegistryFormShell>
+          {canEditRegistry ? (
+            <RegistryFormShell
+              action={supersedeRegistryLabelResultAction}
+              failureTitle="Registry supersession failed"
+              pendingLabel="Superseding..."
+              submitLabel="Supersede with replacement"
+              disabled={!registry.isActive || !activeSiblingRows.length}
+            >
+              {({ fieldError }) => (
+                <>
+                  <input type="hidden" name="registryId" value={registry.id} />
+                  <div className="grid gap-2">
+                    <Label>Replacement registry row</Label>
+                    <select
+                      name="replacementRegistryId"
+                      className="h-10 rounded-md border bg-background px-3 text-sm"
+                      required
+                      disabled={!registry.isActive || !activeSiblingRows.length}
+                    >
+                      <option value="">Select active replacement</option>
+                      {activeSiblingRows.map((row) => (
+                        <option key={row.registry.id} value={row.registry.id}>
+                          #{row.registry.id} {row.roleCode ?? `role ${row.registry.roleId}`} {row.entityName ? `- ${row.entityName}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <FieldError error={fieldError("replacementRegistryId")} />
+                  </div>
+                  <Input name="validToBlock" type="number" min="1" placeholder="valid to block (optional)" disabled={!registry.isActive} />
+                  <FieldError error={fieldError("validToBlock")} />
+                  <Textarea name="reason" rows={3} placeholder="Reason this registry row is superseded" disabled={!registry.isActive} />
+                  <FieldError error={fieldError("reason")} />
+                </>
+              )}
+            </RegistryFormShell>
+          ) : null}
         </CardContent>
       </Card>
       <Card className="rounded-lg">
@@ -441,44 +456,46 @@ export function RegistryDetailForms({
           </RegistryFormShell>
         </CardContent>
       </Card>
-      <Card className="rounded-lg">
-        <CardHeader><CardTitle>Deactivate label</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            <RegistryFormShell
-              action={markRegistryHistoricalResultAction}
-              failureTitle="Historical marking failed"
-              pendingLabel="Marking..."
-              submitLabel="Mark historical"
-              disabled={!registry.isActive || isHistorical}
-            >
-              {({ fieldError }) => (
-                <>
-                  <input type="hidden" name="registryId" value={registry.id} />
-                  <Textarea name="reason" rows={3} placeholder="Reason for historical-only label" />
-                  <FieldError error={fieldError("reason")} />
-                </>
-              )}
-            </RegistryFormShell>
-            <RegistryFormShell
-              action={deactivateRegistryLabelResultAction}
-              failureTitle="Registry deactivation failed"
-              pendingLabel="Deactivating..."
-              submitLabel="Deactivate"
-              submitVariant="destructive"
-              disabled={!registry.isActive}
-            >
-              {({ fieldError }) => (
-                <>
-                  <input type="hidden" name="registryId" value={registry.id} />
-                  <Textarea name="reason" rows={3} placeholder="Reason for deactivation" />
-                  <FieldError error={fieldError("reason")} />
-                </>
-              )}
-            </RegistryFormShell>
-          </div>
-        </CardContent>
-      </Card>
+      {canEditRegistry ? (
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Deactivate label</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <RegistryFormShell
+                action={markRegistryHistoricalResultAction}
+                failureTitle="Historical marking failed"
+                pendingLabel="Marking..."
+                submitLabel="Mark historical"
+                disabled={!registry.isActive || isHistorical}
+              >
+                {({ fieldError }) => (
+                  <>
+                    <input type="hidden" name="registryId" value={registry.id} />
+                    <Textarea name="reason" rows={3} placeholder="Reason for historical-only label" />
+                    <FieldError error={fieldError("reason")} />
+                  </>
+                )}
+              </RegistryFormShell>
+              <RegistryFormShell
+                action={deactivateRegistryLabelResultAction}
+                failureTitle="Registry deactivation failed"
+                pendingLabel="Deactivating..."
+                submitLabel="Deactivate"
+                submitVariant="destructive"
+                disabled={!registry.isActive}
+              >
+                {({ fieldError }) => (
+                  <>
+                    <input type="hidden" name="registryId" value={registry.id} />
+                    <Textarea name="reason" rows={3} placeholder="Reason for deactivation" />
+                    <FieldError error={fieldError("reason")} />
+                  </>
+                )}
+              </RegistryFormShell>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
     </>
   );
 }

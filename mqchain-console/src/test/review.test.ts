@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildCandidateReviewAuditPayload,
   buildEditedApprovalReadiness,
   buildReviewCandidateGroups,
   buildReviewReadiness,
@@ -185,6 +186,34 @@ describe("review grouping", () => {
         { label: "github_deployment", count: 1 },
       ],
       trustTiers: [{ label: "official", count: 3 }],
+    });
+  });
+
+  it("builds candidate review audit payloads for approval decisions", () => {
+    expect(
+      buildCandidateReviewAuditPayload({
+        candidateId: 7,
+        action: "candidate_approved",
+        beforeStatus: "pending_review",
+        afterStatus: "approved",
+        reason: "official evidence checked",
+        approvalDraft: {
+          entityId: 1,
+          roleId: 1001,
+          confidenceScore: 91,
+        },
+      }),
+    ).toEqual({
+      candidateId: 7,
+      action: "candidate_approved",
+      beforeStatus: "pending_review",
+      afterStatus: "approved",
+      reason: "official evidence checked",
+      approvalDraft: {
+        entityId: 1,
+        roleId: 1001,
+        confidenceScore: 91,
+      },
     });
   });
 });

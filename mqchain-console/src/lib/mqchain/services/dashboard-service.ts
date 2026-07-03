@@ -14,7 +14,7 @@ import {
   mqSourceJobs,
 } from "@/db/schema";
 import { FLAG_BITS } from "../flags";
-import { buildConfidenceDistribution, normalizeDistributionRows } from "../dashboard";
+import { buildConfidenceDistribution, buildDashboardLatestKvBuildSummary, normalizeDistributionRows } from "../dashboard";
 
 const metricEligibleMask = 1 << FLAG_BITS.metricEligible;
 
@@ -124,6 +124,7 @@ export async function getDashboardOverview() {
     },
     latestBatch: latestBatch[0] ?? null,
     latestKvBuild: latestKvBuild[0] ?? null,
+    latestKvBuildSummary: buildDashboardLatestKvBuildSummary(latestKvBuild[0] ?? null),
     discoveryStatus: normalizeDistributionRows(discoveryStatusRows),
     sourceTypes: normalizeDistributionRows(sourceTypeRows),
     qualityTiers: normalizeDistributionRows(qualityTierRows),

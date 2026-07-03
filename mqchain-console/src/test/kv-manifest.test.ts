@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { buildKvManifestActivationPreflight, buildPendingBatchKvManifest, summarizeKvManifestIndexes } from "@/lib/mqchain/kv-manifest";
+import {
+  buildKvManifestActivationPreflight,
+  buildPendingBatchKvManifest,
+  extractKvIndexManifestRecords,
+  summarizeKvManifestIndexes,
+  summarizePersistedKvIndexRecords,
+} from "@/lib/mqchain/kv-manifest";
 import { createKvBuildManifestSchema } from "@/lib/mqchain/validators/kv-manifest";
 
 describe("KV build manifest validation", () => {
@@ -134,6 +140,185 @@ describe("KV build manifest validation", () => {
           path: "metric.jsonl",
         },
       ],
+    });
+  });
+
+  it("extracts per-index manifest rows and optional shard rows for production KV tables", () => {
+    expect(
+      extractKvIndexManifestRecords(
+        {
+          batchId: 77,
+          indexes: {
+            addressLabelCurrent: {
+              indexName: "address_label_current",
+              path: "D:/mqchain/build/current.jsonl",
+              rowCount: 2,
+              hash: "current-hash",
+              shards: [
+                {
+                  shardId: "current-00",
+                  shardKey: "00",
+                  shardHash: "current-shard-hash",
+                  rowCount: 2,
+                  path: "D:/mqchain/build/current-00.sst",
+                },
+              ],
+            },
+            metricGroupMembership: {
+              indexName: "metric_group_membership",
+              rowCount: 1,
+              hash: "metric-hash",
+            },
+          },
+        },
+        "D:/mqchain/build",
+      ),
+    ).toEqual([
+      {
+        indexKey: "addressLabelCurrent",
+        indexName: "address_label_current",
+        rowCount: 2,
+        storageUri: "D:/mqchain/build/current.jsonl",
+        manifestHash: "current-hash",
+        lastCommittedBatchId: 77,
+        metadata: {
+          indexKey: "addressLabelCurrent",
+          indexName: "address_label_current",
+          source: "kv_manifest_indexes",
+          indexManifest: {
+            indexName: "address_label_current",
+            path: "D:/mqchain/build/current.jsonl",
+            rowCount: 2,
+            hash: "current-hash",
+            shards: [
+              {
+                shardId: "current-00",
+                shardKey: "00",
+                shardHash: "current-shard-hash",
+                rowCount: 2,
+                path: "D:/mqchain/build/current-00.sst",
+              },
+            ],
+          },
+        },
+        shards: [
+          {
+            shardId: "current-00",
+            shardKey: "00",
+            shardHash: "current-shard-hash",
+            storageUri: "D:/mqchain/build/current-00.sst",
+            rowCount: 2,
+            metadata: {
+              indexKey: "addressLabelCurrent",
+              indexName: "address_label_current",
+              source: "kv_manifest_indexes",
+              shard: {
+                shardId: "current-00",
+                shardKey: "00",
+                shardHash: "current-shard-hash",
+                rowCount: 2,
+                path: "D:/mqchain/build/current-00.sst",
+              },
+            },
+          },
+        ],
+      },
+      {
+        indexKey: "metricGroupMembership",
+        indexName: "metric_group_membership",
+        rowCount: 1,
+        storageUri: "D:/mqchain/build",
+        manifestHash: "metric-hash",
+        lastCommittedBatchId: 77,
+        metadata: {
+          indexKey: "metricGroupMembership",
+          indexName: "metric_group_membership",
+          source: "kv_manifest_indexes",
+          indexManifest: {
+            indexName: "metric_group_membership",
+            rowCount: 1,
+            hash: "metric-hash",
+          },
+        },
+        shards: [],
+      },
+    ]);
+  });
+
+  it("summarizes persisted per-index manifest and shard rows", () => {
+    const summary = summarizePersistedKvIndexRecords(
+      [
+        {
+          id: 1,
+          indexName: "address_label_current",
+          dictionaryVersion: "dict-1",
+          status: "compiled",
+          rowCount: 2,
+          storageUri: "D:/mqchain/current",
+          manifestHash: "current-hash",
+          lastCommittedBatchId: 10,
+        },
+        {
+          id: 2,
+          indexName: "metric_group_membership",
+          dictionaryVersion: "dict-1",
+          status: "compiled",
+          rowCount: 1,
+          storageUri: "D:/mqchain/metric",
+          manifestHash: "metric-hash",
+          lastCommittedBatchId: 10,
+        },
+        {
+          id: 3,
+          indexName: "custom_serving_index",
+          dictionaryVersion: "dict-1",
+          status: "pending",
+          rowCount: 4,
+          storageUri: null,
+          manifestHash: null,
+          lastCommittedBatchId: null,
+        },
+      ],
+      [
+        {
+          manifestId: 1,
+          shardId: "current-00",
+          shardKey: "00",
+          shardHash: "current-shard",
+          storageUri: "D:/mqchain/current-00",
+          rowCount: 2,
+        },
+        {
+          manifestId: null,
+          shardId: "orphan",
+          shardKey: "orphan",
+          shardHash: null,
+          storageUri: null,
+          rowCount: 9,
+        },
+      ],
+    );
+
+    expect(summary).toMatchObject({
+      indexCount: 3,
+      shardCount: 2,
+      totalRowCount: 7,
+      totalShardRowCount: 11,
+      missingRequired: ["Address label timeline"],
+      statusCounts: { compiled: 2, pending: 1 },
+    });
+    expect(summary.rows[0]).toMatchObject({
+      indexName: "address_label_current",
+      requiredKey: "addressLabelCurrent",
+      requiredLabel: "Address label current",
+      shardCount: 1,
+      shardRowCount: 2,
+    });
+    expect(summary.rows[2]).toMatchObject({
+      indexName: "custom_serving_index",
+      requiredKey: null,
+      requiredLabel: null,
+      shardCount: 0,
     });
   });
 

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { buildApprovalEventTargetLinks } from "@/lib/mqchain/audit";
+import { buildApprovalEventTargetLinks, summarizeAuditPayload } from "@/lib/mqchain/audit";
 import { listAuditTimeline } from "@/lib/mqchain/services/audit-service";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
@@ -33,6 +33,27 @@ function ApprovalEventTargets({ event }: { event: Awaited<ReturnType<typeof list
           {link.label}
         </Link>
       ))}
+    </div>
+  );
+}
+
+function SystemAuditPayload({ payload }: { payload: Record<string, unknown> }) {
+  const summary = summarizeAuditPayload(payload);
+
+  return (
+    <div className="grid gap-1 text-xs">
+      <div>{summary.summary}</div>
+      <details>
+        <summary className="cursor-pointer text-primary">Details</summary>
+        {summary.details.length ? (
+          <ul className="mt-2 grid gap-1 text-muted-foreground">
+            {summary.details.map((detail) => (
+              <li key={detail}>{detail}</li>
+            ))}
+          </ul>
+        ) : null}
+        <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-muted p-3">{JSON.stringify(payload, null, 2)}</pre>
+      </details>
     </div>
   );
 }
@@ -117,7 +138,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
           <CardHeader><CardTitle>System audit events</CardTitle></CardHeader>
           <CardContent>
             <Table><TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Action</TableHead><TableHead>Target</TableHead><TableHead>Payload</TableHead><TableHead>Created</TableHead></TableRow></TableHeader><TableBody>
-              {auditRows.map((row) => <TableRow key={row.id}><TableCell className="font-mono">{row.id}</TableCell><TableCell>{row.action}</TableCell><TableCell className="font-mono text-xs">{row.targetTable}:{row.targetId}</TableCell><TableCell className="max-w-md truncate text-xs">{JSON.stringify(row.payload)}</TableCell><TableCell className="font-mono text-xs">{row.createdAt.toISOString()}</TableCell></TableRow>)}
+              {auditRows.map((row) => <TableRow key={row.id}><TableCell className="font-mono">{row.id}</TableCell><TableCell>{row.action}</TableCell><TableCell className="font-mono text-xs">{row.targetTable}:{row.targetId}</TableCell><TableCell className="max-w-xl"><SystemAuditPayload payload={row.payload} /></TableCell><TableCell className="font-mono text-xs">{row.createdAt.toISOString()}</TableCell></TableRow>)}
             </TableBody></Table>
           </CardContent>
         </Card>

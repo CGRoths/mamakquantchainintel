@@ -18,7 +18,13 @@ import {
   mqSourceJobs,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
-import { buildBatchCandidateRollups, buildBatchEvidenceRollups, buildBatchRegistryRollup } from "../batch-detail";
+import {
+  buildBatchCandidateRollups,
+  buildBatchEvidenceRollups,
+  buildBatchKvHandoffAuditPayload,
+  buildBatchLifecycleAuditPayload,
+  buildBatchRegistryRollup,
+} from "../batch-detail";
 import { assertBatchCandidatesStillApproved, assertSelectedCandidatesApproved } from "../batch-readiness";
 import { LABEL_STATUS } from "../constants";
 import { markHistoricalOnlyFlags } from "../flags";
@@ -262,6 +268,20 @@ export async function createBatchFromCandidates(input: unknown) {
       afterJson: { candidateIds: candidates.map((candidate) => candidate.id) },
     });
 
+    await tx.insert(mqAuditLog).values({
+      actorId: actor.id,
+      action: "batch_created",
+      targetTable: "mq_label_batches",
+      targetId: String(batch.id),
+      payload: buildBatchLifecycleAuditPayload({
+        batchId: batch.id,
+        action: "batch_created",
+        afterStatus: batch.status,
+        reason: "Created from approved candidates.",
+        candidateIds: candidates.map((candidate) => candidate.id),
+      }),
+    });
+
     return batch;
   });
 }
@@ -269,26 +289,46 @@ export async function createBatchFromCandidates(input: unknown) {
 export async function approveBatch(input: unknown) {
   const actor = await assertPermission("candidate:review");
   const parsed = batchIdSchema.parse(input);
+  const db = getDb();
 
-  const [batch] = await getDb()
-    .update(mqLabelBatches)
-    .set({ status: "approved", approvedBy: actor.id, approvedAt: new Date(), updatedAt: new Date() })
-    .where(eq(mqLabelBatches.id, parsed.batchId))
-    .returning();
+  return db.transaction(async (tx) => {
+    const [before] = await tx.select().from(mqLabelBatches).where(eq(mqLabelBatches.id, parsed.batchId)).limit(1);
 
-  if (!batch) {
-    throw new Error("Batch not found.");
-  }
+    if (!before) {
+      throw new Error("Batch not found.");
+    }
 
-  await getDb().insert(mqApprovalEvents).values({
-    batchId: batch.id,
-    action: "batch_approved",
-    actorId: actor.id,
-    reason: "Batch approved for commit.",
-    afterJson: batch,
+    const [batch] = await tx
+      .update(mqLabelBatches)
+      .set({ status: "approved", approvedBy: actor.id, approvedAt: new Date(), updatedAt: new Date() })
+      .where(eq(mqLabelBatches.id, parsed.batchId))
+      .returning();
+
+    await tx.insert(mqApprovalEvents).values({
+      batchId: batch.id,
+      action: "batch_approved",
+      actorId: actor.id,
+      reason: "Batch approved for commit.",
+      beforeJson: before,
+      afterJson: batch,
+    });
+
+    await tx.insert(mqAuditLog).values({
+      actorId: actor.id,
+      action: "batch_approved",
+      targetTable: "mq_label_batches",
+      targetId: String(batch.id),
+      payload: buildBatchLifecycleAuditPayload({
+        batchId: batch.id,
+        action: "batch_approved",
+        beforeStatus: before.status,
+        afterStatus: batch.status,
+        reason: "Batch approved for commit.",
+      }),
+    });
+
+    return batch;
   });
-
-  return batch;
 }
 
 async function updateBatchLifecycleStatus(input: unknown, status: "failed" | "superseded", action: string, defaultReason: string) {
@@ -328,6 +368,20 @@ async function updateBatchLifecycleStatus(input: unknown, status: "failed" | "su
       reason: parsed.reason || defaultReason,
       beforeJson: batch,
       afterJson: updated,
+    });
+
+    await tx.insert(mqAuditLog).values({
+      actorId: actor.id,
+      action,
+      targetTable: "mq_label_batches",
+      targetId: String(updated.id),
+      payload: buildBatchLifecycleAuditPayload({
+        batchId: updated.id,
+        action,
+        beforeStatus: batch.status,
+        afterStatus: updated.status,
+        reason: parsed.reason || defaultReason,
+      }),
     });
 
     return updated;
@@ -591,14 +645,17 @@ export async function commitBatch(input: unknown) {
     });
     const buildHash = hashJson({ ...pendingKvManifest, createdAt: new Date().toISOString() });
 
-    await tx.insert(mqKvBuilds).values({
-      buildHash,
-      dictionaryVersion,
-      status: "pending",
-      rowCount: registryIds.length,
-      manifest: pendingKvManifest,
-      createdBy: actor.id,
-    });
+    const [kvBuild] = await tx
+      .insert(mqKvBuilds)
+      .values({
+        buildHash,
+        dictionaryVersion,
+        status: "pending",
+        rowCount: registryIds.length,
+        manifest: pendingKvManifest,
+        createdBy: actor.id,
+      })
+      .returning();
 
     const [updatedBatch] = await tx
       .update(mqLabelBatches)
@@ -613,6 +670,38 @@ export async function commitBatch(input: unknown) {
       reason: "Committed to canonical registry and queued KV manifest.",
       beforeJson: batch,
       afterJson: { ...updatedBatch, registryIds, dictionaryVersion },
+    });
+
+    await tx.insert(mqAuditLog).values({
+      actorId: actor.id,
+      action: "kv_build_manifest_created",
+      targetTable: "mq_kv_builds",
+      targetId: String(kvBuild.id),
+      payload: buildBatchKvHandoffAuditPayload({
+        batchId: batch.id,
+        buildId: kvBuild.id,
+        buildHash: kvBuild.buildHash,
+        dictionaryVersion,
+        rowCount: registryIds.length,
+        registryIds,
+        manifest: pendingKvManifest,
+      }),
+    });
+
+    await tx.insert(mqAuditLog).values({
+      actorId: actor.id,
+      action: "batch_committed",
+      targetTable: "mq_label_batches",
+      targetId: String(batch.id),
+      payload: buildBatchLifecycleAuditPayload({
+        batchId: batch.id,
+        action: "batch_committed",
+        beforeStatus: batch.status,
+        afterStatus: updatedBatch.status,
+        reason: "Committed to canonical registry and queued KV manifest.",
+        registryIds,
+        dictionaryVersion,
+      }),
     });
 
     return { batch: updatedBatch, registryIds, dictionaryVersion };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildApprovalEventTargetLinks } from "@/lib/mqchain/audit";
-import { buildConfidenceDistribution, normalizeDistributionRows } from "@/lib/mqchain/dashboard";
+import { buildConfidenceDistribution, buildDashboardLatestKvBuildSummary, normalizeDistributionRows } from "@/lib/mqchain/dashboard";
 
 describe("dashboard rollups", () => {
   it("normalizes count rows with deterministic ordering", () => {
@@ -41,5 +41,81 @@ describe("dashboard rollups", () => {
       "/mqchain/candidates/1",
       "/mqchain/batches/2",
     ]);
+  });
+
+  it("summarizes an absent latest KV build", () => {
+    expect(buildDashboardLatestKvBuildSummary(null)).toMatchObject({
+      exists: false,
+      servingStatus: "missing",
+      canServe: false,
+      canActivate: false,
+      requiredIndexesPresent: 0,
+      requiredIndexesTotal: 0,
+    });
+  });
+
+  it("summarizes a compiled KV build with all serving indexes", () => {
+    expect(
+      buildDashboardLatestKvBuildSummary({
+        id: 9,
+        status: "compiled",
+        buildHash: "kv-build-hash",
+        dictionaryVersion: "dict-v1",
+        rowCount: 3,
+        storageUri: "file:///tmp/mqchain/kv",
+        createdAt: new Date("2026-07-04T00:00:00Z"),
+        activatedAt: null,
+        manifest: {
+          artifactType: "rocksdb",
+          rowCount: 3,
+          indexes: {
+            addressLabelCurrent: { indexName: "address_label_current", rowCount: 1 },
+            addressLabelTimeline: { indexName: "address_label_timeline", rowCount: 1 },
+            metricGroupMembership: { indexName: "metric_group_membership", rowCount: 1 },
+          },
+        },
+      }),
+    ).toMatchObject({
+      exists: true,
+      servingStatus: "ready",
+      canServe: false,
+      canActivate: true,
+      requiredIndexesPresent: 3,
+      requiredIndexesTotal: 3,
+      servingIndexesDeclared: true,
+      servingIndexesReady: true,
+      blockerCount: 0,
+    });
+  });
+
+  it("surfaces KV activation blockers and missing serving indexes", () => {
+    expect(
+      buildDashboardLatestKvBuildSummary({
+        id: 10,
+        status: "pending",
+        buildHash: "",
+        dictionaryVersion: null,
+        rowCount: 3,
+        storageUri: null,
+        createdAt: new Date("2026-07-04T00:00:00Z"),
+        activatedAt: null,
+        manifest: {
+          artifactType: "rocksdb",
+          rowCount: 3,
+          indexes: {
+            addressLabelCurrent: { indexName: "address_label_current", rowCount: 3 },
+          },
+        },
+      }),
+    ).toMatchObject({
+      exists: true,
+      servingStatus: "pending",
+      canServe: false,
+      canActivate: false,
+      requiredIndexesPresent: 1,
+      requiredIndexesTotal: 3,
+      servingIndexesReady: false,
+      blockerCount: 5,
+    });
   });
 });

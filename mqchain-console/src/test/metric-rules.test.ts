@@ -5,6 +5,7 @@ import {
   buildMetricGroupCompilePreviewManifest,
   buildPendingMetricGroupKvManifest,
   evaluateMetricGroupPreviewMembers,
+  extractMetricGroupMembershipSnapshotManifest,
   filterMetricGroupPreviewMembers,
 } from "@/lib/mqchain/metric-group-preview";
 import { matchesMetricGroupRule, matchingMetricGroupsForRow, metricGroupAppliesToChain, metricGroupRuleSections } from "@/lib/mqchain/metric-rules";
@@ -333,6 +334,32 @@ describe("metric group rules", () => {
       registryIds: [11],
       ruleCount: 1,
     });
+  });
+
+  it("extracts metric group membership snapshot intent from KV handoff manifests", () => {
+    expect(
+      extractMetricGroupMembershipSnapshotManifest({
+        reason: "metric_group_compile",
+        metricGroupId: 7,
+        metricGroupCode: "btc_cex_reserve_boundary",
+        rowCount: 3,
+        registryIds: [14, 11, 14, "bad", 12],
+      }),
+    ).toEqual({
+      metricGroupId: 7,
+      metricGroupCode: "btc_cex_reserve_boundary",
+      rowCount: 3,
+      registryIds: [11, 12, 14],
+    });
+
+    expect(
+      extractMetricGroupMembershipSnapshotManifest({
+        reason: "batch_commit",
+        metricGroupId: 7,
+        metricGroupCode: "btc_cex_reserve_boundary",
+        registryIds: [11],
+      }),
+    ).toBeNull();
   });
 
   it("records when a focused registry row is outside the preview", () => {

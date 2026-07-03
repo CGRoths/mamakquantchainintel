@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-import { DISCOVERY_SCANNER_TEMPLATES, getDiscoveryTemplate, type DiscoveryScannerType } from "./discovery-templates";
+import {
+  DISCOVERY_SCANNER_TEMPLATES,
+  PROTOCOL_ROOT_DEFAULT_ROLES,
+  PROTOCOL_ROOT_TYPES,
+  getDiscoveryTemplate,
+  type DiscoveryScannerType,
+  type ProtocolRootType,
+} from "./discovery-templates";
 
 const blockNumberSchema = z.coerce.number().int().nonnegative();
 const optionalPositiveNumberSchema = z.coerce.number().int().positive().optional().or(z.literal(""));
@@ -8,6 +15,27 @@ const stringArraySchema = z.array(z.string().trim().min(1)).min(1);
 const jsonObjectSchema = z.record(z.string(), z.unknown());
 
 const discoveryConfigSchemas: Record<DiscoveryScannerType, z.ZodType<Record<string, unknown>>> = {
+  protocol_root_inventory_scanner: z
+    .object({
+      official_url: z.string().trim().url().optional().or(z.literal("")),
+      protocol_id: optionalPositiveNumberSchema,
+      entity_id: optionalPositiveNumberSchema,
+      root_addresses: z
+        .array(
+          z
+            .object({
+              address: z.string().trim().min(1),
+              root_type: z.enum(PROTOCOL_ROOT_TYPES),
+              role: z.string().trim().optional(),
+              source_url: z.string().trim().url().optional().or(z.literal("")),
+              summary: z.string().trim().optional(),
+            })
+            .passthrough(),
+        )
+        .min(1),
+      attach_official_evidence: z.boolean().default(true),
+    })
+    .passthrough(),
   factory_event_scanner: z
     .object({
       event_signature: z.string().trim().min(1),
@@ -67,6 +95,14 @@ const discoveryConfigSchemas: Record<DiscoveryScannerType, z.ZodType<Record<stri
     })
     .passthrough(),
 };
+
+export function defaultRoleForProtocolRootType(rootType?: string | null) {
+  if (!rootType || !PROTOCOL_ROOT_TYPES.includes(rootType as ProtocolRootType)) {
+    return null;
+  }
+
+  return PROTOCOL_ROOT_DEFAULT_ROLES[rootType as ProtocolRootType];
+}
 
 export function parseDiscoveryConfigJson(discoveryType: string, configJson?: string) {
   const template = getDiscoveryTemplate(discoveryType);
@@ -145,6 +181,7 @@ export function discoveryResultSchemaSummary(discoveryType: string) {
       "entity",
       "protocol",
       "role",
+      "root_type",
       "evidence_type",
       "source_url",
       "confidence",

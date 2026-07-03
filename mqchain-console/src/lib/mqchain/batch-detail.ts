@@ -125,3 +125,53 @@ export function batchLifecyclePermissions(status: string) {
     canSupersede: !["failed", "superseded"].includes(status),
   };
 }
+
+export type BatchLifecycleAuditInput = {
+  batchId: number;
+  action: string;
+  beforeStatus?: string | null;
+  afterStatus: string;
+  reason?: string | null;
+  candidateIds?: number[];
+  registryIds?: number[];
+  dictionaryVersion?: string | null;
+};
+
+export function buildBatchLifecycleAuditPayload(input: BatchLifecycleAuditInput) {
+  return {
+    batchId: input.batchId,
+    action: input.action,
+    beforeStatus: input.beforeStatus ?? null,
+    afterStatus: input.afterStatus,
+    reason: input.reason ?? null,
+    candidateIds: input.candidateIds ?? [],
+    registryIds: input.registryIds ?? [],
+    dictionaryVersion: input.dictionaryVersion ?? null,
+  };
+}
+
+export type BatchKvHandoffAuditInput = {
+  batchId: number;
+  buildId: number;
+  buildHash: string;
+  dictionaryVersion: string;
+  rowCount: number;
+  registryIds: number[];
+  manifest: Record<string, unknown>;
+};
+
+export function buildBatchKvHandoffAuditPayload(input: BatchKvHandoffAuditInput) {
+  return {
+    batchId: input.batchId,
+    buildId: input.buildId,
+    buildHash: input.buildHash,
+    dictionaryVersion: input.dictionaryVersion,
+    rowCount: input.rowCount,
+    registryIds: input.registryIds,
+    manifest: {
+      reason: input.manifest.reason ?? null,
+      artifactType: input.manifest.artifactType ?? null,
+      artifactStatus: input.manifest.artifactStatus ?? null,
+    },
+  };
+}

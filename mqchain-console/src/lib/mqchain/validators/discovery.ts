@@ -13,6 +13,7 @@ export const discoveryResultRowSchema = z.object({
   entity: z.string().trim().optional(),
   protocol: z.string().trim().optional(),
   role: z.string().trim().optional(),
+  root_type: z.string().trim().optional(),
   evidence_type: z.string().trim().optional(),
   source_url: z.string().trim().url().optional().or(z.literal("")),
   confidence: z.coerce.number().int().min(0).max(100).optional(),

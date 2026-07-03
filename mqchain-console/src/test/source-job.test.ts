@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildSourceJobArchiveMetadata,
   buildSourceJobCandidateRollup,
+  buildSourceJobDocumentRollup,
   buildSourceJobDownstreamRollup,
   buildSourceJobEvidenceRollup,
+  buildSourceJobIntakeAuditPayload,
   buildSourceJobOperationalSummary,
   buildSourceJobScopeSummary,
 } from "@/lib/mqchain/source-job";
@@ -47,6 +49,46 @@ describe("source job rollups", () => {
       trustDistribution: [
         { label: "official", count: 2 },
         { label: "weak", count: 1 },
+      ],
+    });
+  });
+
+  it("summarizes archived source documents for operator coverage checks", () => {
+    expect(
+      buildSourceJobDocumentRollup([
+        {
+          documentType: "csv",
+          storageUri: "s3://mqchain/sources/1.csv",
+          contentHash: "hash-1",
+          sizeBytes: 512,
+          extractedText: "address,chain",
+        },
+        {
+          documentType: "html_snapshot",
+          storageUri: "",
+          contentHash: "hash-2",
+          sizeBytes: 2048,
+          extractedText: "",
+        },
+        {
+          documentType: "csv",
+          storageUri: "s3://mqchain/sources/2.csv",
+          contentHash: null,
+          sizeBytes: null,
+          extractedText: "0xabc",
+        },
+      ]),
+    ).toEqual({
+      totalDocuments: 3,
+      withStorageUri: 2,
+      missingStorageUri: 1,
+      withContentHash: 2,
+      missingContentHash: 1,
+      withExtractedText: 2,
+      totalSizeBytes: 2560,
+      typeDistribution: [
+        { label: "csv", count: 2 },
+        { label: "html_snapshot", count: 1 },
       ],
     });
   });
@@ -154,5 +196,72 @@ describe("source job rollups", () => {
       archivedBy: "owner@mamakquant.local",
     });
     expect(typeof metadata.archivedAt).toBe("string");
+  });
+
+  it("preserves an existing archive URI when no replacement snapshot is provided", () => {
+    const metadata = buildSourceJobArchiveMetadata(
+      {
+        archiveStorageUri: "s3://mqchain/sources/job-8",
+        candidatesCreated: 5,
+      },
+      {
+        reason: "Re-archived after review.",
+        actorEmail: "owner@mamakquant.local",
+      },
+    );
+
+    expect(metadata).toMatchObject({
+      archiveStorageUri: "s3://mqchain/sources/job-8",
+      archiveReason: "Re-archived after review.",
+      archivedBy: "owner@mamakquant.local",
+      candidatesCreated: 5,
+    });
+  });
+
+  it("builds immutable intake audit payloads from import summaries", () => {
+    expect(
+      buildSourceJobIntakeAuditPayload({
+        sourceJobId: 12,
+        sourceDocumentId: 30,
+        sourceType: "csv_upload",
+        sourceName: "Binance reserves",
+        sourceUrl: null,
+        documentType: "csv",
+        status: "candidate_created",
+        chainScope: ["btc", "ethereum"],
+        expectedRoles: ["cex_cold_wallet"],
+        totalRows: 4,
+        validAddresses: 3,
+        invalidAddresses: 1,
+        duplicates: 1,
+        candidatesCreated: 2,
+        candidatesUpdated: 0,
+        evidenceCreated: 2,
+        conflictsFound: 0,
+        errors: ["row 4: invalid checksum"],
+      }),
+    ).toEqual({
+      sourceJobId: 12,
+      sourceDocumentId: 30,
+      sourceType: "csv_upload",
+      sourceName: "Binance reserves",
+      sourceUrl: null,
+      documentType: "csv",
+      status: "candidate_created",
+      chainScope: ["btc", "ethereum"],
+      expectedRoles: ["cex_cold_wallet"],
+      summary: {
+        totalRows: 4,
+        validAddresses: 3,
+        invalidAddresses: 1,
+        duplicates: 1,
+        candidatesCreated: 2,
+        candidatesUpdated: 0,
+        evidenceCreated: 2,
+        conflictsFound: 0,
+        errorCount: 1,
+      },
+      errors: ["row 4: invalid checksum"],
+    });
   });
 });

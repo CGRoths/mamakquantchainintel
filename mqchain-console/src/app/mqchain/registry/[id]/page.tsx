@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { formatDiscoveryConfigTemplate } from "@/lib/mqchain/discovery-templates";
 import { isHistoricalLabel } from "@/lib/mqchain/flags";
 import { buildRegistryResolverHref, pickRegistryResolverBlock } from "@/lib/mqchain/registry-detail";
@@ -35,10 +36,11 @@ export default async function RegistryDetailPage({ params }: { params: Promise<{
   const { id } = await params;
 
   try {
-    const [detail, dictionaries] = await Promise.all([getRegistryDetail(Number(id)), listDictionaries()]);
+    const [detail, dictionaries, currentUser] = await Promise.all([getRegistryDetail(Number(id)), listDictionaries(), getCurrentUser()]);
     if (!detail) {
       notFound();
     }
+    const canEditRegistry = roleCan(currentUser?.role, "registry:edit");
     const discoveryConfig = registryTxGraphConfig(detail);
     const isHistorical = isHistoricalLabel(detail.registry);
     const resolverHref = buildRegistryResolverHref({
@@ -197,6 +199,7 @@ export default async function RegistryDetailPage({ params }: { params: Promise<{
             relatedRegistryRows={detail.relatedRegistryRows}
             discoveryConfig={discoveryConfig}
             isHistorical={isHistorical}
+            canEditRegistry={canEditRegistry}
           />
           <Card className="rounded-lg">
             <CardHeader><CardTitle>Evidence</CardTitle></CardHeader>

@@ -1,17 +1,16 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { ConsoleShell } from "@/components/mqchain/console-shell";
-import { authOptions } from "@/lib/auth/options";
+import { getCurrentUser } from "@/lib/auth/permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function MqchainLayout({ children }: { children: React.ReactNode }) {
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentUser();
 
-  if (!session?.user) {
+  if (!user) {
     redirect("/login");
   }
 
-  return <ConsoleShell user={session.user}>{children}</ConsoleShell>;
+  return <ConsoleShell user={user}>{children}</ConsoleShell>;
 }

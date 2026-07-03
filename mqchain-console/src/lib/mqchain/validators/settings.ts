@@ -42,6 +42,7 @@ export const SETTINGS_PERMISSION_LABELS = [
   { permission: "candidate:evidence", label: "Add evidence" },
   { permission: "candidate:review", label: "Review candidates" },
   { permission: "batch:commit", label: "Commit batches" },
+  { permission: "registry:edit", label: "Edit registry" },
   { permission: "dictionary:edit", label: "Edit dictionaries" },
   { permission: "discovery:create", label: "Create discovery" },
   { permission: "settings:edit", label: "Manage access" },

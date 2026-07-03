@@ -22,6 +22,7 @@ export type MetricGroupPreviewRow = {
     isActive: boolean;
   };
   entity?: { entityCode: string | null; entityName?: string | null } | null;
+  protocol?: { protocolCode: string | null; protocolName?: string | null } | null;
   role?: { roleCode: string | null } | null;
   category?: { categoryCode: string | null } | null;
 };
@@ -34,6 +35,35 @@ export type MetricGroupPreviewDiagnostics = {
   excludedMetricIneligible: number;
   excludedRuleMismatch: number;
 };
+
+export type MetricGroupMembershipSnapshotManifest = {
+  metricGroupId: number;
+  metricGroupCode: string;
+  registryIds: number[];
+  rowCount: number;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function positiveInteger(value: unknown) {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function positiveIntegerList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .map((item) => positiveInteger(item))
+        .filter((item): item is number => typeof item === "number"),
+    ),
+  ).sort((left, right) => left - right);
+}
 
 function countBy(rows: MetricGroupPreviewRow[], value: (row: MetricGroupPreviewRow) => string | null | undefined) {
   const counts = new Map<string, number>();
@@ -195,5 +225,26 @@ export function buildPendingMetricGroupKvManifest(input: {
     artifactStatus: "pending_external_compile",
     source: "metric_group_preview",
     note: "External worker should compile this metric-group member universe into a KV/RocksDB artifact; MQCHAIN Console only tracks the manifest.",
+  };
+}
+
+export function extractMetricGroupMembershipSnapshotManifest(
+  manifest: Record<string, unknown> | null | undefined,
+): MetricGroupMembershipSnapshotManifest | null {
+  if (!isRecord(manifest) || manifest.reason !== "metric_group_compile") {
+    return null;
+  }
+
+  const metricGroupId = positiveInteger(manifest.metricGroupId);
+  const registryIds = positiveIntegerList(manifest.registryIds);
+  if (!metricGroupId || typeof manifest.metricGroupCode !== "string" || !manifest.metricGroupCode.trim()) {
+    return null;
+  }
+
+  return {
+    metricGroupId,
+    metricGroupCode: manifest.metricGroupCode,
+    registryIds,
+    rowCount: positiveInteger(manifest.rowCount) ?? registryIds.length,
   };
 }

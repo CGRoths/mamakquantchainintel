@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { LoginForm } from "@/components/auth/login-form";
-import { authOptions } from "@/lib/auth/options";
+import { getCurrentUser } from "@/lib/auth/permissions";
 
 export default async function LoginPage() {
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentUser();
 
-  if (session?.user) {
+  if (user) {
     redirect("/mqchain");
   }
 

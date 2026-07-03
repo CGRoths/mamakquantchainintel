@@ -470,6 +470,98 @@ export const mqKvBuilds = pgTable(
   (table) => [index("idx_mq_kv_builds_status").on(table.status)],
 );
 
+export const mqMetricGroupMembershipSnapshots = pgTable(
+  "mq_metric_group_membership_snapshots",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqMetricGroups.id),
+    kvBuildId: bigint("kv_build_id", { mode: "number" }).references(() => mqKvBuilds.id),
+    metricGroupCode: text("metric_group_code").notNull(),
+    dictionaryVersion: text("dictionary_version"),
+    status: text("status").notNull().default("pending"),
+    memberCount: integer("member_count").notNull().default(0),
+    manifestHash: text("manifest_hash"),
+    manifest: jsonb("manifest").$type<Record<string, unknown>>().notNull().default({}),
+    createdBy: uuid("created_by").references(() => mqUsers.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    activatedAt: timestamp("activated_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_mq_metric_member_snapshot_group").on(table.metricGroupId),
+    index("idx_mq_metric_member_snapshot_build").on(table.kvBuildId),
+    index("idx_mq_metric_member_snapshot_status").on(table.status),
+  ],
+);
+
+export const mqMetricGroupMembers = pgTable(
+  "mq_metric_group_members",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    snapshotId: bigint("snapshot_id", { mode: "number" }).references(() => mqMetricGroupMembershipSnapshots.id),
+    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqMetricGroups.id),
+    registryId: bigint("registry_id", { mode: "number" }).references(() => mqAddressRegistry.id),
+    chainCode: text("chain_code").notNull(),
+    normalizedAddress: text("normalized_address").notNull(),
+    entityId: bigint("entity_id", { mode: "number" }).references(() => mqEntities.id),
+    roleId: integer("role_id").references(() => mqKvRoleDict.roleId),
+    confidenceScore: integer("confidence_score").notNull(),
+    flags: integer("flags").notNull().default(0),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_mq_metric_group_members_snapshot_registry").on(table.snapshotId, table.registryId),
+    index("idx_mq_metric_group_members_group").on(table.metricGroupId),
+    index("idx_mq_metric_group_members_registry").on(table.registryId),
+    index("idx_mq_metric_group_members_address").on(table.chainCode, table.normalizedAddress),
+  ],
+);
+
+export const mqKvIndexManifests = pgTable(
+  "mq_kv_index_manifest",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    buildId: bigint("build_id", { mode: "number" }).references(() => mqKvBuilds.id),
+    indexName: text("index_name").notNull(),
+    dictionaryVersion: text("dictionary_version"),
+    status: text("status").notNull().default("pending"),
+    rowCount: integer("row_count").notNull().default(0),
+    storageUri: text("storage_uri"),
+    manifestHash: text("manifest_hash"),
+    lastCommittedBatchId: bigint("last_committed_batch_id", { mode: "number" }).references(() => mqLabelBatches.id),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdBy: uuid("created_by").references(() => mqUsers.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    activatedAt: timestamp("activated_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("uq_mq_kv_index_manifest_build_index").on(table.buildId, table.indexName),
+    index("idx_mq_kv_index_manifest_index").on(table.indexName),
+    index("idx_mq_kv_index_manifest_status").on(table.status),
+    index("idx_mq_kv_index_manifest_batch").on(table.lastCommittedBatchId),
+  ],
+);
+
+export const mqKvIndexShards = pgTable(
+  "mq_kv_index_shards",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    manifestId: bigint("manifest_id", { mode: "number" }).references(() => mqKvIndexManifests.id),
+    shardId: text("shard_id").notNull(),
+    shardKey: text("shard_key").notNull(),
+    shardHash: text("shard_hash"),
+    storageUri: text("storage_uri"),
+    rowCount: integer("row_count").notNull().default(0),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_mq_kv_index_shards_manifest_shard").on(table.manifestId, table.shardId),
+    index("idx_mq_kv_index_shards_manifest").on(table.manifestId),
+    index("idx_mq_kv_index_shards_key").on(table.shardKey),
+  ],
+);
+
 export type MqUser = typeof mqUsers.$inferSelect;
 export type MqAddressCandidate = typeof mqAddressCandidates.$inferSelect;
 export type MqAddressRegistryRow = typeof mqAddressRegistry.$inferSelect;

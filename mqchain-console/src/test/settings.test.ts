@@ -39,6 +39,8 @@ describe("settings validation", () => {
   it("builds a complete role-permission matrix", () => {
     const matrix = buildRolePermissionMatrix();
     expect(matrix.map((row) => row.role)).toEqual([...MQCHAIN_ROLES]);
+    expect(matrix.find((row) => row.role === "admin")?.permissions.find((item) => item.permission === "registry:edit")?.allowed).toBe(true);
+    expect(matrix.find((row) => row.role === "reviewer")?.permissions.find((item) => item.permission === "registry:edit")?.allowed).toBe(false);
     expect(matrix.find((row) => row.role === "owner")?.permissions.find((item) => item.permission === "settings:edit")?.allowed).toBe(true);
     expect(matrix.find((row) => row.role === "readonly")?.permissions.find((item) => item.permission === "settings:edit")?.allowed).toBe(false);
   });

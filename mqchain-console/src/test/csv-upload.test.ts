@@ -20,6 +20,12 @@ describe("CSV upload guardrails", () => {
     await expect(csvTextFromUpload(fileLike({ name: "labels.csv", type: "text/csv", size: CSV_UPLOAD_MAX_BYTES + 1, text: "address" }))).rejects.toThrow("exceeds");
   });
 
+  it("rejects uploads whose decoded text exceeds the byte limit", async () => {
+    await expect(
+      csvTextFromUpload(fileLike({ name: "labels.csv", type: "text/csv", size: 10, text: "a".repeat(CSV_UPLOAD_MAX_BYTES + 1) })),
+    ).rejects.toThrow("exceeds");
+  });
+
   it("rejects executable-looking filenames", async () => {
     await expect(csvTextFromUpload(fileLike({ name: "labels.exe", type: "text/csv", text: "address" }))).rejects.toThrow(".csv or .txt");
   });

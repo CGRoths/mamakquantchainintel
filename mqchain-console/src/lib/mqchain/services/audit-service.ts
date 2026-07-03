@@ -146,6 +146,7 @@ export async function listAuditTimeline(input: unknown = {}) {
         actorLabel: row.actorId ? actorById.get(row.actorId) : null,
         targetTable: row.targetTable,
         targetId: row.targetId,
+        payload: row.payload,
         createdAt: row.createdAt,
       })),
     ],

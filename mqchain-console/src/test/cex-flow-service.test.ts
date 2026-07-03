@@ -58,6 +58,15 @@ describe("classifyCexTransactionFlow", () => {
       entityCode: "binance",
       roleCode: "cex_hot_wallet",
     });
+    expect(result.metricsSummary).toMatchObject({
+      countableBoundaryAddresses: 1,
+      externalAddresses: 1,
+      entityCodes: ["binance"],
+      metricPolicy: {
+        usesMetricGroupMembership: true,
+        countsMatchedBoundaryAddressesOnly: true,
+      },
+    });
   });
 });
 

@@ -12,6 +12,14 @@ export type SourceJobEvidenceRollupInput = {
   trustTier?: string | null;
 };
 
+export type SourceJobDocumentRollupInput = {
+  documentType: string;
+  storageUri?: string | null;
+  contentHash?: string | null;
+  sizeBytes?: number | null;
+  extractedText?: string | null;
+};
+
 export type SourceJobScopeInput = {
   chainCode?: string | null;
   roleHint?: string | null;
@@ -32,6 +40,27 @@ export type SourceJobDownstreamBatchInput = {
 
 export type SourceJobDownstreamRegistryInput = {
   isActive: boolean;
+};
+
+export type SourceJobIntakeAuditInput = {
+  sourceJobId: number;
+  sourceDocumentId: number;
+  sourceType: string;
+  sourceName: string;
+  sourceUrl?: string | null;
+  documentType: string;
+  status: string;
+  chainScope: string[];
+  expectedRoles: string[];
+  totalRows: number;
+  validAddresses: number;
+  invalidAddresses: number;
+  duplicates: number;
+  candidatesCreated: number;
+  candidatesUpdated: number;
+  evidenceCreated: number;
+  conflictsFound: number;
+  errors: string[];
 };
 
 function increment(map: Map<string, number>, key: string) {
@@ -143,6 +172,35 @@ export function buildSourceJobEvidenceRollup(evidence: SourceJobEvidenceRollupIn
   };
 }
 
+export function buildSourceJobDocumentRollup(documents: SourceJobDocumentRollupInput[]) {
+  const typeCounts = new Map<string, number>();
+  let withStorageUri = 0;
+  let withContentHash = 0;
+  let withExtractedText = 0;
+  let totalSizeBytes = 0;
+
+  for (const document of documents) {
+    increment(typeCounts, document.documentType || "unknown");
+    if (cleanString(document.storageUri)) withStorageUri += 1;
+    if (cleanString(document.contentHash)) withContentHash += 1;
+    if (cleanString(document.extractedText)) withExtractedText += 1;
+    if (typeof document.sizeBytes === "number" && Number.isFinite(document.sizeBytes) && document.sizeBytes > 0) {
+      totalSizeBytes += document.sizeBytes;
+    }
+  }
+
+  return {
+    totalDocuments: documents.length,
+    withStorageUri,
+    missingStorageUri: documents.length - withStorageUri,
+    withContentHash,
+    missingContentHash: documents.length - withContentHash,
+    withExtractedText,
+    totalSizeBytes,
+    typeDistribution: toDistribution(typeCounts),
+  };
+}
+
 export function buildSourceJobDownstreamRollup(
   batches: SourceJobDownstreamBatchInput[],
   registryRows: SourceJobDownstreamRegistryInput[],
@@ -170,15 +228,44 @@ export function buildSourceJobDownstreamRollup(
   };
 }
 
+export function buildSourceJobIntakeAuditPayload(input: SourceJobIntakeAuditInput) {
+  return {
+    sourceJobId: input.sourceJobId,
+    sourceDocumentId: input.sourceDocumentId,
+    sourceType: input.sourceType,
+    sourceName: input.sourceName,
+    sourceUrl: input.sourceUrl ?? null,
+    documentType: input.documentType,
+    status: input.status,
+    chainScope: [...input.chainScope],
+    expectedRoles: [...input.expectedRoles],
+    summary: {
+      totalRows: input.totalRows,
+      validAddresses: input.validAddresses,
+      invalidAddresses: input.invalidAddresses,
+      duplicates: input.duplicates,
+      candidatesCreated: input.candidatesCreated,
+      candidatesUpdated: input.candidatesUpdated,
+      evidenceCreated: input.evidenceCreated,
+      conflictsFound: input.conflictsFound,
+      errorCount: input.errors.length,
+    },
+    errors: input.errors,
+  };
+}
+
 export function buildSourceJobArchiveMetadata(
   metadata: Record<string, unknown> | null | undefined,
   input: { archiveStorageUri?: string | null; reason?: string | null; actorEmail?: string | null },
 ) {
+  const currentMetadata = metadata ?? {};
+  const archiveStorageUri = input.archiveStorageUri || cleanString(currentMetadata.archiveStorageUri);
+
   return {
-    ...(metadata ?? {}),
+    ...currentMetadata,
     archivedAt: new Date().toISOString(),
     archivedBy: input.actorEmail ?? null,
     archiveReason: input.reason || "Source job archived by operator.",
-    archiveStorageUri: input.archiveStorageUri || null,
+    archiveStorageUri,
   };
 }

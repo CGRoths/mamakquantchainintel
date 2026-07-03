@@ -1,4 +1,4 @@
-import { classifyCexFlowSides, type CexFlowSideLabel } from "../cex-flow";
+import { buildCexFlowMetricsSummary, classifyCexFlowSides, type CexFlowSideLabel } from "../cex-flow";
 import { getAddressResolver, type AddressResolver } from "./resolver-service";
 
 export type CexFlowInput = {
@@ -49,12 +49,14 @@ export async function classifyCexTransactionFlow(input: CexFlowInput, resolver =
     resolveSide(resolver, input.chainCode, input.inputAddresses, metricGroupCode, input.blockNumber),
     resolveSide(resolver, input.chainCode, input.outputAddresses, metricGroupCode, input.blockNumber),
   ]);
+  const classification = classifyCexFlowSides(inputs, outputs);
 
   return {
     chainCode: input.chainCode,
     metricGroupCode,
     blockNumber: input.blockNumber ?? null,
-    classification: classifyCexFlowSides(inputs, outputs),
+    classification,
+    metricsSummary: buildCexFlowMetricsSummary(inputs, outputs, classification),
     inputs,
     outputs,
   };
