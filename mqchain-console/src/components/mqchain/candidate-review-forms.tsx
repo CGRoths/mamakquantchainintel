@@ -61,6 +61,14 @@ type CandidateReviewFormsProps = {
   }>;
   defaultApprovalFlags: number;
   defaultMetricEligible: boolean;
+  approvalReadiness: {
+    canApproveWithEdits: boolean;
+    blockers: Array<{
+      code: string;
+      label: string;
+      hard: boolean;
+    }>;
+  };
 };
 
 const initialState: CandidateMutationState = null;
@@ -126,7 +134,10 @@ export function CandidateReviewForms({
   registryMatches,
   defaultApprovalFlags,
   defaultMetricEligible,
+  approvalReadiness,
 }: CandidateReviewFormsProps) {
+  const hardApprovalBlocked = !approvalReadiness.canApproveWithEdits;
+
   return (
     <div className="grid gap-4">
       <Card className="rounded-lg">
@@ -175,12 +186,31 @@ export function CandidateReviewForms({
       <Card className="rounded-lg">
         <CardHeader><CardTitle>Approve with edits</CardTitle></CardHeader>
         <CardContent>
+          {approvalReadiness.blockers.length ? (
+            <Alert variant={hardApprovalBlocked ? "destructive" : "default"} className="mb-4">
+              <AlertCircle />
+              <AlertTitle>{hardApprovalBlocked ? "Approval blocked" : "Resolve before submit"}</AlertTitle>
+              <AlertDescription>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {approvalReadiness.blockers.map((blocker) => (
+                    <span
+                      key={blocker.code}
+                      className="rounded-md border px-2 py-1 font-mono text-xs"
+                    >
+                      {blocker.hard ? "blocked" : "editable"}:{blocker.label}
+                    </span>
+                  ))}
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <CandidateFormShell
             action={approveCandidateResultAction}
             failureTitle="Approval failed"
             pendingLabel="Approving..."
             submitLabel="Approve candidate"
             submitVariant="default"
+            disabled={hardApprovalBlocked}
           >
             {({ fieldError }) => (
               <>
@@ -322,7 +352,7 @@ export function CandidateReviewForms({
               pendingLabel="Saving..."
               submitLabel="Supersede old label"
               className="grid gap-2 rounded-md border p-3"
-              disabled={!registryMatches.length}
+              disabled={hardApprovalBlocked || !registryMatches.length}
             >
               {({ fieldError }) => (
                 <>
@@ -355,6 +385,7 @@ export function CandidateReviewForms({
               pendingLabel="Saving..."
               submitLabel="Mark historical only"
               className="grid gap-2 rounded-md border p-3"
+              disabled={hardApprovalBlocked}
             >
               {({ fieldError }) => (
                 <>

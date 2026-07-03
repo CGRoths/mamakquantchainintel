@@ -4,9 +4,17 @@ import {
   parseAuditListFilters,
   parseBatchListFilters,
   parseCandidateListFilters,
+  parseCategoryDictionaryListFilters,
   parseDiscoveryJobListFilters,
+  parseEntityDictionaryListFilters,
+  parseKeyPrefixDictionaryListFilters,
   parseKvBuildListFilters,
+  parseMetricGroupListFilters,
+  parseProtocolDictionaryListFilters,
   parseRegistryListFilters,
+  parseRoleDictionaryListFilters,
+  parseReviewGroupListFilters,
+  parseReviewQueueListFilters,
   parseSourceJobListFilters,
 } from "@/lib/mqchain/list-filters";
 
@@ -43,6 +51,16 @@ describe("operator list filters", () => {
     expect(filters.sort).toBe("created_at");
     expect(filters.page).toBe(1);
     expect(filters.pageSize).toBe(50);
+  });
+
+  it("accepts historical registry filters as a point-in-time label state", () => {
+    const filters = parseRegistryListFilters({
+      active: "historical",
+      pageSize: "25",
+    });
+
+    expect(filters.active).toBe("historical");
+    expect(filters.pageSize).toBe(25);
   });
 
   it("normalizes source job list filters from query strings", () => {
@@ -190,5 +208,253 @@ describe("operator list filters", () => {
   it("rejects invalid discovery job sort and page size values", () => {
     expect(() => parseDiscoveryJobListFilters({ sort: "registry_write" })).toThrow();
     expect(() => parseDiscoveryJobListFilters({ pageSize: "5" })).toThrow();
+  });
+
+  it("normalizes review group list filters from query strings", () => {
+    const filters = parseReviewGroupListFilters({
+      q: " binance ",
+      chain: "btc",
+      entity: "",
+      role: " cex_hot_wallet ",
+      sourceType: "official_url",
+      discoveryType: " tx_graph_scanner ",
+      minConfidence: "80",
+      minCount: "2",
+      minEvidence: "3",
+      sort: "confidence",
+      page: "2",
+      pageSize: "25",
+    });
+
+    expect(filters.q).toBe("binance");
+    expect(filters.chain).toBe("btc");
+    expect(filters.entity).toBeUndefined();
+    expect(filters.role).toBe("cex_hot_wallet");
+    expect(filters.sourceType).toBe("official_url");
+    expect(filters.discoveryType).toBe("tx_graph_scanner");
+    expect(filters.minConfidence).toBe(80);
+    expect(filters.minCount).toBe(2);
+    expect(filters.minEvidence).toBe(3);
+    expect(filters.sort).toBe("confidence");
+    expect(filters.page).toBe(2);
+    expect(filters.pageSize).toBe(25);
+  });
+
+  it("rejects invalid review group sort and page size values", () => {
+    expect(() => parseReviewGroupListFilters({ sort: "created_at" })).toThrow();
+    expect(() => parseReviewGroupListFilters({ pageSize: "5" })).toThrow();
+  });
+
+  it("normalizes review queue list filters from query strings", () => {
+    const filters = parseReviewQueueListFilters({
+      q: " binance ",
+      chain: " btc ",
+      entity: " binance ",
+      protocol: "",
+      role: " cex_cold_wallet ",
+      sourceType: "official_url",
+      discoveryType: "manual",
+      minConfidence: "80",
+      maxConfidence: "95",
+      qualityTier: "3",
+      sort: "evidence_count",
+      page: "2",
+      approvedPage: "4",
+      pageSize: "25",
+    });
+
+    expect(filters.q).toBe("binance");
+    expect(filters.chain).toBe("btc");
+    expect(filters.entity).toBe("binance");
+    expect(filters.protocol).toBeUndefined();
+    expect(filters.role).toBe("cex_cold_wallet");
+    expect(filters.sourceType).toBe("official_url");
+    expect(filters.discoveryType).toBe("manual");
+    expect(filters.minConfidence).toBe(80);
+    expect(filters.maxConfidence).toBe(95);
+    expect(filters.qualityTier).toBe(3);
+    expect(filters.sort).toBe("evidence_count");
+    expect(filters.page).toBe(2);
+    expect(filters.approvedPage).toBe(4);
+    expect(filters.pageSize).toBe(25);
+  });
+
+  it("rejects invalid review queue sort and page values", () => {
+    expect(() => parseReviewQueueListFilters({ sort: "updated_at" })).toThrow();
+    expect(() => parseReviewQueueListFilters({ approvedPage: "0" })).toThrow();
+  });
+
+  it("normalizes metric group list filters from query strings", () => {
+    const filters = parseMetricGroupListFilters({
+      q: " cex flow ",
+      chain: " btc ",
+      active: "all",
+      metricEligible: "true",
+      minConfidence: "70",
+      maxConfidence: "95",
+      sort: "confidence",
+      page: "2",
+      pageSize: "25",
+    });
+
+    expect(filters.q).toBe("cex flow");
+    expect(filters.chain).toBe("btc");
+    expect(filters.active).toBe("all");
+    expect(filters.metricEligible).toBe("true");
+    expect(filters.minConfidence).toBe(70);
+    expect(filters.maxConfidence).toBe(95);
+    expect(filters.sort).toBe("confidence");
+    expect(filters.page).toBe(2);
+    expect(filters.pageSize).toBe(25);
+  });
+
+  it("rejects invalid metric group sort and page size values", () => {
+    expect(() => parseMetricGroupListFilters({ sort: "row_count" })).toThrow();
+    expect(() => parseMetricGroupListFilters({ pageSize: "5" })).toThrow();
+  });
+
+  it("normalizes entity dictionary list filters from query strings", () => {
+    const filters = parseEntityDictionaryListFilters({
+      q: " binance ",
+      entityType: " cex ",
+      category: " exchange ",
+      active: "all",
+      sort: "updated_at",
+      page: "3",
+      pageSize: "25",
+    });
+
+    expect(filters.q).toBe("binance");
+    expect(filters.entityType).toBe("cex");
+    expect(filters.category).toBe("exchange");
+    expect(filters.active).toBe("all");
+    expect(filters.sort).toBe("updated_at");
+    expect(filters.page).toBe(3);
+    expect(filters.pageSize).toBe(25);
+  });
+
+  it("rejects invalid entity dictionary sort and page size values", () => {
+    expect(() => parseEntityDictionaryListFilters({ sort: "confidence" })).toThrow();
+    expect(() => parseEntityDictionaryListFilters({ pageSize: "5" })).toThrow();
+  });
+
+  it("normalizes category dictionary list filters from query strings", () => {
+    const filters = parseCategoryDictionaryListFilters({
+      q: " exchange ",
+      domain: " cex ",
+      metricDomain: " reserve_flow ",
+      active: "all",
+      sort: "domain",
+      page: "2",
+      pageSize: "25",
+    });
+
+    expect(filters.q).toBe("exchange");
+    expect(filters.domain).toBe("cex");
+    expect(filters.metricDomain).toBe("reserve_flow");
+    expect(filters.active).toBe("all");
+    expect(filters.sort).toBe("domain");
+    expect(filters.page).toBe(2);
+    expect(filters.pageSize).toBe(25);
+  });
+
+  it("rejects invalid category dictionary sort and page size values", () => {
+    expect(() => parseCategoryDictionaryListFilters({ sort: "confidence" })).toThrow();
+    expect(() => parseCategoryDictionaryListFilters({ pageSize: "5" })).toThrow();
+  });
+
+  it("normalizes protocol dictionary list filters from query strings", () => {
+    const filters = parseProtocolDictionaryListFilters({
+      q: " aave ",
+      entity: " ethereum foundation ",
+      protocolType: " lending ",
+      chain: " base ",
+      active: "all",
+      sort: "entity",
+      page: "4",
+      pageSize: "25",
+    });
+
+    expect(filters.q).toBe("aave");
+    expect(filters.entity).toBe("ethereum foundation");
+    expect(filters.protocolType).toBe("lending");
+    expect(filters.chain).toBe("base");
+    expect(filters.active).toBe("all");
+    expect(filters.sort).toBe("entity");
+    expect(filters.page).toBe(4);
+    expect(filters.pageSize).toBe(25);
+  });
+
+  it("rejects invalid protocol dictionary sort and page size values", () => {
+    expect(() => parseProtocolDictionaryListFilters({ sort: "confidence" })).toThrow();
+    expect(() => parseProtocolDictionaryListFilters({ pageSize: "5" })).toThrow();
+  });
+
+  it("normalizes role dictionary list filters from query strings", () => {
+    const filters = parseRoleDictionaryListFilters({
+      q: " hot wallet ",
+      category: " exchange ",
+      roleGroup: " custody ",
+      metricUsage: " cex_flow ",
+      boundary: " external ",
+      minQuality: "1",
+      maxQuality: "4",
+      active: "all",
+      sort: "quality",
+      page: "2",
+      pageSize: "25",
+    });
+
+    expect(filters.q).toBe("hot wallet");
+    expect(filters.category).toBe("exchange");
+    expect(filters.roleGroup).toBe("custody");
+    expect(filters.metricUsage).toBe("cex_flow");
+    expect(filters.boundary).toBe("external");
+    expect(filters.minQuality).toBe(1);
+    expect(filters.maxQuality).toBe(4);
+    expect(filters.active).toBe("all");
+    expect(filters.sort).toBe("quality");
+    expect(filters.page).toBe(2);
+    expect(filters.pageSize).toBe(25);
+  });
+
+  it("rejects invalid role dictionary sort and page size values", () => {
+    expect(() => parseRoleDictionaryListFilters({ sort: "confidence" })).toThrow();
+    expect(() => parseRoleDictionaryListFilters({ pageSize: "5" })).toThrow();
+  });
+
+  it("normalizes key prefix dictionary list filters from query strings", () => {
+    const filters = parseKeyPrefixDictionaryListFilters({
+      q: " ethereum ",
+      chain: " eth ",
+      chainFamily: " evm ",
+      addressFamily: " evm20 ",
+      codec: " hex ",
+      evmChainId: "1",
+      minPayloadLen: "20",
+      maxPayloadLen: "32",
+      active: "all",
+      sort: "address_family",
+      page: "3",
+      pageSize: "25",
+    });
+
+    expect(filters.q).toBe("ethereum");
+    expect(filters.chain).toBe("eth");
+    expect(filters.chainFamily).toBe("evm");
+    expect(filters.addressFamily).toBe("evm20");
+    expect(filters.codec).toBe("hex");
+    expect(filters.evmChainId).toBe(1);
+    expect(filters.minPayloadLen).toBe(20);
+    expect(filters.maxPayloadLen).toBe(32);
+    expect(filters.active).toBe("all");
+    expect(filters.sort).toBe("address_family");
+    expect(filters.page).toBe(3);
+    expect(filters.pageSize).toBe(25);
+  });
+
+  it("rejects invalid key prefix dictionary sort and page size values", () => {
+    expect(() => parseKeyPrefixDictionaryListFilters({ sort: "confidence" })).toThrow();
+    expect(() => parseKeyPrefixDictionaryListFilters({ pageSize: "5" })).toThrow();
   });
 });

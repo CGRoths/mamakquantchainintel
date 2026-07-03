@@ -4,9 +4,10 @@ import { FLAG_BITS, setFlag } from "@/lib/mqchain/flags";
 import {
   buildMetricGroupCompilePreviewManifest,
   buildPendingMetricGroupKvManifest,
+  evaluateMetricGroupPreviewMembers,
   filterMetricGroupPreviewMembers,
 } from "@/lib/mqchain/metric-group-preview";
-import { matchesMetricGroupRule, matchingMetricGroupsForRow } from "@/lib/mqchain/metric-rules";
+import { matchesMetricGroupRule, matchingMetricGroupsForRow, metricGroupAppliesToChain, metricGroupRuleSections } from "@/lib/mqchain/metric-rules";
 import { buildMetricGroupRule, createMetricGroupRuleSchema, createMetricGroupSchema, parseMetricGroupRuleList } from "@/lib/mqchain/validators/metric-group";
 
 describe("metric group rules", () => {
@@ -102,10 +103,28 @@ describe("metric group rules", () => {
     });
   });
 
+  it("summarizes metric group rules for operator audit displays", () => {
+    const sections = metricGroupRuleSections({
+      includeRoles: ["cex_hot_wallet"],
+      includeEntities: ["binance"],
+      excludeRoles: ["cex_fee_wallet"],
+      minConfidence: 80,
+      requireMetricEligible: false,
+    });
+
+    expect(sections).toEqual([
+      { key: "includeRoles", label: "Include roles", values: ["cex_hot_wallet"], intent: "include" },
+      { key: "includeEntities", label: "Include entities", values: ["binance"], intent: "include" },
+      { key: "excludeRoles", label: "Exclude roles", values: ["cex_fee_wallet"], intent: "exclude" },
+      { key: "policy", label: "Policy", values: ["min confidence 80", "metric eligible not required"], intent: "policy" },
+    ]);
+  });
+
   it("returns metric groups matched by a registry row", () => {
     const flags = setFlag(0, FLAG_BITS.metricEligible);
     const matches = matchingMetricGroupsForRow(
       {
+        chainCode: "btc",
         roleCode: "cex_cold_wallet",
         categoryCode: "cex_hot_cold",
         entityCode: "coinbase",
@@ -117,22 +136,32 @@ describe("metric group rules", () => {
           id: 1,
           metricGroupCode: "btc_cex_flow_boundary",
           metricGroupName: "BTC CEX Flow Boundary",
+          chainCode: "btc",
           minConfidence: 70,
           requireMetricEligible: true,
           rules: [{ includeRoles: ["cex_cold_wallet"] }],
         },
         {
           id: 2,
-          metricGroupCode: "protocol_graph",
-          metricGroupName: "Protocol Graph",
+          metricGroupCode: "eth_cex_flow_boundary",
+          metricGroupName: "ETH CEX Flow Boundary",
+          chainCode: "ethereum",
           minConfidence: 70,
-          requireMetricEligible: false,
-          rules: [{ includeRoles: ["protocol_factory"] }],
+          requireMetricEligible: true,
+          rules: [{ includeRoles: ["cex_cold_wallet"] }],
         },
       ],
     );
 
     expect(matches.map((group) => group.metricGroupCode)).toEqual(["btc_cex_flow_boundary"]);
+  });
+
+  it("treats metric group chain scope as part of membership", () => {
+    expect(metricGroupAppliesToChain("btc", "btc")).toBe(true);
+    expect(metricGroupAppliesToChain(null, "ethereum")).toBe(true);
+    expect(metricGroupAppliesToChain(undefined, "ethereum")).toBe(true);
+    expect(metricGroupAppliesToChain("btc", "ethereum")).toBe(false);
+    expect(metricGroupAppliesToChain("btc", null)).toBe(false);
   });
 
   it("previews active metric group members within chain scope only", () => {
@@ -171,6 +200,62 @@ describe("metric group rules", () => {
     expect(members.map((row) => row.registry.id)).toEqual([1]);
   });
 
+  it("diagnoses metric group preview exclusions without changing membership", () => {
+    const flags = setFlag(0, FLAG_BITS.metricEligible);
+    const group = {
+      id: 1,
+      metricGroupCode: "btc_cex_flow_boundary",
+      metricGroupName: "BTC CEX Flow Boundary",
+      chainCode: "btc",
+      minConfidence: 70,
+      requireMetricEligible: true,
+    };
+    const rows = [
+      {
+        registry: { id: 1, chainCode: "btc", normalizedAddress: "bc1qmember", confidenceScore: 90, qualityTier: 3, flags, isActive: true },
+        entity: { entityCode: "binance", entityName: "Binance" },
+        role: { roleCode: "cex_cold_wallet" },
+        category: { categoryCode: "cex_hot_cold" },
+      },
+      {
+        registry: { id: 2, chainCode: "btc", normalizedAddress: "bc1qineligible", confidenceScore: 91, qualityTier: 3, flags: 0, isActive: true },
+        entity: { entityCode: "binance", entityName: "Binance" },
+        role: { roleCode: "cex_cold_wallet" },
+        category: { categoryCode: "cex_hot_cold" },
+      },
+      {
+        registry: { id: 3, chainCode: "ethereum", normalizedAddress: "0xabc", confidenceScore: 95, qualityTier: 3, flags, isActive: true },
+        entity: { entityCode: "binance", entityName: "Binance" },
+        role: { roleCode: "cex_cold_wallet" },
+        category: { categoryCode: "cex_hot_cold" },
+      },
+      {
+        registry: { id: 4, chainCode: "btc", normalizedAddress: "bc1qinactive", confidenceScore: 95, qualityTier: 3, flags, isActive: false },
+        entity: { entityCode: "binance", entityName: "Binance" },
+        role: { roleCode: "cex_cold_wallet" },
+        category: { categoryCode: "cex_hot_cold" },
+      },
+      {
+        registry: { id: 5, chainCode: "btc", normalizedAddress: "bc1qnomatch", confidenceScore: 95, qualityTier: 3, flags, isActive: true },
+        entity: { entityCode: "binance", entityName: "Binance" },
+        role: { roleCode: "treasury_wallet" },
+        category: { categoryCode: "treasury" },
+      },
+    ];
+
+    const evaluation = evaluateMetricGroupPreviewMembers(group, [{ includeRoles: ["cex_cold_wallet"] }], rows);
+
+    expect(evaluation.members.map((row) => row.registry.id)).toEqual([1]);
+    expect(evaluation.diagnostics).toEqual({
+      evaluatedRows: 5,
+      memberRows: 1,
+      excludedInactive: 1,
+      excludedOutOfChainScope: 1,
+      excludedMetricIneligible: 1,
+      excludedRuleMismatch: 1,
+    });
+  });
+
   it("builds metric group compile preview manifests", () => {
     const flags = setFlag(0, FLAG_BITS.metricEligible);
     const manifest = buildMetricGroupCompilePreviewManifest({
@@ -204,6 +289,14 @@ describe("metric group rules", () => {
       focusedRegistryId: 11,
       focusedRegistryIncluded: true,
       ruleCount: 1,
+      diagnostics: {
+        evaluatedRows: 1,
+        memberRows: 1,
+        excludedInactive: 0,
+        excludedOutOfChainScope: 0,
+        excludedMetricIneligible: 0,
+        excludedRuleMismatch: 0,
+      },
     });
     expect(manifest.distributions.roles).toEqual([{ label: "cex_cold_wallet", count: 1 }]);
   });

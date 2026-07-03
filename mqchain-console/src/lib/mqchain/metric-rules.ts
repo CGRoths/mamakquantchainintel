@@ -5,9 +5,17 @@ export type MetricGroupMatchDefinition = {
   id: number;
   metricGroupCode: string;
   metricGroupName: string;
+  chainCode?: string | null;
   minConfidence: number;
   requireMetricEligible: boolean;
   rules: MetricGroupRule[];
+};
+
+export type MetricGroupRuleSection = {
+  key: keyof MetricGroupRule | "policy";
+  label: string;
+  values: string[];
+  intent: "include" | "exclude" | "policy";
 };
 
 function includesAny(list: string[] | undefined, value?: string | null) {
@@ -20,6 +28,10 @@ function includesAny(list: string[] | undefined, value?: string | null) {
 
 function missesRequired(list: string[] | undefined, value?: string | null) {
   return Boolean(list?.length) && !includesAny(list, value);
+}
+
+export function metricGroupAppliesToChain(groupChainCode?: string | null, rowChainCode?: string | null) {
+  return !groupChainCode || groupChainCode === rowChainCode;
 }
 
 export function matchesMetricGroupRule(row: RegistryMatchInput, rule: MetricGroupRule) {
@@ -58,8 +70,27 @@ export function matchesMetricGroupRule(row: RegistryMatchInput, rule: MetricGrou
   return true;
 }
 
+export function metricGroupRuleSections(rule: MetricGroupRule): MetricGroupRuleSection[] {
+  const sections: MetricGroupRuleSection[] = ([
+    { key: "includeRoles", label: "Include roles", values: rule.includeRoles ?? [], intent: "include" },
+    { key: "includeCategories", label: "Include categories", values: rule.includeCategories ?? [], intent: "include" },
+    { key: "includeEntities", label: "Include entities", values: rule.includeEntities ?? [], intent: "include" },
+    { key: "excludeRoles", label: "Exclude roles", values: rule.excludeRoles ?? [], intent: "exclude" },
+    { key: "excludeCategories", label: "Exclude categories", values: rule.excludeCategories ?? [], intent: "exclude" },
+    { key: "excludeEntities", label: "Exclude entities", values: rule.excludeEntities ?? [], intent: "exclude" },
+  ] satisfies MetricGroupRuleSection[]).filter((section) => section.values.length > 0);
+
+  const policyValues = [
+    rule.minConfidence !== undefined ? `min confidence ${rule.minConfidence}` : undefined,
+    rule.requireMetricEligible === false ? "metric eligible not required" : "metric eligible required",
+  ].filter(Boolean) as string[];
+
+  return [...sections, { key: "policy", label: "Policy", values: policyValues, intent: "policy" }];
+}
+
 export function matchingMetricGroupsForRow(row: RegistryMatchInput, groups: MetricGroupMatchDefinition[]) {
   return groups.filter((group) =>
+    metricGroupAppliesToChain(group.chainCode, row.chainCode) &&
     group.rules.some((rule) =>
       matchesMetricGroupRule(row, {
         ...rule,

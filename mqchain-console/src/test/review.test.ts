@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { buildReviewCandidateGroups, buildReviewGroupRollups, filterRowsByReviewGroup } from "@/lib/mqchain/review";
+import {
+  buildEditedApprovalReadiness,
+  buildReviewCandidateGroups,
+  buildReviewReadiness,
+  buildReviewGroupRollups,
+  filterReviewCandidateGroups,
+  filterRowsByReviewGroup,
+  paginateReviewCandidateGroups,
+} from "@/lib/mqchain/review";
 
 const rows = [
   {
@@ -42,6 +50,45 @@ const rows = [
 ];
 
 describe("review grouping", () => {
+  it("reports approval readiness blockers before quick approval", () => {
+    expect(
+      buildReviewReadiness({
+        chainCode: "btc",
+        normalizedAddress: "bc1qexample",
+        suggestedEntityId: 1,
+        suggestedRoleId: 1001,
+        evidenceCount: 1,
+      }),
+    ).toEqual({ canQuickApprove: true, blockers: [] });
+
+    expect(
+      buildReviewReadiness({
+        chainCode: null,
+        normalizedAddress: "",
+        suggestedEntityId: null,
+        suggestedRoleId: null,
+        evidenceCount: 0,
+      }),
+    ).toEqual({
+      canQuickApprove: false,
+      blockers: ["missing_chain", "missing_normalized_address", "missing_entity", "missing_role", "missing_evidence"],
+    });
+  });
+
+  it("separates hard approval blockers from fields that can be fixed in the edit form", () => {
+    expect(buildEditedApprovalReadiness(["missing_entity", "missing_role"])).toEqual({
+      canApproveWithEdits: true,
+      hardBlockers: [],
+      editableBlockers: ["missing_entity", "missing_role"],
+    });
+
+    expect(buildEditedApprovalReadiness(["missing_entity", "missing_evidence"])).toEqual({
+      canApproveWithEdits: false,
+      hardBlockers: ["missing_evidence"],
+      editableBlockers: ["missing_entity"],
+    });
+  });
+
   it("groups candidates by entity, chain, and role", () => {
     expect(buildReviewCandidateGroups(rows)).toEqual([
       {
@@ -71,6 +118,35 @@ describe("review grouping", () => {
 
   it("filters rows by stable group slug", () => {
     expect(filterRowsByReviewGroup(rows, "binance__btc__cex-hot-wallet").map((row) => row.candidate.id)).toEqual([1, 2]);
+  });
+
+  it("filters and sorts review groups for the operator list", () => {
+    const groups = buildReviewCandidateGroups(rows);
+    const filtered = filterReviewCandidateGroups(groups, {
+      q: "binance",
+      role: "hot",
+      minCount: 2,
+      minEvidence: 3,
+      sort: "confidence",
+      page: 1,
+      pageSize: 50,
+    });
+
+    expect(filtered.map((group) => group.slug)).toEqual(["binance__btc__cex-hot-wallet"]);
+  });
+
+  it("paginates review groups without changing group contents", () => {
+    const groups = buildReviewCandidateGroups(rows);
+    const result = paginateReviewCandidateGroups(groups, {
+      sort: "count",
+      page: 2,
+      pageSize: 1,
+    });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.total).toBe(2);
+    expect(result.totalPages).toBe(2);
+    expect(result.rows[0]?.slug).toBe("unknown__ethereum__protocol-factory");
   });
 
   it("summarizes group status, source, evidence, and trust composition", () => {

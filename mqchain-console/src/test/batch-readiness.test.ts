@@ -13,8 +13,8 @@ describe("batch candidate readiness", () => {
       assertSelectedCandidatesApproved(
         [1, 2, 3],
         [
-          { id: 1, candidateStatus: "approved" },
-          { id: 2, candidateStatus: "pending_review" },
+          { id: 1, candidateStatus: "approved", evidenceCount: 1 },
+          { id: 2, candidateStatus: "pending_review", evidenceCount: 1 },
         ],
       ),
     ).toThrow("missing candidate IDs: 3; not approved: 2 (pending_review)");
@@ -25,19 +25,40 @@ describe("batch candidate readiness", () => {
       assertSelectedCandidatesApproved(
         [1, 2],
         [
-          { id: 1, candidateStatus: "approved" },
-          { id: 2, candidateStatus: "approved" },
+          { id: 1, candidateStatus: "approved", evidenceCount: 1 },
+          { id: 2, candidateStatus: "approved", evidenceCount: 2 },
         ],
       ),
     ).not.toThrow();
   });
 
+  it("rejects approved selected candidates that have no evidence", () => {
+    expect(() =>
+      assertSelectedCandidatesApproved(
+        [1, 2],
+        [
+          { id: 1, candidateStatus: "approved", evidenceCount: 1 },
+          { id: 2, candidateStatus: "approved", evidenceCount: 0 },
+        ],
+      ),
+    ).toThrow("missing evidence: 2 (0 evidence)");
+  });
+
   it("blocks commit if a batched candidate left approved status", () => {
     expect(() =>
       assertBatchCandidatesStillApproved([
-        { id: 10, candidateStatus: "approved" },
-        { id: 11, candidateStatus: "rejected" },
+        { id: 10, candidateStatus: "approved", evidenceCount: 1 },
+        { id: 11, candidateStatus: "rejected", evidenceCount: 1 },
       ]),
     ).toThrow("Batch candidate readiness changed");
+  });
+
+  it("blocks commit if a batched candidate lost evidence", () => {
+    expect(() =>
+      assertBatchCandidatesStillApproved([
+        { id: 10, candidateStatus: "approved", evidenceCount: 1 },
+        { id: 11, candidateStatus: "approved", evidenceCount: 0 },
+      ]),
+    ).toThrow("missing evidence: 11 (0 evidence)");
   });
 });

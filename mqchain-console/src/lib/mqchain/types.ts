@@ -47,6 +47,7 @@ export type MetricGroupRule = {
 };
 
 export type RegistryMatchInput = {
+  chainCode?: string | null;
   roleCode?: string | null;
   categoryCode?: string | null;
   entityCode?: string | null;

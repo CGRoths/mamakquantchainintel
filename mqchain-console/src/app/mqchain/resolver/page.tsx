@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { buildResolverLookupSummary } from "@/lib/mqchain/resolver-detail";
 import { classifyCexTransactionFlow, parseTransactionAddressSet } from "@/lib/mqchain/services/cex-flow-service";
 import { getAddressResolver } from "@/lib/mqchain/services/resolver-service";
 import { resolverSchema, transactionFlowSchema } from "@/lib/mqchain/validators/registry";
@@ -25,6 +26,10 @@ function SummaryMap({ values }: { values: Record<string, number> }) {
       ))}
     </div>
   );
+}
+
+function formatResolverOutcome(value: string) {
+  return value.replace(/_/g, " ");
 }
 
 export default async function ResolverPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -57,6 +62,18 @@ export default async function ResolverPage({ searchParams }: { searchParams: Pro
       ? resolverInput.metricGroupCode
         ? await resolver.checkMetricGroup(resolverInput.chainCode, resolverInput.address, resolverInput.metricGroupCode, resolverBlockNumber)
         : await resolver.resolveAt(resolverInput.chainCode, resolverInput.address, resolverBlockNumber)
+      : null;
+    const lookupSummary = result
+      ? buildResolverLookupSummary({
+        isValid: result.normalized.isValid,
+        hasLabel: Boolean(result.label),
+        blockNumber: result.blockNumber,
+        labelStatus: result.label?.status ?? null,
+        labelRegistryId: result.label?.registry.id ?? null,
+        currentRegistryId: result.currentLabel?.registry.id ?? null,
+        metricGroupCode: result.metricGroupCode,
+        metricGroupMatch: result.metricGroupMatch,
+      })
       : null;
 
     const txBlockNumber = typeof txInput?.txBlockNumber === "number" ? txInput.txBlockNumber : null;
@@ -102,6 +119,17 @@ export default async function ResolverPage({ searchParams }: { searchParams: Pro
         </Card>
         {result ? (
           <section className="grid gap-4 xl:grid-cols-2">
+            {lookupSummary ? (
+              <Card className="rounded-lg xl:col-span-2">
+                <CardHeader><CardTitle>Lookup summary</CardTitle></CardHeader>
+                <CardContent className="grid gap-3 text-sm md:grid-cols-4">
+                  <div><span className="text-muted-foreground">Mode</span><div className="font-mono">{formatResolverOutcome(lookupSummary.mode)}</div></div>
+                  <div><span className="text-muted-foreground">Outcome</span><div className="font-mono">{formatResolverOutcome(lookupSummary.outcome)}</div></div>
+                  <div><span className="text-muted-foreground">Timeline differs from current</span><div>{String(lookupSummary.timelineDiverged)}</div></div>
+                  <div><span className="text-muted-foreground">Metric group</span><div className="font-mono">{formatResolverOutcome(lookupSummary.metricGroupOutcome)}</div></div>
+                </CardContent>
+              </Card>
+            ) : null}
             <Card className="rounded-lg">
               <CardHeader><CardTitle>Normalized key</CardTitle></CardHeader>
               <CardContent className="grid gap-3 text-sm">

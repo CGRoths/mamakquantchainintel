@@ -1,10 +1,26 @@
 import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
-import { mqAddressCandidates, mqAddressEvidence, mqAuditLog, mqSourceDocuments, mqSourceJobs } from "@/db/schema";
+import {
+  mqAddressCandidates,
+  mqAddressEvidence,
+  mqAddressRegistry,
+  mqAuditLog,
+  mqEntities,
+  mqKvRoleDict,
+  mqLabelBatches,
+  mqProtocols,
+  mqSourceDocuments,
+  mqSourceJobs,
+} from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
 import { parseSourceJobListFilters, type SourceJobListFilters } from "../list-filters";
-import { buildSourceJobArchiveMetadata, buildSourceJobCandidateRollup, buildSourceJobEvidenceRollup } from "../source-job";
+import {
+  buildSourceJobArchiveMetadata,
+  buildSourceJobCandidateRollup,
+  buildSourceJobDownstreamRollup,
+  buildSourceJobEvidenceRollup,
+} from "../source-job";
 import { sourceJobArchiveSchema } from "../validators/source-job";
 
 function sourceJobOrderBy(sort: SourceJobListFilters["sort"]) {
@@ -84,9 +100,23 @@ export async function getSourceJob(id: number) {
     return null;
   }
 
-  const [documents, candidates] = await Promise.all([
+  const [documents, candidates, downstreamBatches, downstreamRegistryRows] = await Promise.all([
     db.select().from(mqSourceDocuments).where(eq(mqSourceDocuments.sourceJobId, id)),
     db.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.sourceJobId, id)).orderBy(desc(mqAddressCandidates.createdAt)),
+    db.select().from(mqLabelBatches).where(eq(mqLabelBatches.sourceJobId, id)).orderBy(desc(mqLabelBatches.createdAt)),
+    db
+      .select({
+        registry: mqAddressRegistry,
+        entityName: mqEntities.entityName,
+        protocolName: mqProtocols.protocolName,
+        roleCode: mqKvRoleDict.roleCode,
+      })
+      .from(mqAddressRegistry)
+      .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
+      .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
+      .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
+      .where(eq(mqAddressRegistry.primarySourceJobId, id))
+      .orderBy(desc(mqAddressRegistry.createdAt)),
   ]);
 
   const candidateIds = candidates.map((candidate) => candidate.id);
@@ -103,8 +133,11 @@ export async function getSourceJob(id: number) {
     documents,
     candidates,
     evidence,
+    downstreamBatches,
+    downstreamRegistryRows,
     candidateRollup: buildSourceJobCandidateRollup(candidates),
     evidenceRollup: buildSourceJobEvidenceRollup(evidence),
+    downstreamRollup: buildSourceJobDownstreamRollup(downstreamBatches, downstreamRegistryRows.map((row) => row.registry)),
   };
 }
 

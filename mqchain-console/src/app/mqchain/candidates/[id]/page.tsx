@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buildCandidateTraceWarnings } from "@/lib/mqchain/candidate-detail";
 import { FLAG_BITS, hasFlag } from "@/lib/mqchain/flags";
+import { buildEditedApprovalReadiness, buildReviewReadiness, REVIEW_READINESS_BLOCKER_LABELS } from "@/lib/mqchain/review";
 import { getCandidateDetail } from "@/lib/mqchain/services/candidate-service";
 
 export default async function CandidateDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -25,6 +26,15 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
     const selectedProtocol = dictionaries.protocols.find((protocol) => protocol.id === candidate.suggestedProtocolId);
     const selectedRole = dictionaries.roles.find((role) => role.roleId === candidate.suggestedRoleId);
     const candidateMetadata = candidate.metadata ?? {};
+    const attachedEvidenceCount = detail.evidence.length;
+    const reviewReadiness = buildReviewReadiness({
+      chainCode: candidate.chainCode,
+      normalizedAddress: candidate.normalizedAddress,
+      suggestedEntityId: candidate.suggestedEntityId,
+      suggestedRoleId: candidate.suggestedRoleId,
+      evidenceCount: attachedEvidenceCount,
+    });
+    const editedApprovalReadiness = buildEditedApprovalReadiness(reviewReadiness.blockers);
     const reviewReason = typeof candidateMetadata.reviewReason === "string" ? candidateMetadata.reviewReason : null;
     const duplicateReason = typeof candidateMetadata.duplicateReason === "string" ? candidateMetadata.duplicateReason : null;
     const approvalDraft = candidateMetadata.approvalDraft && typeof candidateMetadata.approvalDraft === "object" && !Array.isArray(candidateMetadata.approvalDraft)
@@ -82,7 +92,7 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
                 <div><span className="text-muted-foreground">Payload</span><div className="font-mono break-all">{candidate.payloadHex}</div></div>
                 <div><span className="text-muted-foreground">Confidence</span><div className="font-mono">{candidate.confidenceScore}</div></div>
                 <div><span className="text-muted-foreground">Quality tier</span><div className="font-mono">{candidate.qualityTier}</div></div>
-                <div><span className="text-muted-foreground">Evidence count</span><div className="font-mono">{candidate.evidenceCount}</div></div>
+                <div><span className="text-muted-foreground">Evidence count</span><div className="font-mono">{attachedEvidenceCount}</div></div>
                 <div><span className="text-muted-foreground">Discovered by</span><div>{candidate.discoveredBy}</div></div>
                 <div><span className="text-muted-foreground">Suggested entity</span><div>{selectedEntity?.entityName ?? candidate.entityHint ?? "-"}</div></div>
                 <div><span className="text-muted-foreground">Suggested protocol</span><div>{selectedProtocol?.protocolName ?? candidate.protocolHint ?? "-"}</div></div>
@@ -308,6 +318,14 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
               }))}
               defaultApprovalFlags={defaultApprovalFlags}
               defaultMetricEligible={defaultMetricEligible}
+              approvalReadiness={{
+                canApproveWithEdits: editedApprovalReadiness.canApproveWithEdits,
+                blockers: reviewReadiness.blockers.map((blocker) => ({
+                  code: blocker,
+                  label: REVIEW_READINESS_BLOCKER_LABELS[blocker],
+                  hard: editedApprovalReadiness.hardBlockers.includes(blocker),
+                })),
+              }}
             />
           </div>
         </section>

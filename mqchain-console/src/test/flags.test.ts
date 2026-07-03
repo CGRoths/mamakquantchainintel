@@ -7,9 +7,11 @@ import {
   buildDefaultFlags,
   clearFlag,
   hasFlag,
+  isHistoricalLabel,
   markHistoricalOnlyFlags,
   setFlag,
 } from "@/lib/mqchain/flags";
+import { LABEL_STATUS } from "@/lib/mqchain/constants";
 
 describe("flag helpers", () => {
   it("sets and clears bit flags", () => {
@@ -34,6 +36,12 @@ describe("flag helpers", () => {
     expect(hasFlag(flags, FLAG_BITS.historicalOnly)).toBe(true);
     expect(hasFlag(flags, FLAG_BITS.activeLabel)).toBe(false);
     expect(hasFlag(flags, FLAG_BITS.metricEligible)).toBe(false);
+  });
+
+  it("treats inactive historical label status as the canonical historical state", () => {
+    expect(isHistoricalLabel({ labelStatus: LABEL_STATUS.inactiveHistorical, flags: 0 })).toBe(true);
+    expect(isHistoricalLabel({ labelStatus: LABEL_STATUS.activeCurrent, flags: setFlag(0, FLAG_BITS.historicalOnly) })).toBe(true);
+    expect(isHistoricalLabel({ labelStatus: LABEL_STATUS.activeCurrent, flags: 0 })).toBe(false);
   });
 
   it("applies explicit metric eligibility without disturbing other flags", () => {

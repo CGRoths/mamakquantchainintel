@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { buildReviewReadiness } from "@/lib/mqchain/review";
 import { getReviewGroupDetail } from "@/lib/mqchain/services/review-service";
 
 export default async function ReviewGroupDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -74,7 +75,7 @@ export default async function ReviewGroupDetailPage({ params }: { params: Promis
               </TableHeader>
               <TableBody>
                 {detail.rows.map(({ candidate, sourceType, latestEvidence }) => {
-                  const canQuickApprove = Boolean(candidate.suggestedEntityId && candidate.suggestedRoleId);
+                  const readiness = buildReviewReadiness(candidate);
                   return (
                     <TableRow key={candidate.id}>
                       <TableCell className="font-mono">{candidate.id}</TableCell>
@@ -84,6 +85,9 @@ export default async function ReviewGroupDetailPage({ params }: { params: Promis
                       <TableCell className="max-w-96">
                         <span className="block"><StatusBadge status={sourceType ?? candidate.discoveredBy} /></span>
                         <span className="block truncate text-xs text-muted-foreground">{latestEvidence?.summary ?? "-"}</span>
+                        {!readiness.canQuickApprove ? (
+                          <span className="mt-1 block font-mono text-xs text-amber-400">{readiness.blockers.join(", ")}</span>
+                        ) : null}
                       </TableCell>
                       <TableCell className="font-mono">{candidate.confidenceScore} / Q{candidate.qualityTier}</TableCell>
                       <TableCell><StatusBadge status={candidate.candidateStatus} /></TableCell>
@@ -92,7 +96,7 @@ export default async function ReviewGroupDetailPage({ params }: { params: Promis
                           <ReviewQuickActionForm
                             action={reviewQuickActions.approve}
                             candidateId={candidate.id}
-                            disabled={!canQuickApprove}
+                            disabled={!readiness.canQuickApprove}
                             reason="Approved as suggested from review group."
                             returnTo={returnTo}
                             variant="default"

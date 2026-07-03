@@ -18,8 +18,9 @@ import {
   mqSourceJobs,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
-import { buildBatchCandidateRollups, buildBatchEvidenceRollups } from "../batch-detail";
+import { buildBatchCandidateRollups, buildBatchEvidenceRollups, buildBatchRegistryRollup } from "../batch-detail";
 import { assertBatchCandidatesStillApproved, assertSelectedCandidatesApproved } from "../batch-readiness";
+import { LABEL_STATUS } from "../constants";
 import { markHistoricalOnlyFlags } from "../flags";
 import { buildPendingBatchKvManifest } from "../kv-manifest";
 import { parseBatchListFilters, type BatchListFilters } from "../list-filters";
@@ -157,7 +158,7 @@ export async function getBatchDetail(batchId: number) {
         .orderBy(desc(mqAddressEvidence.createdAt))
     : Promise.resolve([]);
 
-  const [sourceJob, sourceDocument, entity, protocol, role, candidateEvidence, batchEvidence, approvalEvents, kvBuilds] = await Promise.all([
+  const [sourceJob, sourceDocument, entity, protocol, role, candidateEvidence, batchEvidence, approvalEvents, kvBuilds, registryRows] = await Promise.all([
     batch.sourceJobId ? db.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, batch.sourceJobId)).limit(1) : Promise.resolve([]),
     batch.sourceDocumentId
       ? db.select().from(mqSourceDocuments).where(eq(mqSourceDocuments.id, batch.sourceDocumentId)).limit(1)
@@ -174,6 +175,19 @@ export async function getBatchDetail(batchId: number) {
       .where(sql`${mqKvBuilds.manifest}->>'batchId' = ${String(batchId)}`)
       .orderBy(desc(mqKvBuilds.createdAt))
       .limit(10),
+    db
+      .select({
+        registry: mqAddressRegistry,
+        entityName: mqEntities.entityName,
+        protocolName: mqProtocols.protocolName,
+        roleCode: mqKvRoleDict.roleCode,
+      })
+      .from(mqAddressRegistry)
+      .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
+      .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
+      .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
+      .where(eq(mqAddressRegistry.approvedBatchId, batchId))
+      .orderBy(desc(mqAddressRegistry.createdAt)),
   ]);
 
   return {
@@ -188,8 +202,10 @@ export async function getBatchDetail(batchId: number) {
     batchEvidence,
     approvalEvents,
     kvBuilds,
+    registryRows,
     candidateRollup: buildBatchCandidateRollups(candidates),
     evidenceRollup: buildBatchEvidenceRollups(candidateEvidence),
+    registryRollup: buildBatchRegistryRollup(registryRows.map((row) => row.registry)),
   };
 }
 
@@ -397,6 +413,7 @@ export async function commitBatch(input: unknown) {
 
       const baseFlags = optionalNumber(draft.flags) ?? role?.defaultFlags ?? 0;
       const registryFlags = historicalOnly ? markHistoricalOnlyFlags(baseFlags) : baseFlags;
+      const labelStatus = historicalOnly ? LABEL_STATUS.inactiveHistorical : optionalNumber(draft.labelStatus) ?? LABEL_STATUS.activeCurrent;
       const registryTarget: RegistryCommitTarget = {
         candidateId: candidate.id,
         chainCode: candidate.chainCode,
@@ -465,7 +482,7 @@ export async function commitBatch(input: unknown) {
           protocolId: optionalNumber(draft.protocolId) ?? candidate.suggestedProtocolId,
           roleId,
           confidenceScore: optionalNumber(draft.confidenceScore) ?? candidate.confidenceScore,
-          labelStatus: optionalNumber(draft.labelStatus) ?? 1,
+          labelStatus,
           qualityTier: optionalNumber(draft.qualityTier) ?? candidate.qualityTier,
           flags: registryFlags,
           metricUsage: role?.metricUsageDefault,
@@ -541,6 +558,9 @@ export async function commitBatch(input: unknown) {
         .where(eq(mqAddressEvidence.candidateId, candidate.id));
 
       const evidenceRows = await tx.select().from(mqAddressEvidence).where(eq(mqAddressEvidence.candidateId, candidate.id));
+      if (!evidenceRows.length) {
+        throw new Error(`Candidate ${candidate.id} must have at least one evidence row before registry commit.`);
+      }
       if (evidenceRows.length) {
         await tx.insert(mqLabelBatchEvidence).values(
           evidenceRows.map((evidence) => ({

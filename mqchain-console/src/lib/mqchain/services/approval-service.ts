@@ -1,8 +1,9 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
-import { mqAddressCandidates, mqAddressRegistry, mqApprovalEvents, mqAuditLog, mqKvRoleDict } from "@/db/schema";
+import { mqAddressCandidates, mqAddressEvidence, mqAddressRegistry, mqApprovalEvents, mqAuditLog, mqKvRoleDict } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
+import { LABEL_STATUS } from "../constants";
 import { FLAG_BITS, applyMetricEligibilityToFlags, clearFlag, markHistoricalOnlyFlags } from "../flags";
 import {
   approvalEditSchema,
@@ -18,6 +19,17 @@ function candidateMetadata(candidate: typeof mqAddressCandidates.$inferSelect) {
   return (candidate.metadata ?? {}) as { approvalDraft?: Record<string, unknown> };
 }
 
+async function assertCandidateHasAttachedEvidence(tx: Pick<ReturnType<typeof getDb>, "select">, candidateId: number) {
+  const [row] = await tx
+    .select({ value: sql<number>`count(*)::int` })
+    .from(mqAddressEvidence)
+    .where(eq(mqAddressEvidence.candidateId, candidateId));
+
+  if (!row?.value) {
+    throw new Error(`Candidate ${candidateId} must have at least one evidence row before approval.`);
+  }
+}
+
 function baseApprovalDraft(
   candidate: typeof mqAddressCandidates.$inferSelect,
   role: typeof mqKvRoleDict.$inferSelect | null,
@@ -29,7 +41,7 @@ function baseApprovalDraft(
     roleId: existingDraft.roleId ?? candidate.suggestedRoleId,
     confidenceScore: existingDraft.confidenceScore ?? candidate.confidenceScore,
     qualityTier: existingDraft.qualityTier ?? candidate.qualityTier,
-    labelStatus: existingDraft.labelStatus ?? 1,
+    labelStatus: existingDraft.labelStatus ?? LABEL_STATUS.activeCurrent,
     flags: existingDraft.flags ?? role?.defaultFlags ?? 0,
     validFromBlock: existingDraft.validFromBlock ?? null,
     validToBlock: existingDraft.validToBlock ?? null,
@@ -50,6 +62,7 @@ export async function approveCandidate(input: unknown) {
     if (!candidate) {
       throw new Error("Candidate not found.");
     }
+    await assertCandidateHasAttachedEvidence(tx, candidate.id);
 
     const draftFlags = applyMetricEligibilityToFlags(parsed.flags, parsed.metricEligible === "true");
     const approvalDraft = {
@@ -111,6 +124,7 @@ export async function approveCandidateAsSuggested(input: unknown) {
     if (!candidate) {
       throw new Error("Candidate not found.");
     }
+    await assertCandidateHasAttachedEvidence(tx, candidate.id);
 
     if (!candidate.suggestedEntityId || !candidate.suggestedRoleId) {
       throw new Error("Candidate needs suggested entity and role before quick approval.");
@@ -123,7 +137,7 @@ export async function approveCandidateAsSuggested(input: unknown) {
       roleId: candidate.suggestedRoleId,
       confidenceScore: candidate.confidenceScore,
       qualityTier: candidate.qualityTier,
-      labelStatus: 1,
+      labelStatus: LABEL_STATUS.activeCurrent,
       flags: role?.defaultFlags ?? 0,
       validFromBlock: null,
       validToBlock: null,
@@ -316,6 +330,7 @@ export async function markCandidateSupersedesRegistry(input: unknown) {
     if (!candidate || !registry) {
       throw new Error("Candidate or registry row not found.");
     }
+    await assertCandidateHasAttachedEvidence(tx, candidate.id);
 
     if (candidate.chainCode !== registry.chainCode || candidate.normalizedAddress !== registry.normalizedAddress) {
       throw new Error("Superseded registry row must match the candidate chain and normalized address.");
@@ -388,6 +403,7 @@ export async function markCandidateHistoricalOnly(input: unknown) {
     if (!candidate) {
       throw new Error("Candidate not found.");
     }
+    await assertCandidateHasAttachedEvidence(tx, candidate.id);
 
     const metadata = candidateMetadata(candidate);
     const existingDraft = metadata.approvalDraft ?? {};
@@ -398,6 +414,7 @@ export async function markCandidateHistoricalOnly(input: unknown) {
       ...baseDraft,
       labelAction: "mark_historical",
       historicalOnly: true,
+      labelStatus: LABEL_STATUS.inactiveHistorical,
       flags: markHistoricalOnlyFlags(optionalNumber(baseDraft.flags) ?? 0),
       validFromBlock: optionalNumber(parsed.validFromBlock) ?? baseDraft.validFromBlock,
       validToBlock: optionalNumber(parsed.validToBlock) ?? baseDraft.validToBlock ?? candidate.lastSeenBlock,

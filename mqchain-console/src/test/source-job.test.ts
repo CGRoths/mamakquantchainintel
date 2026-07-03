@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSourceJobArchiveMetadata, buildSourceJobCandidateRollup, buildSourceJobEvidenceRollup } from "@/lib/mqchain/source-job";
+import {
+  buildSourceJobArchiveMetadata,
+  buildSourceJobCandidateRollup,
+  buildSourceJobDownstreamRollup,
+  buildSourceJobEvidenceRollup,
+  buildSourceJobOperationalSummary,
+  buildSourceJobScopeSummary,
+} from "@/lib/mqchain/source-job";
 
 describe("source job rollups", () => {
   it("summarizes candidate status, chain, confidence, and evidence counts", () => {
@@ -40,6 +47,88 @@ describe("source job rollups", () => {
       trustDistribution: [
         { label: "official", count: 2 },
         { label: "weak", count: 1 },
+      ],
+    });
+  });
+
+  it("summarizes source job chain scope and expected roles from accepted candidates", () => {
+    expect(
+      buildSourceJobScopeSummary([
+        { chainCode: "ethereum", roleHint: " contract_deployer " },
+        { chainCode: "btc", roleHint: "cex_hot_wallet" },
+        { chainCode: "ethereum", roleHint: "contract_deployer" },
+        { chainCode: "polygon", roleHint: "raw_factory_label", suggestedRoleCode: "protocol_factory" },
+        { chainCode: "", roleHint: " " },
+      ]),
+    ).toEqual({
+      chainScope: ["btc", "ethereum", "polygon"],
+      expectedRoles: ["cex_hot_wallet", "contract_deployer", "protocol_factory"],
+    });
+  });
+
+  it("builds operational source scope from columns before metadata fallback", () => {
+    expect(
+      buildSourceJobOperationalSummary({
+        status: "candidate_created",
+        archiveStorageUri: "s3://column/archive",
+        chainScope: ["ethereum", "btc", "ethereum", " "],
+        expectedRoles: ["protocol_factory", "cex_hot_wallet"],
+        metadata: {
+          chainScope: ["stale"],
+          expectedRoles: ["stale_role"],
+          archiveStorageUri: "s3://metadata/archive",
+        },
+      }),
+    ).toEqual({
+      chainScope: ["btc", "ethereum"],
+      expectedRoles: ["cex_hot_wallet", "protocol_factory"],
+      archived: false,
+      archiveStorageUri: "s3://column/archive",
+      archivedAt: null,
+      archivedBy: null,
+      archiveReason: null,
+    });
+  });
+
+  it("falls back to archive and scope metadata for older source jobs", () => {
+    expect(
+      buildSourceJobOperationalSummary({
+        status: "archived",
+        metadata: {
+          chainScope: ["polygon"],
+          expectedRoles: ["treasury_wallet"],
+          archiveStorageUri: "s3://metadata/archive",
+          archivedAt: "2026-07-04T00:00:00.000Z",
+          archivedBy: "owner@mamakquant.local",
+          archiveReason: "Reviewed and archived.",
+        },
+      }),
+    ).toEqual({
+      chainScope: ["polygon"],
+      expectedRoles: ["treasury_wallet"],
+      archived: true,
+      archiveStorageUri: "s3://metadata/archive",
+      archivedAt: "2026-07-04T00:00:00.000Z",
+      archivedBy: "owner@mamakquant.local",
+      archiveReason: "Reviewed and archived.",
+    });
+  });
+
+  it("summarizes downstream batch and registry handoff state", () => {
+    const rollup = buildSourceJobDownstreamRollup(
+      [{ status: "committed" }, { status: "pending_approval" }, { status: "committed" }],
+      [{ isActive: true }, { isActive: false }, { isActive: true }],
+    );
+
+    expect(rollup).toEqual({
+      totalBatches: 3,
+      committedBatches: 2,
+      totalRegistryRows: 3,
+      activeRegistryRows: 2,
+      inactiveRegistryRows: 1,
+      batchStatusDistribution: [
+        { label: "committed", count: 2 },
+        { label: "pending_approval", count: 1 },
       ],
     });
   });

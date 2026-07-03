@@ -17,9 +17,22 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 
 type BatchAction = (previousState: BatchMutationState, formData: FormData) => Promise<BatchMutationState>;
+
+type BatchCandidateOption = {
+  id: number;
+  normalizedAddress: string;
+  chainCode: string | null;
+  confidenceScore: number | null;
+  qualityTier: number | null;
+  evidenceCount: number | null;
+  entityName: string | null;
+  roleCode: string | null;
+  sourceType: string | null;
+};
 
 type BatchFormShellProps = {
   action: BatchAction;
@@ -97,27 +110,71 @@ function BatchFormShell({
   );
 }
 
-export function CreateBatchForm({ approvedCandidateIds }: { approvedCandidateIds: number[] }) {
+export function CreateBatchForm({ approvedCandidates }: { approvedCandidates: BatchCandidateOption[] }) {
   return (
     <BatchFormShell
       action={createBatchResultAction}
       failureTitle="Batch creation failed"
       pendingLabel="Creating..."
       submitLabel="Create"
-      className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
+      className="grid gap-4"
       navigateOnSuccess
     >
       {({ fieldError }) => (
         <>
-          <div className="grid gap-2">
-            <Label>Candidate IDs</Label>
-            <Input name="candidateIds" placeholder="1, 2, 3" defaultValue={approvedCandidateIds.join(", ")} />
-            <FieldError error={fieldError("candidateIds")} />
+          <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+            <div className="grid gap-2">
+              <Label>Additional candidate IDs</Label>
+              <Input name="candidateIds" placeholder="Optional: 1, 2, 3" />
+              <FieldError error={fieldError("candidateIds")} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Batch name</Label>
+              <Input name="sourceName" placeholder="Binance BTC reserve review" />
+              <FieldError error={fieldError("sourceName")} />
+            </div>
           </div>
-          <div className="grid gap-2">
-            <Label>Batch name</Label>
-            <Input name="sourceName" placeholder="Binance BTC reserve review" />
-            <FieldError error={fieldError("sourceName")} />
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Select</TableHead>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Label</TableHead>
+                  <TableHead>Evidence</TableHead>
+                  <TableHead>Score</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {approvedCandidates.map((candidate) => (
+                  <TableRow key={candidate.id}>
+                    <TableCell><input className="h-4 w-4 accent-primary" type="checkbox" name="candidateId" value={candidate.id} defaultChecked /></TableCell>
+                    <TableCell className="font-mono">{candidate.id}</TableCell>
+                    <TableCell className="max-w-96 truncate font-mono text-xs">
+                      <a className="text-primary hover:underline" href={`/mqchain/candidates/${candidate.id}`}>{candidate.normalizedAddress}</a>
+                      <span className="block text-muted-foreground">{candidate.chainCode ?? "-"}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="block">{candidate.entityName ?? "-"}</span>
+                      <span className="block font-mono text-xs text-muted-foreground">{candidate.roleCode ?? "-"}</span>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <span className="block">{candidate.sourceType ?? "-"}</span>
+                      <span className="font-mono text-muted-foreground">{candidate.evidenceCount ?? 0} rows</span>
+                    </TableCell>
+                    <TableCell className="font-mono">{candidate.confidenceScore ?? 0} / Q{candidate.qualityTier ?? 0}</TableCell>
+                  </TableRow>
+                ))}
+                {!approvedCandidates.length ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                      No approved candidates match the picker filters.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
           </div>
         </>
       )}

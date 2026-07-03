@@ -4,8 +4,10 @@ import {
   batchLifecyclePermissions,
   buildBatchCandidateRollups,
   buildBatchEvidenceRollups,
+  buildBatchRegistryRollup,
   confidenceBucket,
 } from "@/lib/mqchain/batch-detail";
+import { FLAG_BITS, setFlag } from "@/lib/mqchain/flags";
 
 describe("batch detail rollups", () => {
   it("buckets confidence scores", () => {
@@ -55,6 +57,23 @@ describe("batch detail rollups", () => {
         { label: "official", count: 2 },
         { label: "weak", count: 1 },
       ],
+    });
+  });
+
+  it("summarizes committed registry output from a batch", () => {
+    const metricEligible = setFlag(0, FLAG_BITS.metricEligible);
+
+    expect(
+      buildBatchRegistryRollup([
+        { isActive: true, flags: metricEligible },
+        { isActive: true, flags: 0 },
+        { isActive: false, flags: metricEligible },
+      ]),
+    ).toEqual({
+      totalRows: 3,
+      activeRows: 2,
+      inactiveRows: 1,
+      metricEligibleRows: 2,
     });
   });
 

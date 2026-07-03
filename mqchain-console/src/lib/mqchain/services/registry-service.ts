@@ -15,11 +15,15 @@ import {
   mqMetricGroupRules,
   mqMetricGroups,
   mqProtocols,
+  mqSourceDocuments,
+  mqSourceJobs,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
+import { LABEL_STATUS } from "../constants";
 import { FLAG_BITS, markHistoricalOnlyFlags, setFlag } from "../flags";
 import { parseRegistryListFilters, type RegistryListFilters } from "../list-filters";
 import { matchingMetricGroupsForRow } from "../metric-rules";
+import { extractRegistryCandidateId } from "../registry-detail";
 import { buildSupersededRegistryMetadata, inferSupersededValidToBlock } from "../registry-lifecycle";
 import { addSecondaryRoleToMetadata, parseSecondaryRoles } from "../secondary-roles";
 import type { MetricGroupRule } from "../types";
@@ -93,6 +97,8 @@ export async function listRegistry(input?: unknown) {
     conditions.push(eq(mqAddressRegistry.isActive, true));
   } else if (filters.active === "inactive") {
     conditions.push(eq(mqAddressRegistry.isActive, false));
+  } else if (filters.active === "historical") {
+    addCondition(conditions, or(eq(mqAddressRegistry.labelStatus, LABEL_STATUS.inactiveHistorical), flagCondition(FLAG_BITS.historicalOnly, true)));
   }
 
   if (filters.minConfidence !== undefined) {
@@ -189,10 +195,13 @@ export async function getRegistryDetail(id: number) {
   if (registry.protocolId) {
     discoveryConditions.push(eq(mqDiscoveryJobs.protocolId, registry.protocolId));
   }
+  const primaryCandidateId = extractRegistryCandidateId(registry.metadata);
 
   const [
     evidence,
     sourceBatch,
+    primarySourceJob,
+    primaryCandidate,
     approvalEvents,
     relatedCandidates,
     relatedDiscoveryJobs,
@@ -203,6 +212,12 @@ export async function getRegistryDetail(id: number) {
     db.select().from(mqAddressEvidence).where(eq(mqAddressEvidence.registryId, id)).orderBy(desc(mqAddressEvidence.createdAt)),
     registry.approvedBatchId
       ? db.select().from(mqLabelBatches).where(eq(mqLabelBatches.id, registry.approvedBatchId)).limit(1)
+      : Promise.resolve([]),
+    registry.primarySourceJobId
+      ? db.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, registry.primarySourceJobId)).limit(1)
+      : Promise.resolve([]),
+    primaryCandidateId
+      ? db.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, primaryCandidateId)).limit(1)
       : Promise.resolve([]),
     db
       .select()
@@ -249,9 +264,15 @@ export async function getRegistryDetail(id: number) {
     db.select().from(mqMetricGroups).where(eq(mqMetricGroups.isActive, true)).orderBy(desc(mqMetricGroups.createdAt)),
     db.select().from(mqMetricGroupRules),
   ]);
+  const provenanceCandidate = primaryCandidate[0] ?? null;
+  const sourceDocumentId = provenanceCandidate?.sourceDocumentId ?? sourceBatch[0]?.sourceDocumentId ?? null;
+  const [primarySourceDocument] = sourceDocumentId
+    ? await db.select().from(mqSourceDocuments).where(eq(mqSourceDocuments.id, sourceDocumentId)).limit(1)
+    : [];
 
   const metricGroupMatches = matchingMetricGroupsForRow(
     {
+      chainCode: registry.chainCode,
       roleCode: registryDetail.role?.roleCode,
       categoryCode: registryDetail.category?.categoryCode,
       entityCode: registryDetail.entity?.entityCode,
@@ -262,6 +283,7 @@ export async function getRegistryDetail(id: number) {
       id: group.id,
       metricGroupCode: group.metricGroupCode,
       metricGroupName: group.metricGroupName,
+      chainCode: group.chainCode,
       minConfidence: group.minConfidence,
       requireMetricEligible: group.requireMetricEligible,
       rules: metricGroupRules
@@ -274,6 +296,10 @@ export async function getRegistryDetail(id: number) {
     ...registryDetail,
     evidence,
     sourceBatch: sourceBatch[0] ?? null,
+    primarySourceJob: primarySourceJob[0] ?? null,
+    primarySourceDocument: primarySourceDocument ?? null,
+    provenanceCandidate,
+    provenanceCandidateId: primaryCandidateId,
     approvalEvents,
     relatedCandidates,
     relatedDiscoveryJobs,
@@ -551,7 +577,8 @@ export async function markRegistryHistorical(input: unknown) {
       .update(mqAddressRegistry)
       .set({
         isActive: false,
-        flags: setFlag(before.flags, FLAG_BITS.historicalOnly),
+        labelStatus: LABEL_STATUS.inactiveHistorical,
+        flags: markHistoricalOnlyFlags(before.flags),
         validToBlock: before.validToBlock ?? before.lastSeenBlock,
         metadata: {
           ...(before.metadata ?? {}),

@@ -13,8 +13,8 @@ import {
   mqProtocols,
 } from "@/db/schema";
 import { normalizeAddress } from "../address/normalize";
-import { FLAG_BITS, hasFlag, isMetricEligible } from "../flags";
-import { matchesMetricGroupRule } from "../metric-rules";
+import { isHistoricalLabel, isMetricEligible } from "../flags";
+import { matchesMetricGroupRule, metricGroupAppliesToChain } from "../metric-rules";
 import { summarizeResolverEvidence } from "../resolver-detail";
 import { getMqchainResolverBackend, type MqchainResolverBackend } from "../runtime-env";
 import type { MetricGroupRule } from "../types";
@@ -96,7 +96,7 @@ async function findRegistryLabel(chainCode: string, normalizedAddress: string, b
 
   const status = label.registry.isActive
     ? "active"
-    : hasFlag(label.registry.flags, FLAG_BITS.historicalOnly)
+    : isHistoricalLabel(label.registry)
       ? "historical"
       : "inactive";
 
@@ -159,6 +159,10 @@ class PostgresAddressResolverImpl implements AddressResolver {
       .where(and(eq(mqMetricGroups.metricGroupCode, metricGroupCode), eq(mqMetricGroups.isActive, true)))
       .limit(1);
     if (!group) {
+      return { ...resolved, metricGroupMatch: false, metricGroupCode };
+    }
+
+    if (!metricGroupAppliesToChain(group.chainCode, resolved.normalized.chainCode)) {
       return { ...resolved, metricGroupMatch: false, metricGroupCode };
     }
 

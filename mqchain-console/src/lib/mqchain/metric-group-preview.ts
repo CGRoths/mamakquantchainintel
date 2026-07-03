@@ -1,4 +1,5 @@
-import { matchesMetricGroupRule } from "./metric-rules";
+import { FLAG_BITS, hasFlag } from "./flags";
+import { matchesMetricGroupRule, metricGroupAppliesToChain } from "./metric-rules";
 import type { MetricGroupRule } from "./types";
 
 export type MetricGroupPreviewGroup = {
@@ -25,6 +26,15 @@ export type MetricGroupPreviewRow = {
   category?: { categoryCode: string | null } | null;
 };
 
+export type MetricGroupPreviewDiagnostics = {
+  evaluatedRows: number;
+  memberRows: number;
+  excludedInactive: number;
+  excludedOutOfChainScope: number;
+  excludedMetricIneligible: number;
+  excludedRuleMismatch: number;
+};
+
 function countBy(rows: MetricGroupPreviewRow[], value: (row: MetricGroupPreviewRow) => string | null | undefined) {
   const counts = new Map<string, number>();
 
@@ -38,43 +48,100 @@ function countBy(rows: MetricGroupPreviewRow[], value: (row: MetricGroupPreviewR
     .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
 }
 
+function effectiveRule(group: MetricGroupPreviewGroup, rule: MetricGroupRule) {
+  return {
+    ...rule,
+    minConfidence: rule.minConfidence ?? group.minConfidence,
+    requireMetricEligible: rule.requireMetricEligible ?? group.requireMetricEligible,
+  };
+}
+
+function rowMatchInput(row: MetricGroupPreviewRow) {
+  return {
+    roleCode: row.role?.roleCode,
+    categoryCode: row.category?.categoryCode,
+    entityCode: row.entity?.entityCode,
+    confidenceScore: row.registry.confidenceScore,
+    flags: row.registry.flags,
+  };
+}
+
+function failsOnlyMetricEligibility(group: MetricGroupPreviewGroup, rules: MetricGroupRule[], row: MetricGroupPreviewRow) {
+  if (hasFlag(row.registry.flags, FLAG_BITS.metricEligible)) {
+    return false;
+  }
+
+  const matchInput = rowMatchInput(row);
+  return rules.some((rule) => {
+    const ruleWithDefaults = effectiveRule(group, rule);
+    if (ruleWithDefaults.requireMetricEligible === false) {
+      return false;
+    }
+
+    return matchesMetricGroupRule(matchInput, {
+      ...ruleWithDefaults,
+      requireMetricEligible: false,
+    });
+  });
+}
+
+export function evaluateMetricGroupPreviewMembers(
+  group: MetricGroupPreviewGroup,
+  rules: MetricGroupRule[],
+  rows: MetricGroupPreviewRow[],
+) {
+  const members: MetricGroupPreviewRow[] = [];
+  const diagnostics: MetricGroupPreviewDiagnostics = {
+    evaluatedRows: rows.length,
+    memberRows: 0,
+    excludedInactive: 0,
+    excludedOutOfChainScope: 0,
+    excludedMetricIneligible: 0,
+    excludedRuleMismatch: 0,
+  };
+
+  for (const row of rows) {
+    if (!row.registry.isActive) {
+      diagnostics.excludedInactive += 1;
+      continue;
+    }
+
+    if (!metricGroupAppliesToChain(group.chainCode, row.registry.chainCode)) {
+      diagnostics.excludedOutOfChainScope += 1;
+      continue;
+    }
+
+    const matches = rules.some((rule) => matchesMetricGroupRule(rowMatchInput(row), effectiveRule(group, rule)));
+    if (matches) {
+      members.push(row);
+      continue;
+    }
+
+    if (failsOnlyMetricEligibility(group, rules, row)) {
+      diagnostics.excludedMetricIneligible += 1;
+    } else {
+      diagnostics.excludedRuleMismatch += 1;
+    }
+  }
+
+  diagnostics.memberRows = members.length;
+
+  return { members, diagnostics };
+}
+
 export function filterMetricGroupPreviewMembers(
   group: MetricGroupPreviewGroup,
   rules: MetricGroupRule[],
   rows: MetricGroupPreviewRow[],
 ) {
-  return rows.filter((row) => {
-    if (!row.registry.isActive) {
-      return false;
-    }
-
-    if (group.chainCode && row.registry.chainCode !== group.chainCode) {
-      return false;
-    }
-
-    return rules.some((rule) =>
-      matchesMetricGroupRule(
-        {
-          roleCode: row.role?.roleCode,
-          categoryCode: row.category?.categoryCode,
-          entityCode: row.entity?.entityCode,
-          confidenceScore: row.registry.confidenceScore,
-          flags: row.registry.flags,
-        },
-        {
-          ...rule,
-          minConfidence: rule.minConfidence ?? group.minConfidence,
-          requireMetricEligible: rule.requireMetricEligible ?? group.requireMetricEligible,
-        },
-      ),
-    );
-  });
+  return evaluateMetricGroupPreviewMembers(group, rules, rows).members;
 }
 
 export function buildMetricGroupCompilePreviewManifest(input: {
   group: MetricGroupPreviewGroup;
   rules: MetricGroupRule[];
   members: MetricGroupPreviewRow[];
+  diagnostics?: MetricGroupPreviewDiagnostics;
   focusedRegistryId?: number | null;
 }) {
   const focusedRegistryId = input.focusedRegistryId ?? null;
@@ -96,6 +163,14 @@ export function buildMetricGroupCompilePreviewManifest(input: {
     ruleCount: input.rules.length,
     minConfidence: input.group.minConfidence,
     requireMetricEligible: input.group.requireMetricEligible,
+    diagnostics: input.diagnostics ?? {
+      evaluatedRows: input.members.length,
+      memberRows: input.members.length,
+      excludedInactive: 0,
+      excludedOutOfChainScope: 0,
+      excludedMetricIneligible: 0,
+      excludedRuleMismatch: 0,
+    },
     distributions: {
       roles: countBy(input.members, (row) => row.role?.roleCode),
       entities: countBy(input.members, (row) => row.entity?.entityCode),

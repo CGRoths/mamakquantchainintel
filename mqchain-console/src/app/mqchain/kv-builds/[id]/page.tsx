@@ -6,7 +6,7 @@ import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { buildKvManifestActivationPreflight } from "@/lib/mqchain/kv-manifest";
+import { buildKvManifestActivationPreflight, summarizeKvManifestIndexes } from "@/lib/mqchain/kv-manifest";
 import { getKvBuild } from "@/lib/mqchain/services/kv-manifest-service";
 
 export default async function KvBuildDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,6 +15,7 @@ export default async function KvBuildDetailPage({ params }: { params: Promise<{ 
     const build = await getKvBuild(Number(id));
     if (!build) notFound();
     const preflight = buildKvManifestActivationPreflight(build);
+    const indexSummary = summarizeKvManifestIndexes(build.manifest);
     return (
       <>
         <div><h1 className="text-2xl font-semibold">KV build {build.id}</h1><p className="font-mono text-sm text-muted-foreground">{build.buildHash}</p></div>
@@ -46,6 +47,34 @@ export default async function KvBuildDetailPage({ params }: { params: Promise<{ 
                       <Badge variant={check.status === "fail" ? "destructive" : check.status === "warn" ? "outline" : "secondary"}>{check.status}</Badge>
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{check.detail}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Serving indexes</CardTitle></CardHeader>
+          <CardContent>
+            <div className="mb-3 grid gap-3 text-sm md:grid-cols-4">
+              <div><span className="text-muted-foreground">Declared</span><div>{String(indexSummary.hasIndexes)}</div></div>
+              <div><span className="text-muted-foreground">Required present</span><div className="font-mono">{indexSummary.rows.filter((row) => row.present).length} / {indexSummary.rows.length}</div></div>
+              <div><span className="text-muted-foreground">Index rows</span><div className="font-mono">{indexSummary.totalRowCount ?? "-"}</div></div>
+              <div><span className="text-muted-foreground">Missing row counts</span><div className="font-mono">{indexSummary.rowCountMissing.length}</div></div>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow><TableHead>Index</TableHead><TableHead>Declared name</TableHead><TableHead>Status</TableHead><TableHead>Rows</TableHead><TableHead>Hash</TableHead><TableHead>Path</TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
+                {indexSummary.rows.map((row) => (
+                  <TableRow key={row.key}>
+                    <TableCell>{row.label}</TableCell>
+                    <TableCell className="font-mono text-xs">{row.indexName}</TableCell>
+                    <TableCell><Badge variant={row.present ? "secondary" : "destructive"}>{row.present ? "present" : "missing"}</Badge></TableCell>
+                    <TableCell className="font-mono">{row.rowCount ?? "-"}</TableCell>
+                    <TableCell className="max-w-48 truncate font-mono text-xs">{row.hash ?? "-"}</TableCell>
+                    <TableCell className="max-w-96 truncate font-mono text-xs">{row.path ?? "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

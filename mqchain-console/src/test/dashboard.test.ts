@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { buildApprovalEventTargetLinks } from "@/lib/mqchain/audit";
 import { buildConfidenceDistribution, normalizeDistributionRows } from "@/lib/mqchain/dashboard";
 
 describe("dashboard rollups", () => {
@@ -32,6 +33,13 @@ describe("dashboard rollups", () => {
       { label: "40-69", count: 1 },
       { label: "70-84", count: 2 },
       { label: "85-100", count: 1 },
+    ]);
+  });
+
+  it("can link recent approval events to their canonical dashboard targets", () => {
+    expect(buildApprovalEventTargetLinks({ candidateId: 1, registryId: null, batchId: 2 }).map((link) => link.href)).toEqual([
+      "/mqchain/candidates/1",
+      "/mqchain/batches/2",
     ]);
   });
 });

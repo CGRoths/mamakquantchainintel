@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DistributionRow } from "@/lib/mqchain/batch-detail";
 import { getSourceJob } from "@/lib/mqchain/services/source-job-service";
+import { buildSourceJobOperationalSummary } from "@/lib/mqchain/source-job";
 
 function DistributionTable({ rows, emptyLabel }: { rows: DistributionRow[]; emptyLabel: string }) {
   return (
@@ -33,6 +34,26 @@ function DistributionTable({ rows, emptyLabel }: { rows: DistributionRow[]; empt
   );
 }
 
+function candidateAddressById(candidates: Array<{ id: number; normalizedAddress: string }>) {
+  return new Map(candidates.map((candidate) => [candidate.id, candidate.normalizedAddress]));
+}
+
+function ChipList({ values, emptyLabel }: { values: string[]; emptyLabel: string }) {
+  if (!values.length) {
+    return <span className="text-muted-foreground">{emptyLabel}</span>;
+  }
+
+  return (
+    <div className="mt-1 flex flex-wrap gap-2">
+      {values.map((value) => (
+        <span key={value} className="rounded-md border px-2 py-1 font-mono text-xs">
+          {value}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default async function SourceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -43,7 +64,15 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
     }
 
     const summary = detail.sourceJob.metadata as Record<string, unknown>;
-    const archived = detail.sourceJob.status === "archived";
+    const operationalSummary = buildSourceJobOperationalSummary({
+      status: detail.sourceJob.status,
+      archiveStorageUri: detail.sourceJob.archiveStorageUri,
+      chainScope: detail.sourceJob.chainScope,
+      expectedRoles: detail.sourceJob.expectedRoles,
+      metadata: summary,
+    });
+    const archived = operationalSummary.archived;
+    const candidateAddresses = candidateAddressById(detail.candidates);
 
     return (
       <>
@@ -76,8 +105,19 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
               <div><span className="text-muted-foreground">Source URL</span><div className="truncate">{detail.sourceJob.sourceUrl ? <a className="text-primary hover:underline" href={detail.sourceJob.sourceUrl} target="_blank" rel="noreferrer">{detail.sourceJob.sourceUrl}</a> : "-"}</div></div>
               <div><span className="text-muted-foreground">Entity hint</span><div>{detail.sourceJob.entityHint ?? "-"}</div></div>
               <div><span className="text-muted-foreground">Protocol hint</span><div>{detail.sourceJob.protocolHint ?? "-"}</div></div>
+              <div className="md:col-span-2 xl:col-span-1">
+                <span className="text-muted-foreground">Chain scope</span>
+                <ChipList values={operationalSummary.chainScope} emptyLabel="No chain scope captured." />
+              </div>
+              <div className="md:col-span-2 xl:col-span-1">
+                <span className="text-muted-foreground">Expected roles</span>
+                <ChipList values={operationalSummary.expectedRoles} emptyLabel="No expected roles captured." />
+              </div>
               <div><span className="text-muted-foreground">Local file</span><div className="truncate font-mono text-xs">{detail.sourceJob.localFileName ?? "-"}</div></div>
-              <div><span className="text-muted-foreground">Archive URI</span><div className="truncate font-mono text-xs">{detail.sourceJob.archiveStorageUri ?? "-"}</div></div>
+              <div><span className="text-muted-foreground">Archive URI</span><div className="truncate font-mono text-xs">{operationalSummary.archiveStorageUri ?? "-"}</div></div>
+              <div><span className="text-muted-foreground">Archived by</span><div>{operationalSummary.archivedBy ?? "-"}</div></div>
+              <div><span className="text-muted-foreground">Archived at</span><div className="font-mono text-xs">{operationalSummary.archivedAt ?? "-"}</div></div>
+              <div className="md:col-span-2 xl:col-span-1"><span className="text-muted-foreground">Archive reason</span><div>{operationalSummary.archiveReason ?? "-"}</div></div>
             </CardContent>
           </Card>
           <Card className="rounded-lg">
@@ -97,6 +137,16 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
             <CardContent className="grid gap-3 text-sm">
               <div><span className="text-muted-foreground">Evidence rows</span><div className="font-mono">{detail.evidenceRollup.totalEvidence}</div></div>
               <DistributionTable rows={detail.evidenceRollup.typeDistribution} emptyLabel="No evidence." />
+            </CardContent>
+          </Card>
+          <Card className="rounded-lg xl:col-span-3">
+            <CardHeader><CardTitle>Production handoff</CardTitle></CardHeader>
+            <CardContent className="grid gap-3 text-sm md:grid-cols-5">
+              <div><span className="text-muted-foreground">Batches</span><div className="font-mono">{detail.downstreamRollup.totalBatches}</div></div>
+              <div><span className="text-muted-foreground">Committed</span><div className="font-mono">{detail.downstreamRollup.committedBatches}</div></div>
+              <div><span className="text-muted-foreground">Registry rows</span><div className="font-mono">{detail.downstreamRollup.totalRegistryRows}</div></div>
+              <div><span className="text-muted-foreground">Active labels</span><div className="font-mono">{detail.downstreamRollup.activeRegistryRows}</div></div>
+              <div><span className="text-muted-foreground">Inactive labels</span><div className="font-mono">{detail.downstreamRollup.inactiveRegistryRows}</div></div>
             </CardContent>
           </Card>
         </section>
@@ -154,6 +204,157 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
                 ))}
                 {!detail.candidates.length ? (
                   <TableRow><TableCell colSpan={6} className="text-sm text-muted-foreground">No candidates created for this source.</TableCell></TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle>Evidence ledger</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Candidate</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Trust</TableHead>
+                  <TableHead>Delta</TableHead>
+                  <TableHead>Summary</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead>Hash</TableHead>
+                  <TableHead>Payload</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detail.evidence.map((evidence) => (
+                  <TableRow key={evidence.id}>
+                    <TableCell className="font-mono">{evidence.id}</TableCell>
+                    <TableCell className="max-w-64 truncate font-mono text-xs">
+                      {evidence.candidateId ? (
+                        <Link className="text-primary hover:underline" href={`/mqchain/candidates/${evidence.candidateId}`}>
+                          #{evidence.candidateId} {candidateAddresses.get(evidence.candidateId) ?? ""}
+                        </Link>
+                      ) : "-"}
+                    </TableCell>
+                    <TableCell>{evidence.evidenceType}</TableCell>
+                    <TableCell>{evidence.trustTier}</TableCell>
+                    <TableCell className="font-mono">{evidence.confidenceDelta}</TableCell>
+                    <TableCell className="max-w-96">{evidence.summary ?? "-"}</TableCell>
+                    <TableCell className="max-w-64 break-all text-xs">
+                      {evidence.sourceUrl ? (
+                        <a className="text-primary hover:underline" href={evidence.sourceUrl} target="_blank" rel="noreferrer">
+                          {evidence.sourceUrl}
+                        </a>
+                      ) : "-"}
+                    </TableCell>
+                    <TableCell className="max-w-48 truncate font-mono text-xs">{evidence.evidenceHash ?? "-"}</TableCell>
+                    <TableCell>
+                      <details>
+                        <summary className="cursor-pointer text-xs text-primary">JSON</summary>
+                        <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-muted p-3 text-xs">{JSON.stringify(evidence.payload, null, 2)}</pre>
+                      </details>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {!detail.evidence.length ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-sm text-muted-foreground">
+                      No evidence rows are linked to candidates from this source.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle>Downstream label batches</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Accepted</TableHead>
+                  <TableHead>Conflicts</TableHead>
+                  <TableHead>Hash</TableHead>
+                  <TableHead>Committed</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detail.downstreamBatches.map((batch) => (
+                  <TableRow key={batch.id}>
+                    <TableCell className="font-mono">
+                      <Link className="text-primary hover:underline" href={`/mqchain/batches/${batch.id}`}>{batch.id}</Link>
+                    </TableCell>
+                    <TableCell><StatusBadge status={batch.status} /></TableCell>
+                    <TableCell className="font-mono">{batch.acceptedCount}</TableCell>
+                    <TableCell className="font-mono">{batch.conflictCount}</TableCell>
+                    <TableCell className="max-w-72 truncate font-mono text-xs">{batch.batchHash ?? "-"}</TableCell>
+                    <TableCell className="font-mono text-xs">{batch.committedAt?.toISOString() ?? "-"}</TableCell>
+                  </TableRow>
+                ))}
+                {!detail.downstreamBatches.length ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-sm text-muted-foreground">
+                      No label batches have been created from this source job yet.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle>Registry labels from this source</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Entity</TableHead>
+                  <TableHead>Protocol</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Confidence</TableHead>
+                  <TableHead>Batch</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detail.downstreamRegistryRows.map(({ registry, entityName, protocolName, roleCode }) => (
+                  <TableRow key={registry.id}>
+                    <TableCell className="font-mono">
+                      <Link className="text-primary hover:underline" href={`/mqchain/registry/${registry.id}`}>{registry.id}</Link>
+                    </TableCell>
+                    <TableCell className="max-w-96 truncate font-mono text-xs">{registry.normalizedAddress}</TableCell>
+                    <TableCell>{entityName ?? "-"}</TableCell>
+                    <TableCell>{protocolName ?? "-"}</TableCell>
+                    <TableCell className="font-mono text-xs">{roleCode ?? registry.roleId}</TableCell>
+                    <TableCell className="font-mono">{registry.confidenceScore} / Q{registry.qualityTier}</TableCell>
+                    <TableCell className="font-mono">
+                      {registry.approvedBatchId ? (
+                        <Link className="text-primary hover:underline" href={`/mqchain/batches/${registry.approvedBatchId}`}>
+                          {registry.approvedBatchId}
+                        </Link>
+                      ) : "-"}
+                    </TableCell>
+                    <TableCell><StatusBadge status={registry.isActive ? "approved" : "superseded"} /></TableCell>
+                  </TableRow>
+                ))}
+                {!detail.downstreamRegistryRows.length ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-sm text-muted-foreground">
+                      No approved registry labels point back to this source job yet.
+                    </TableCell>
+                  </TableRow>
                 ) : null}
               </TableBody>
             </Table>

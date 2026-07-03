@@ -1,4 +1,4 @@
-import { asc, count, desc, eq, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import {
@@ -30,6 +30,18 @@ import {
   roleSchema,
   roleUpdateSchema,
 } from "../validators/dictionary";
+import {
+  parseCategoryDictionaryListFilters,
+  parseEntityDictionaryListFilters,
+  parseKeyPrefixDictionaryListFilters,
+  parseProtocolDictionaryListFilters,
+  parseRoleDictionaryListFilters,
+  type CategoryDictionaryListFilters,
+  type EntityDictionaryListFilters,
+  type KeyPrefixDictionaryListFilters,
+  type ProtocolDictionaryListFilters,
+  type RoleDictionaryListFilters,
+} from "../list-filters";
 import { hashJson, optionalNumber } from "./service-utils";
 
 export async function listDictionaries() {
@@ -45,6 +57,367 @@ export async function listDictionaries() {
   ]);
 
   return { entities, protocols, roles, categories, prefixes, metricGroups, metricGroupRules };
+}
+
+function entityDictionaryOrderBy(sort: EntityDictionaryListFilters["sort"]) {
+  if (sort === "code") return asc(mqEntities.entityCode);
+  if (sort === "type") return asc(mqEntities.entityType);
+  if (sort === "created_at") return desc(mqEntities.createdAt);
+  if (sort === "updated_at") return desc(mqEntities.updatedAt);
+  return asc(mqEntities.entityName);
+}
+
+function categoryDictionaryOrderBy(sort: CategoryDictionaryListFilters["sort"]) {
+  if (sort === "code") return asc(mqCategoryDict.categoryCode);
+  if (sort === "name") return asc(mqCategoryDict.categoryName);
+  if (sort === "domain") return asc(mqCategoryDict.domainCode);
+  if (sort === "created_at") return desc(mqCategoryDict.createdAt);
+  if (sort === "updated_at") return desc(mqCategoryDict.updatedAt);
+  return asc(mqCategoryDict.categoryId);
+}
+
+function protocolDictionaryOrderBy(sort: ProtocolDictionaryListFilters["sort"]) {
+  if (sort === "code") return asc(mqProtocols.protocolCode);
+  if (sort === "type") return asc(mqProtocols.protocolType);
+  if (sort === "entity") return asc(mqEntities.entityName);
+  if (sort === "created_at") return desc(mqProtocols.createdAt);
+  if (sort === "updated_at") return desc(mqProtocols.updatedAt);
+  return asc(mqProtocols.protocolName);
+}
+
+function roleDictionaryOrderBy(sort: RoleDictionaryListFilters["sort"]) {
+  if (sort === "code") return asc(mqKvRoleDict.roleCode);
+  if (sort === "name") return asc(mqKvRoleDict.roleName);
+  if (sort === "group") return asc(mqKvRoleDict.roleGroup);
+  if (sort === "quality") return desc(mqKvRoleDict.defaultQualityTier);
+  if (sort === "created_at") return desc(mqKvRoleDict.createdAt);
+  if (sort === "updated_at") return desc(mqKvRoleDict.updatedAt);
+  return asc(mqKvRoleDict.roleId);
+}
+
+function keyPrefixDictionaryOrderBy(sort: KeyPrefixDictionaryListFilters["sort"]) {
+  if (sort === "chain") return asc(mqKvKeyPrefixDict.chainCode);
+  if (sort === "chain_family") return asc(mqKvKeyPrefixDict.chainFamily);
+  if (sort === "address_family") return asc(mqKvKeyPrefixDict.addressFamily);
+  if (sort === "codec") return asc(mqKvKeyPrefixDict.codec);
+  if (sort === "created_at") return desc(mqKvKeyPrefixDict.createdAt);
+  if (sort === "updated_at") return desc(mqKvKeyPrefixDict.updatedAt);
+  return asc(mqKvKeyPrefixDict.prefixCode);
+}
+
+function addCondition(conditions: SQL[], condition: SQL | undefined) {
+  if (condition) conditions.push(condition);
+}
+
+export async function listEntities(input: unknown = {}) {
+  const filters = typeof input === "number" ? parseEntityDictionaryListFilters({ pageSize: input }) : parseEntityDictionaryListFilters(input);
+  const conditions: SQL[] = [];
+
+  if (filters.q) {
+    addCondition(
+      conditions,
+      or(
+        ilike(mqEntities.entityCode, `%${filters.q}%`),
+        ilike(mqEntities.entityName, `%${filters.q}%`),
+        ilike(mqEntities.entityType, `%${filters.q}%`),
+        ilike(mqEntities.websiteUrl, `%${filters.q}%`),
+        ilike(mqEntities.description, `%${filters.q}%`),
+        sql`${mqEntities.id}::text ilike ${`%${filters.q}%`}`,
+      ),
+    );
+  }
+
+  if (filters.entityType) conditions.push(ilike(mqEntities.entityType, `%${filters.entityType}%`));
+  if (filters.category) {
+    addCondition(
+      conditions,
+      or(
+        sql`${mqEntities.categoryId}::text ilike ${`%${filters.category}%`}`,
+        ilike(mqCategoryDict.categoryCode, `%${filters.category}%`),
+        ilike(mqCategoryDict.categoryName, `%${filters.category}%`),
+      ),
+    );
+  }
+  if (filters.active === "active") conditions.push(eq(mqEntities.isActive, true));
+  if (filters.active === "inactive") conditions.push(eq(mqEntities.isActive, false));
+
+  const db = getDb();
+  const where = conditions.length ? and(...conditions) : sql`true`;
+  const offset = (filters.page - 1) * filters.pageSize;
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(mqEntities)
+    .leftJoin(mqCategoryDict, eq(mqEntities.categoryId, mqCategoryDict.categoryId))
+    .where(where);
+  const rows = await db
+    .select({ entity: mqEntities, category: mqCategoryDict })
+    .from(mqEntities)
+    .leftJoin(mqCategoryDict, eq(mqEntities.categoryId, mqCategoryDict.categoryId))
+    .where(where)
+    .orderBy(entityDictionaryOrderBy(filters.sort), asc(mqEntities.id))
+    .limit(filters.pageSize)
+    .offset(offset);
+
+  return {
+    rows,
+    filters,
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+  };
+}
+
+export async function listKeyPrefixes(input: unknown = {}) {
+  const filters = typeof input === "number" ? parseKeyPrefixDictionaryListFilters({ pageSize: input }) : parseKeyPrefixDictionaryListFilters(input);
+  const conditions: SQL[] = [];
+
+  if (filters.q) {
+    addCondition(
+      conditions,
+      or(
+        sql`${mqKvKeyPrefixDict.prefixCode}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqKvKeyPrefixDict.chainCode, `%${filters.q}%`),
+        ilike(mqKvKeyPrefixDict.chainName, `%${filters.q}%`),
+        ilike(mqKvKeyPrefixDict.chainFamily, `%${filters.q}%`),
+        ilike(mqKvKeyPrefixDict.addressFamily, `%${filters.q}%`),
+        ilike(mqKvKeyPrefixDict.codec, `%${filters.q}%`),
+        ilike(mqKvKeyPrefixDict.description, `%${filters.q}%`),
+        sql`${mqKvKeyPrefixDict.payloadLen}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqKvKeyPrefixDict.evmChainId}::text ilike ${`%${filters.q}%`}`,
+      ),
+    );
+  }
+
+  if (filters.chain) {
+    addCondition(
+      conditions,
+      or(
+        ilike(mqKvKeyPrefixDict.chainCode, `%${filters.chain}%`),
+        ilike(mqKvKeyPrefixDict.chainName, `%${filters.chain}%`),
+      ),
+    );
+  }
+  if (filters.chainFamily) conditions.push(ilike(mqKvKeyPrefixDict.chainFamily, `%${filters.chainFamily}%`));
+  if (filters.addressFamily) conditions.push(ilike(mqKvKeyPrefixDict.addressFamily, `%${filters.addressFamily}%`));
+  if (filters.codec) conditions.push(ilike(mqKvKeyPrefixDict.codec, `%${filters.codec}%`));
+  if (filters.evmChainId !== undefined) conditions.push(eq(mqKvKeyPrefixDict.evmChainId, filters.evmChainId));
+  if (filters.minPayloadLen !== undefined) conditions.push(sql`${mqKvKeyPrefixDict.payloadLen} >= ${filters.minPayloadLen}`);
+  if (filters.maxPayloadLen !== undefined) conditions.push(sql`${mqKvKeyPrefixDict.payloadLen} <= ${filters.maxPayloadLen}`);
+  if (filters.active === "active") conditions.push(eq(mqKvKeyPrefixDict.isActive, true));
+  if (filters.active === "inactive") conditions.push(eq(mqKvKeyPrefixDict.isActive, false));
+
+  const db = getDb();
+  const where = conditions.length ? and(...conditions) : sql`true`;
+  const offset = (filters.page - 1) * filters.pageSize;
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(mqKvKeyPrefixDict)
+    .where(where);
+  const rows = await db
+    .select()
+    .from(mqKvKeyPrefixDict)
+    .where(where)
+    .orderBy(keyPrefixDictionaryOrderBy(filters.sort), asc(mqKvKeyPrefixDict.prefixCode))
+    .limit(filters.pageSize)
+    .offset(offset);
+
+  return {
+    rows,
+    filters,
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+  };
+}
+
+export async function listRoles(input: unknown = {}) {
+  const filters = typeof input === "number" ? parseRoleDictionaryListFilters({ pageSize: input }) : parseRoleDictionaryListFilters(input);
+  const conditions: SQL[] = [];
+
+  if (filters.q) {
+    addCondition(
+      conditions,
+      or(
+        sql`${mqKvRoleDict.roleId}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqKvRoleDict.roleCode, `%${filters.q}%`),
+        ilike(mqKvRoleDict.roleName, `%${filters.q}%`),
+        ilike(mqKvRoleDict.roleGroup, `%${filters.q}%`),
+        ilike(mqKvRoleDict.metricUsageDefault, `%${filters.q}%`),
+        ilike(mqKvRoleDict.boundaryClass, `%${filters.q}%`),
+        ilike(mqKvRoleDict.description, `%${filters.q}%`),
+        sql`${mqKvRoleDict.defaultFlags}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqKvRoleDict.categoryId}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqCategoryDict.categoryCode, `%${filters.q}%`),
+        ilike(mqCategoryDict.categoryName, `%${filters.q}%`),
+      ),
+    );
+  }
+
+  if (filters.category) {
+    addCondition(
+      conditions,
+      or(
+        sql`${mqKvRoleDict.categoryId}::text ilike ${`%${filters.category}%`}`,
+        ilike(mqCategoryDict.categoryCode, `%${filters.category}%`),
+        ilike(mqCategoryDict.categoryName, `%${filters.category}%`),
+      ),
+    );
+  }
+  if (filters.roleGroup) conditions.push(ilike(mqKvRoleDict.roleGroup, `%${filters.roleGroup}%`));
+  if (filters.metricUsage) conditions.push(ilike(mqKvRoleDict.metricUsageDefault, `%${filters.metricUsage}%`));
+  if (filters.boundary) conditions.push(ilike(mqKvRoleDict.boundaryClass, `%${filters.boundary}%`));
+  if (filters.minQuality !== undefined) conditions.push(sql`${mqKvRoleDict.defaultQualityTier} >= ${filters.minQuality}`);
+  if (filters.maxQuality !== undefined) conditions.push(sql`${mqKvRoleDict.defaultQualityTier} <= ${filters.maxQuality}`);
+  if (filters.active === "active") conditions.push(eq(mqKvRoleDict.isActive, true));
+  if (filters.active === "inactive") conditions.push(eq(mqKvRoleDict.isActive, false));
+
+  const db = getDb();
+  const where = conditions.length ? and(...conditions) : sql`true`;
+  const offset = (filters.page - 1) * filters.pageSize;
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(mqKvRoleDict)
+    .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId))
+    .where(where);
+  const rows = await db
+    .select({ role: mqKvRoleDict, category: mqCategoryDict })
+    .from(mqKvRoleDict)
+    .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId))
+    .where(where)
+    .orderBy(roleDictionaryOrderBy(filters.sort), asc(mqKvRoleDict.roleId))
+    .limit(filters.pageSize)
+    .offset(offset);
+
+  return {
+    rows,
+    filters,
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+  };
+}
+
+export async function listProtocols(input: unknown = {}) {
+  const filters = typeof input === "number" ? parseProtocolDictionaryListFilters({ pageSize: input }) : parseProtocolDictionaryListFilters(input);
+  const conditions: SQL[] = [];
+
+  if (filters.q) {
+    addCondition(
+      conditions,
+      or(
+        sql`${mqProtocols.id}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqProtocols.protocolCode, `%${filters.q}%`),
+        ilike(mqProtocols.protocolName, `%${filters.q}%`),
+        ilike(mqProtocols.protocolType, `%${filters.q}%`),
+        ilike(mqProtocols.description, `%${filters.q}%`),
+        sql`array_to_string(${mqProtocols.chainScope}, ',') ilike ${`%${filters.q}%`}`,
+        sql`${mqProtocols.entityId}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqEntities.entityCode, `%${filters.q}%`),
+        ilike(mqEntities.entityName, `%${filters.q}%`),
+      ),
+    );
+  }
+
+  if (filters.entity) {
+    addCondition(
+      conditions,
+      or(
+        sql`${mqProtocols.entityId}::text ilike ${`%${filters.entity}%`}`,
+        ilike(mqEntities.entityCode, `%${filters.entity}%`),
+        ilike(mqEntities.entityName, `%${filters.entity}%`),
+      ),
+    );
+  }
+  if (filters.protocolType) conditions.push(ilike(mqProtocols.protocolType, `%${filters.protocolType}%`));
+  if (filters.chain) {
+    addCondition(
+      conditions,
+      or(
+        sql`${filters.chain} = any(${mqProtocols.chainScope})`,
+        sql`array_to_string(${mqProtocols.chainScope}, ',') ilike ${`%${filters.chain}%`}`,
+      ),
+    );
+  }
+  if (filters.active === "active") conditions.push(eq(mqProtocols.isActive, true));
+  if (filters.active === "inactive") conditions.push(eq(mqProtocols.isActive, false));
+
+  const db = getDb();
+  const where = conditions.length ? and(...conditions) : sql`true`;
+  const offset = (filters.page - 1) * filters.pageSize;
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(mqProtocols)
+    .leftJoin(mqEntities, eq(mqProtocols.entityId, mqEntities.id))
+    .where(where);
+  const rows = await db
+    .select({ protocol: mqProtocols, entity: mqEntities })
+    .from(mqProtocols)
+    .leftJoin(mqEntities, eq(mqProtocols.entityId, mqEntities.id))
+    .where(where)
+    .orderBy(protocolDictionaryOrderBy(filters.sort), asc(mqProtocols.id))
+    .limit(filters.pageSize)
+    .offset(offset);
+
+  return {
+    rows,
+    filters,
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+  };
+}
+
+export async function listCategories(input: unknown = {}) {
+  const filters = typeof input === "number" ? parseCategoryDictionaryListFilters({ pageSize: input }) : parseCategoryDictionaryListFilters(input);
+  const conditions: SQL[] = [];
+
+  if (filters.q) {
+    addCondition(
+      conditions,
+      or(
+        sql`${mqCategoryDict.categoryId}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqCategoryDict.parentCategoryId}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqCategoryDict.categoryCode, `%${filters.q}%`),
+        ilike(mqCategoryDict.categoryName, `%${filters.q}%`),
+        ilike(mqCategoryDict.domainCode, `%${filters.q}%`),
+        ilike(mqCategoryDict.metricDomain, `%${filters.q}%`),
+        ilike(mqCategoryDict.description, `%${filters.q}%`),
+      ),
+    );
+  }
+
+  if (filters.domain) conditions.push(ilike(mqCategoryDict.domainCode, `%${filters.domain}%`));
+  if (filters.metricDomain) conditions.push(ilike(mqCategoryDict.metricDomain, `%${filters.metricDomain}%`));
+  if (filters.active === "active") conditions.push(eq(mqCategoryDict.isActive, true));
+  if (filters.active === "inactive") conditions.push(eq(mqCategoryDict.isActive, false));
+
+  const db = getDb();
+  const where = conditions.length ? and(...conditions) : sql`true`;
+  const offset = (filters.page - 1) * filters.pageSize;
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(mqCategoryDict)
+    .where(where);
+  const rows = await db
+    .select()
+    .from(mqCategoryDict)
+    .where(where)
+    .orderBy(categoryDictionaryOrderBy(filters.sort), asc(mqCategoryDict.categoryId))
+    .limit(filters.pageSize)
+    .offset(offset);
+
+  return {
+    rows,
+    filters,
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+  };
 }
 
 export async function getDictionaryMaps() {

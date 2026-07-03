@@ -1,16 +1,84 @@
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, lte, or, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import { mqAddressRegistry, mqAuditLog, mqCategoryDict, mqEntities, mqKvRoleDict, mqMetricGroupRules, mqMetricGroups, mqProtocols } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
-import { buildMetricGroupCompilePreviewManifest, buildPendingMetricGroupKvManifest, filterMetricGroupPreviewMembers } from "../metric-group-preview";
+import { buildMetricGroupCompilePreviewManifest, buildPendingMetricGroupKvManifest, evaluateMetricGroupPreviewMembers } from "../metric-group-preview";
 import type { MetricGroupRule } from "../types";
 import { buildMetricGroupRule, createMetricGroupRuleSchema, createMetricGroupSchema } from "../validators/metric-group";
 import { recordDictionaryVersion } from "./dictionary-service";
 import { idSchema } from "../validators/dictionary";
+import { parseMetricGroupListFilters, type MetricGroupListFilters } from "../list-filters";
 
-export async function listMetricGroups() {
-  return getDb().select().from(mqMetricGroups).orderBy(desc(mqMetricGroups.createdAt));
+function metricGroupOrderBy(sort: MetricGroupListFilters["sort"]) {
+  if (sort === "updated_at") return desc(mqMetricGroups.updatedAt);
+  if (sort === "code") return asc(mqMetricGroups.metricGroupCode);
+  if (sort === "confidence") return desc(mqMetricGroups.minConfidence);
+  return desc(mqMetricGroups.createdAt);
+}
+
+function addCondition(conditions: SQL[], condition: SQL | undefined) {
+  if (condition) conditions.push(condition);
+}
+
+export async function listMetricGroups(input: unknown = {}) {
+  const filters = typeof input === "number" ? parseMetricGroupListFilters({ pageSize: input }) : parseMetricGroupListFilters(input);
+  const conditions: SQL[] = [];
+
+  if (filters.q) {
+    addCondition(
+      conditions,
+      or(
+        ilike(mqMetricGroups.metricGroupCode, `%${filters.q}%`),
+        ilike(mqMetricGroups.metricGroupName, `%${filters.q}%`),
+        ilike(mqMetricGroups.description, `%${filters.q}%`),
+        sql`${mqMetricGroups.id}::text ilike ${`%${filters.q}%`}`,
+      ),
+    );
+  }
+
+  if (filters.chain) conditions.push(eq(mqMetricGroups.chainCode, filters.chain));
+  if (filters.active === "active") conditions.push(eq(mqMetricGroups.isActive, true));
+  if (filters.active === "inactive") conditions.push(eq(mqMetricGroups.isActive, false));
+  if (filters.metricEligible === "true") conditions.push(eq(mqMetricGroups.requireMetricEligible, true));
+  if (filters.metricEligible === "false") conditions.push(eq(mqMetricGroups.requireMetricEligible, false));
+  if (typeof filters.minConfidence === "number") conditions.push(gte(mqMetricGroups.minConfidence, filters.minConfidence));
+  if (typeof filters.maxConfidence === "number") conditions.push(lte(mqMetricGroups.minConfidence, filters.maxConfidence));
+
+  const db = getDb();
+  const where = conditions.length ? and(...conditions) : sql`true`;
+  const offset = (filters.page - 1) * filters.pageSize;
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(mqMetricGroups).where(where);
+  const rows = await db
+    .select()
+    .from(mqMetricGroups)
+    .where(where)
+    .orderBy(metricGroupOrderBy(filters.sort), desc(mqMetricGroups.id))
+    .limit(filters.pageSize)
+    .offset(offset);
+  const rowIds = rows.map((row) => row.id);
+  const ruleRows = rowIds.length
+    ? await db
+        .select()
+        .from(mqMetricGroupRules)
+        .where(inArray(mqMetricGroupRules.metricGroupId, rowIds))
+        .orderBy(asc(mqMetricGroupRules.metricGroupId), asc(mqMetricGroupRules.id))
+    : [];
+  const rulesByGroup = new Map<number, typeof ruleRows>();
+
+  for (const rule of ruleRows) {
+    if (!rule.metricGroupId) continue;
+    rulesByGroup.set(rule.metricGroupId, [...(rulesByGroup.get(rule.metricGroupId) ?? []), rule]);
+  }
+
+  return {
+    rows: rows.map((row) => ({ ...row, rules: rulesByGroup.get(row.id) ?? [] })),
+    filters,
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+  };
 }
 
 export async function createMetricGroup(input: unknown) {
@@ -151,27 +219,30 @@ export async function previewMetricGroupMembers(metricGroupId: number, focusedRe
     .limit(1000);
 
   const ruleJson = rules.map((rule) => rule.ruleJson as MetricGroupRule);
-  const members = filterMetricGroupPreviewMembers(
+  const previewRows = rows.map((row) => ({
+    ...row,
+    entity: row.entity ? { ...row.entity, entityCode: row.entity.entityCode } : null,
+    role: row.role ? { ...row.role, roleCode: row.role.roleCode } : null,
+    category: row.category ? { ...row.category, categoryCode: row.category.categoryCode } : null,
+  }));
+  const { members, diagnostics } = evaluateMetricGroupPreviewMembers(
     group,
     ruleJson,
-    rows.map((row) => ({
-      ...row,
-      entity: row.entity ? { ...row.entity, entityCode: row.entity.entityCode } : null,
-      role: row.role ? { ...row.role, roleCode: row.role.roleCode } : null,
-      category: row.category ? { ...row.category, categoryCode: row.category.categoryCode } : null,
-    })),
+    previewRows,
   );
 
   const manifestInput = {
     group,
     rules: ruleJson,
     members,
+    diagnostics,
     focusedRegistryId,
   };
 
   return {
     group,
     members,
+    diagnostics,
     rules,
     focusedMember: focusedRegistryId ? members.find((member) => member.registry.id === focusedRegistryId) ?? null : null,
     focusedRegistryId: focusedRegistryId ?? null,

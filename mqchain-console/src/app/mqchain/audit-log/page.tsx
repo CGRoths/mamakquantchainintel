@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { buildApprovalEventTargetLinks } from "@/lib/mqchain/audit";
 import { listAuditTimeline } from "@/lib/mqchain/services/audit-service";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
@@ -16,6 +17,24 @@ function pageHref(params: Record<string, string | undefined>, page: number) {
   if (page > 1) next.set("page", String(page));
   const query = next.toString();
   return query ? `/mqchain/audit-log?${query}` : "/mqchain/audit-log";
+}
+
+function ApprovalEventTargets({ event }: { event: Awaited<ReturnType<typeof listAuditTimeline>>["approvalEvents"][number] }) {
+  const links = buildApprovalEventTargetLinks(event);
+
+  if (!links.length) {
+    return <span>-</span>;
+  }
+
+  return (
+    <div className="grid gap-1">
+      {links.map((link) => (
+        <Link key={link.key} className="font-mono text-xs text-primary hover:underline" href={link.href}>
+          {link.label}
+        </Link>
+      ))}
+    </div>
+  );
 }
 
 export default async function AuditLogPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -105,8 +124,27 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
         <Card className="rounded-lg">
           <CardHeader><CardTitle>Approval events</CardTitle></CardHeader>
           <CardContent>
-            <Table><TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Action</TableHead><TableHead>Candidate</TableHead><TableHead>Batch</TableHead><TableHead>Reason</TableHead><TableHead>Created</TableHead></TableRow></TableHeader><TableBody>
-              {events.map((event) => <TableRow key={event.id}><TableCell className="font-mono">{event.id}</TableCell><TableCell>{event.action}</TableCell><TableCell className="font-mono">{event.candidateId ?? "-"}</TableCell><TableCell className="font-mono">{event.batchId ?? "-"}</TableCell><TableCell>{event.reason}</TableCell><TableCell className="font-mono text-xs">{event.createdAt.toISOString()}</TableCell></TableRow>)}
+            <Table><TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Action</TableHead><TableHead>Targets</TableHead><TableHead>Reason</TableHead><TableHead>Metadata</TableHead><TableHead>Created</TableHead></TableRow></TableHeader><TableBody>
+              {events.map((event) => (
+                <TableRow key={event.id}>
+                  <TableCell className="font-mono">{event.id}</TableCell>
+                  <TableCell>{event.action}</TableCell>
+                  <TableCell><ApprovalEventTargets event={event} /></TableCell>
+                  <TableCell>{event.reason}</TableCell>
+                  <TableCell>
+                    <details>
+                      <summary className="cursor-pointer text-xs text-primary">JSON</summary>
+                      <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-muted p-3 text-xs">{JSON.stringify({
+                        metadata: event.metadata,
+                        before: event.beforeJson,
+                        after: event.afterJson,
+                      }, null, 2)}</pre>
+                    </details>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">{event.createdAt.toISOString()}</TableCell>
+                </TableRow>
+              ))}
+              {!events.length ? <TableRow><TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">No approval events match these filters.</TableCell></TableRow> : null}
             </TableBody></Table>
           </CardContent>
         </Card>

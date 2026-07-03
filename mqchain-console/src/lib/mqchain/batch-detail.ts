@@ -1,3 +1,5 @@
+import { FLAG_BITS, hasFlag } from "./flags";
+
 export type BatchCandidateRollupInput = {
   candidateStatus: string;
   confidenceScore: number;
@@ -10,6 +12,11 @@ export type BatchEvidenceRollupInput = {
   evidenceType: string;
   trustTier?: string | null;
   confidenceDelta?: number | null;
+};
+
+export type BatchRegistryRollupInput = {
+  isActive: boolean;
+  flags: number;
 };
 
 export type DistributionRow = {
@@ -86,6 +93,27 @@ export function buildBatchEvidenceRollups(evidence: BatchEvidenceRollupInput[]) 
     netConfidenceDelta,
     evidenceTypeDistribution: mapToDistribution(typeCounts),
     trustDistribution: mapToDistribution(trustCounts),
+  };
+}
+
+export function buildBatchRegistryRollup(registryRows: BatchRegistryRollupInput[]) {
+  let activeRows = 0;
+  let metricEligibleRows = 0;
+
+  for (const row of registryRows) {
+    if (row.isActive) {
+      activeRows += 1;
+    }
+    if (hasFlag(row.flags, FLAG_BITS.metricEligible)) {
+      metricEligibleRows += 1;
+    }
+  }
+
+  return {
+    totalRows: registryRows.length,
+    activeRows,
+    inactiveRows: registryRows.length - activeRows,
+    metricEligibleRows,
   };
 }
 

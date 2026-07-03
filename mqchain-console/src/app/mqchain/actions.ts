@@ -301,8 +301,14 @@ function revalidateMetricGroupPaths(groupId?: number | string | undefined) {
 }
 
 function createBatchInputFromFormData(formData: FormData, fallbackSourceName?: string) {
+  const selectedCandidateIds = formData
+    .getAll("candidateId")
+    .filter((value): value is string => typeof value === "string")
+    .join(", ");
+  const manualCandidateIds = formValue(formData, "candidateIds");
+
   return {
-    candidateIds: formValue(formData, "candidateIds"),
+    candidateIds: [selectedCandidateIds, manualCandidateIds].filter(Boolean).join(", "),
     sourceName: formValue(formData, "sourceName") || fallbackSourceName,
   };
 }

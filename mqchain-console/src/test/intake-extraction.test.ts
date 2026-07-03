@@ -120,6 +120,32 @@ describe("intake extraction helpers", () => {
     });
   });
 
+  it("carries GitHub directory file context into deployment raw references", () => {
+    const rows = extractDeploymentRowsFromText(
+      [
+        "MQCHAIN_GITHUB_FILE owner=compound-finance repo=comet ref=main path=deployments/base/usdc/configuration.json directory=deployments/base/usdc network=base market=usdc",
+        '{"comet":"0x0000000000000000000000000000000000000004"}',
+      ].join("\n"),
+      { sourceType: "github", sourceUrl: "https://github.com/compound-finance/comet/tree/main/deployments/base/usdc" },
+    );
+
+    expect(rows[0]).toMatchObject({
+      address: "0x0000000000000000000000000000000000000004",
+      chain: "base",
+      contract_name: "comet",
+      evidence_type: "github_deployment",
+      raw_reference: expect.objectContaining({
+        github_owner: "compound-finance",
+        github_repo: "comet",
+        github_ref: "main",
+        github_directory_path: "deployments/base/usdc",
+        source_file_path: "deployments/base/usdc/configuration.json",
+        source_network: "base",
+        market: "usdc",
+      }),
+    });
+  });
+
   it("rejects invalid JSON evidence", () => {
     expect(() => parseJsonEvidenceRows("{nope")).toThrow("valid JSON");
   });

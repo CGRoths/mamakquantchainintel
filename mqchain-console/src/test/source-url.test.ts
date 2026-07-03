@@ -1,12 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { assertFetchableSourceUrl, fetchSourceText, githubBlobToRawUrl } from "@/lib/mqchain/source-url";
+import { assertFetchableSourceUrl, fetchSourceText, githubBlobToRawUrl, parseGithubTreeUrl } from "@/lib/mqchain/source-url";
 
 describe("source URL guardrails", () => {
   it("rewrites GitHub blob URLs to raw URLs", () => {
     expect(githubBlobToRawUrl("https://github.com/org/repo/blob/main/deployments.json")).toBe(
       "https://raw.githubusercontent.com/org/repo/main/deployments.json",
     );
+  });
+
+  it("parses GitHub tree URLs for deployment directories", () => {
+    expect(parseGithubTreeUrl("https://github.com/compound-finance/comet/tree/main/deployments/base/usdc")).toMatchObject({
+      owner: "compound-finance",
+      repo: "comet",
+      ref: "main",
+      path: "deployments/base/usdc",
+    });
   });
 
   it("blocks non-http, credentialed, localhost, and private literal URLs", () => {
@@ -66,6 +75,50 @@ describe("source URL guardrails", () => {
 
     await expect(fetchSourceText("https://example.test/large")).rejects.toThrow("exceeds");
 
+    vi.unstubAllGlobals();
+  });
+
+  it("fetches supported files from GitHub tree URLs as a bounded deployment source", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              type: "file",
+              name: "configuration.json",
+              path: "deployments/base/usdc/configuration.json",
+              size: 64,
+              download_url: "https://raw.githubusercontent.com/compound-finance/comet/main/deployments/base/usdc/configuration.json",
+            },
+            {
+              type: "file",
+              name: "logo.png",
+              path: "deployments/base/usdc/logo.png",
+              size: 12,
+              download_url: "https://raw.githubusercontent.com/compound-finance/comet/main/deployments/base/usdc/logo.png",
+            },
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(new Response('{"comet":"0x0000000000000000000000000000000000000001"}', { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchSourceText("https://github.com/compound-finance/comet/tree/main/deployments/base/usdc")).resolves.toMatchObject({
+      contentType: "text/x-mqchain-github-directory",
+      fetchedUrl: "https://github.com/compound-finance/comet/tree/main/deployments/base/usdc",
+      rawText: expect.stringContaining("MQCHAIN_GITHUB_FILE owner=compound-finance repo=comet ref=main path=deployments/base/usdc/configuration.json"),
+      metadata: expect.objectContaining({
+        githubDirectory: true,
+        githubOwner: "compound-finance",
+        githubRepo: "comet",
+        githubDirectoryPath: "deployments/base/usdc",
+        githubDirectoryWarnings: ["github_directory_unsupported_file_skipped"],
+      }),
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     vi.unstubAllGlobals();
   });
 });

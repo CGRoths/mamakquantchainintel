@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDiscoveryConfigTemplate } from "@/lib/mqchain/discovery-templates";
-import { FLAG_BITS, hasFlag } from "@/lib/mqchain/flags";
+import { isHistoricalLabel } from "@/lib/mqchain/flags";
+import { buildRegistryResolverHref, pickRegistryResolverBlock } from "@/lib/mqchain/registry-detail";
 import { listDictionaries } from "@/lib/mqchain/services/dictionary-service";
 import { getRegistryDetail } from "@/lib/mqchain/services/registry-service";
 
@@ -39,7 +40,12 @@ export default async function RegistryDetailPage({ params }: { params: Promise<{
       notFound();
     }
     const discoveryConfig = registryTxGraphConfig(detail);
-    const isHistorical = hasFlag(detail.registry.flags, FLAG_BITS.historicalOnly);
+    const isHistorical = isHistoricalLabel(detail.registry);
+    const resolverHref = buildRegistryResolverHref({
+      chainCode: detail.registry.chainCode,
+      normalizedAddress: detail.registry.normalizedAddress,
+      blockNumber: isHistorical ? pickRegistryResolverBlock(detail.registry) : null,
+    });
 
     return (
       <>
@@ -83,6 +89,69 @@ export default async function RegistryDetailPage({ params }: { params: Promise<{
               <div className="md:col-span-2"><span className="text-muted-foreground">Payload</span><div className="truncate font-mono text-xs">{detail.resolverPreview.payloadHex ?? "-"}</div></div>
               <div><span className="text-muted-foreground">Active label</span><div>{detail.resolverPreview.activeLabel ? "yes" : "no"}</div></div>
               <div><span className="text-muted-foreground">Timeline</span><div className="font-mono">{detail.resolverPreview.validFromBlock ?? "*"} - {detail.resolverPreview.validToBlock ?? "*"}</div></div>
+              <div className="md:col-span-2">
+                <Button asChild size="sm" variant="outline">
+                  <Link href={resolverHref}>Test in resolver</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="rounded-lg">
+            <CardHeader><CardTitle>Provenance</CardTitle></CardHeader>
+            <CardContent className="grid gap-3 text-sm md:grid-cols-2">
+              <div>
+                <span className="text-muted-foreground">Primary source job</span>
+                <div className="font-mono">
+                  {detail.primarySourceJob ? (
+                    <Link className="text-primary hover:underline" href={`/mqchain/source-jobs/${detail.primarySourceJob.id}`}>
+                      {detail.primarySourceJob.id}
+                    </Link>
+                  ) : "-"}
+                </div>
+              </div>
+              <div><span className="text-muted-foreground">Source type</span><div>{detail.primarySourceJob?.sourceType ?? detail.sourceBatch?.sourceType ?? "-"}</div></div>
+              <div><span className="text-muted-foreground">Source name</span><div>{detail.primarySourceJob?.sourceName ?? detail.sourceBatch?.sourceName ?? "-"}</div></div>
+              <div className="break-all">
+                <span className="text-muted-foreground">Source URL</span>
+                <div>
+                  {detail.primarySourceJob?.sourceUrl ?? detail.sourceBatch?.sourceUrl ? (
+                    <a
+                      className="text-primary hover:underline"
+                      href={detail.primarySourceJob?.sourceUrl ?? detail.sourceBatch?.sourceUrl ?? undefined}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {detail.primarySourceJob?.sourceUrl ?? detail.sourceBatch?.sourceUrl}
+                    </a>
+                  ) : "-"}
+                </div>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Approved batch</span>
+                <div className="font-mono">
+                  {detail.sourceBatch ? (
+                    <Link className="text-primary hover:underline" href={`/mqchain/batches/${detail.sourceBatch.id}`}>
+                      {detail.sourceBatch.id}
+                    </Link>
+                  ) : "-"}
+                </div>
+              </div>
+              <div><span className="text-muted-foreground">Batch status</span><div>{detail.sourceBatch?.status ?? "-"}</div></div>
+              <div><span className="text-muted-foreground">Batch hash</span><div className="truncate font-mono text-xs">{detail.sourceBatch?.batchHash ?? "-"}</div></div>
+              <div><span className="text-muted-foreground">Committed at</span><div className="font-mono text-xs">{detail.sourceBatch?.committedAt?.toISOString() ?? "-"}</div></div>
+              <div>
+                <span className="text-muted-foreground">Staged candidate</span>
+                <div className="font-mono">
+                  {detail.provenanceCandidateId ? (
+                    <Link className="text-primary hover:underline" href={`/mqchain/candidates/${detail.provenanceCandidateId}`}>
+                      {detail.provenanceCandidateId}
+                    </Link>
+                  ) : "-"}
+                </div>
+              </div>
+              <div><span className="text-muted-foreground">Candidate status</span><div>{detail.provenanceCandidate?.candidateStatus ?? "-"}</div></div>
+              <div><span className="text-muted-foreground">Source document</span><div className="font-mono">{detail.primarySourceDocument?.id ?? "-"}</div></div>
+              <div><span className="text-muted-foreground">Document hash</span><div className="truncate font-mono text-xs">{detail.primarySourceDocument?.contentHash ?? "-"}</div></div>
             </CardContent>
           </Card>
           <Card className="rounded-lg">

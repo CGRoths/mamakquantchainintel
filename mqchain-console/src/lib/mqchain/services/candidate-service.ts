@@ -20,6 +20,7 @@ import { normalizeAddress } from "../address/normalize";
 import { PARSER_VERSION } from "../constants";
 import { extractAddressRowsFromText, extractDeploymentRowsFromText, parseJsonEvidenceRows, stripHtmlToText } from "../intake-extraction";
 import { parseCandidateListFilters, type CandidateListFilters } from "../list-filters";
+import { buildSourceJobScopeSummary, type SourceJobScopeInput } from "../source-job";
 import { fetchSourceText } from "../source-url";
 import type { CsvIntakeRow } from "../types";
 import {
@@ -245,6 +246,7 @@ export async function createDeploymentSourceIntake(formInput: unknown): Promise<
     metadata: {
       contentType: fetched?.contentType ?? (input.sourceType === "pdf" ? "application/pdf+extracted-text" : "text/plain"),
       fetchedUrl: fetched?.fetchedUrl,
+      ...(fetched?.metadata ?? {}),
       extractedAddressRows: rows.length,
       deploymentExtraction: true,
       notes: input.notes,
@@ -307,6 +309,7 @@ async function createCandidatesFromRows(
   let candidatesCreated = 0;
   let evidenceCreated = 0;
   const conflictsFound = 0;
+  const sourceScopeRows: SourceJobScopeInput[] = [];
 
   const result = await db.transaction(async (tx) => {
     const [sourceJob] = await tx
@@ -449,16 +452,27 @@ async function createCandidatesFromRows(
 
       candidatesCreated += 1;
       evidenceCreated += 1;
+      sourceScopeRows.push({
+        chainCode: normalized.chainCode,
+        roleHint: row.role,
+        suggestedRoleCode: hints.role?.roleCode,
+      });
     }
+
+    const sourceScope = buildSourceJobScopeSummary(sourceScopeRows);
 
     await tx
       .update(mqSourceJobs)
       .set({
         status: candidatesCreated ? "candidate_created" : "failed",
+        chainScope: sourceScope.chainScope,
+        expectedRoles: sourceScope.expectedRoles,
         metadata: {
           intakeMode: source.documentType,
           localFileName: source.localFileName,
           ...(source.metadata ?? {}),
+          chainScope: sourceScope.chainScope,
+          expectedRoles: sourceScope.expectedRoles,
           totalRows: rows.length,
           validAddresses,
           invalidAddresses,

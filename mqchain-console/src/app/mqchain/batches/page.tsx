@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { listApprovedCandidateIds } from "@/lib/mqchain/services/candidate-service";
+import { listCandidates } from "@/lib/mqchain/services/candidate-service";
 import { listBatches } from "@/lib/mqchain/services/batch-service";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
@@ -20,11 +20,49 @@ function pageHref(params: Record<string, string | undefined>, page: number) {
   return query ? `/mqchain/batches?${query}` : "/mqchain/batches";
 }
 
+function approvedCandidatePageHref(params: Record<string, string | undefined>, page: number) {
+  const next = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value && key !== "approvedPage") next.set(key, value);
+  }
+  if (page > 1) next.set("approvedPage", String(page));
+  const query = next.toString();
+  return query ? `/mqchain/batches?${query}` : "/mqchain/batches";
+}
+
+function approvedCandidateFilters(params: Record<string, string | undefined>) {
+  return {
+    q: params.approvedQ,
+    chain: params.approvedChain,
+    entity: params.approvedEntity,
+    protocol: params.approvedProtocol,
+    role: params.approvedRole,
+    sourceType: params.approvedSourceType,
+    minConfidence: params.approvedMinConfidence,
+    qualityTier: params.approvedQualityTier,
+    status: "approved",
+    sort: params.approvedSort ?? "confidence",
+    page: params.approvedPage,
+    pageSize: params.approvedPageSize ?? "25",
+  };
+}
+
 export default async function BatchesPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const params = await searchParams;
 
   try {
-    const [result, approvedIds] = await Promise.all([listBatches(params), listApprovedCandidateIds()]);
+    const [result, approvedResult] = await Promise.all([listBatches(params), listCandidates(approvedCandidateFilters(params))]);
+    const approvedCandidates = approvedResult.rows.map(({ candidate, entityName, roleCode, sourceType }) => ({
+      id: candidate.id,
+      normalizedAddress: candidate.normalizedAddress,
+      chainCode: candidate.chainCode,
+      confidenceScore: candidate.confidenceScore,
+      qualityTier: candidate.qualityTier,
+      evidenceCount: candidate.evidenceCount,
+      entityName,
+      roleCode,
+      sourceType,
+    }));
 
     return (
       <>
@@ -35,10 +73,63 @@ export default async function BatchesPage({ searchParams }: { searchParams: Prom
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>Create batch</CardTitle>
-            <CardDescription>Approved candidate IDs available: {approvedIds.map((row) => row.id).join(", ") || "none"}</CardDescription>
+            <CardDescription>{approvedResult.total} approved candidates match the picker filters.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <CreateBatchForm approvedCandidateIds={approvedIds.map((row) => row.id)} />
+          <CardContent className="grid gap-4">
+            <form className="grid gap-3 md:grid-cols-7">
+              <Input name="approvedQ" placeholder="Address, hint, entity" defaultValue={params.approvedQ ?? ""} />
+              <Input name="approvedChain" placeholder="Chain" defaultValue={params.approvedChain ?? ""} />
+              <Input name="approvedEntity" placeholder="Entity" defaultValue={params.approvedEntity ?? ""} />
+              <Input name="approvedProtocol" placeholder="Protocol" defaultValue={params.approvedProtocol ?? ""} />
+              <Input name="approvedRole" placeholder="Role" defaultValue={params.approvedRole ?? ""} />
+              <Input name="approvedSourceType" placeholder="Source type" defaultValue={params.approvedSourceType ?? ""} />
+              <Input name="approvedMinConfidence" type="number" min="0" max="100" placeholder="Min confidence" defaultValue={params.approvedMinConfidence ?? ""} />
+              <Input name="approvedQualityTier" type="number" min="0" max="5" placeholder="Quality tier" defaultValue={params.approvedQualityTier ?? ""} />
+              <select
+                name="approvedSort"
+                defaultValue={params.approvedSort ?? "confidence"}
+                className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <option value="confidence">Confidence</option>
+                <option value="created_at">Newest</option>
+                <option value="evidence_count">Evidence count</option>
+              </select>
+              <select
+                name="approvedPageSize"
+                defaultValue={params.approvedPageSize ?? "25"}
+                className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <option value="25">25 rows</option>
+                <option value="50">50 rows</option>
+                <option value="100">100 rows</option>
+              </select>
+              <Button type="submit">Find approved</Button>
+              <Button asChild type="button" variant="outline">
+                <Link href="/mqchain/batches">Reset all</Link>
+              </Button>
+            </form>
+            <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+              <span>
+                Approved candidate page {approvedResult.page} of {approvedResult.totalPages}
+              </span>
+              <div className="flex gap-2">
+                {approvedResult.page > 1 ? (
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={approvedCandidatePageHref(params, approvedResult.page - 1)}>Previous</Link>
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" disabled>Previous</Button>
+                )}
+                {approvedResult.page < approvedResult.totalPages ? (
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={approvedCandidatePageHref(params, approvedResult.page + 1)}>Next</Link>
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" disabled>Next</Button>
+                )}
+              </div>
+            </div>
+            <CreateBatchForm approvedCandidates={approvedCandidates} />
           </CardContent>
         </Card>
         <Card className="rounded-lg">

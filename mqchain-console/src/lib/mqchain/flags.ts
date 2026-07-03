@@ -1,4 +1,5 @@
 import type { RegistryMatchInput } from "./types";
+import { LABEL_STATUS } from "./constants";
 
 export const FLAG_BITS = {
   metricEligible: 0,
@@ -166,6 +167,10 @@ export function buildDefaultFlags(roleCode?: string | null, qualityTier = 1, met
 
 export function markHistoricalOnlyFlags(flags: number) {
   return clearFlag(clearFlag(setFlag(flags, FLAG_BITS.historicalOnly), FLAG_BITS.metricEligible), FLAG_BITS.activeLabel);
+}
+
+export function isHistoricalLabel(input: { labelStatus?: number | null; flags?: number | null }) {
+  return input.labelStatus === LABEL_STATUS.inactiveHistorical || hasFlag(input.flags ?? 0, FLAG_BITS.historicalOnly);
 }
 
 export function applyMetricEligibilityToFlags(flags: number, metricEligible: boolean) {

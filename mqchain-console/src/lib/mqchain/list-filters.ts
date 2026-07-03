@@ -50,7 +50,7 @@ export const registryListFilterSchema = z.object({
   role: optionalText(),
   category: optionalText(),
   metricEligible: z.enum(["true", "false"]).optional(),
-  active: z.enum(["active", "inactive", "all"]).default("active"),
+  active: z.enum(["active", "inactive", "historical", "all"]).default("active"),
   minConfidence: optionalInt(),
   maxConfidence: optionalInt(),
   qualityTier: optionalInt(),
@@ -123,6 +123,110 @@ export const discoveryJobListFilterSchema = z.object({
   pageSize: pageSizeSchema,
 });
 
+export const reviewGroupListFilterSchema = z.object({
+  q: optionalText(),
+  chain: optionalText(),
+  entity: optionalText(),
+  role: optionalText(),
+  sourceType: optionalText(),
+  discoveryType: optionalText(),
+  minConfidence: optionalInt(),
+  minCount: optionalInt(),
+  minEvidence: optionalInt(),
+  sort: z.enum(["count", "confidence", "evidence", "entity"]).default("count"),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
+export const reviewQueueListFilterSchema = z.object({
+  q: optionalText(),
+  chain: optionalText(),
+  entity: optionalText(),
+  protocol: optionalText(),
+  role: optionalText(),
+  sourceType: optionalText(),
+  discoveryType: optionalText(),
+  minConfidence: optionalInt(),
+  maxConfidence: optionalInt(),
+  qualityTier: optionalInt(),
+  sort: z.enum(["created_at", "confidence", "evidence_count"]).default("confidence"),
+  page: pageSchema,
+  approvedPage: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
+export const metricGroupListFilterSchema = z.object({
+  q: optionalText(),
+  chain: optionalText(),
+  active: z.enum(["active", "inactive", "all"]).default("active"),
+  metricEligible: z.enum(["true", "false"]).optional(),
+  minConfidence: optionalInt(),
+  maxConfidence: optionalInt(),
+  sort: z.enum(["created_at", "updated_at", "code", "confidence"]).default("created_at"),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
+export const entityDictionaryListFilterSchema = z.object({
+  q: optionalText(),
+  entityType: optionalText(),
+  category: optionalText(),
+  active: z.enum(["active", "inactive", "all"]).default("active"),
+  sort: z.enum(["name", "code", "type", "created_at", "updated_at"]).default("name"),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
+export const categoryDictionaryListFilterSchema = z.object({
+  q: optionalText(),
+  domain: optionalText(),
+  metricDomain: optionalText(),
+  active: z.enum(["active", "inactive", "all"]).default("active"),
+  sort: z.enum(["id", "code", "name", "domain", "created_at", "updated_at"]).default("id"),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
+export const protocolDictionaryListFilterSchema = z.object({
+  q: optionalText(),
+  entity: optionalText(),
+  protocolType: optionalText(),
+  chain: optionalText(),
+  active: z.enum(["active", "inactive", "all"]).default("active"),
+  sort: z.enum(["name", "code", "type", "entity", "created_at", "updated_at"]).default("name"),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
+export const roleDictionaryListFilterSchema = z.object({
+  q: optionalText(),
+  category: optionalText(),
+  roleGroup: optionalText(),
+  metricUsage: optionalText(),
+  boundary: optionalText(),
+  minQuality: optionalInt(),
+  maxQuality: optionalInt(),
+  active: z.enum(["active", "inactive", "all"]).default("active"),
+  sort: z.enum(["id", "code", "name", "group", "quality", "created_at", "updated_at"]).default("id"),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
+export const keyPrefixDictionaryListFilterSchema = z.object({
+  q: optionalText(),
+  chain: optionalText(),
+  chainFamily: optionalText(),
+  addressFamily: optionalText(),
+  codec: optionalText(),
+  evmChainId: optionalInt(),
+  minPayloadLen: optionalInt(),
+  maxPayloadLen: optionalInt(),
+  active: z.enum(["active", "inactive", "all"]).default("active"),
+  sort: z.enum(["prefix", "chain", "chain_family", "address_family", "codec", "created_at", "updated_at"]).default("prefix"),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
 export type CandidateListFilters = z.infer<typeof candidateListFilterSchema>;
 export type RegistryListFilters = z.infer<typeof registryListFilterSchema>;
 export type SourceJobListFilters = z.infer<typeof sourceJobListFilterSchema>;
@@ -130,6 +234,14 @@ export type AuditListFilters = z.infer<typeof auditListFilterSchema>;
 export type BatchListFilters = z.infer<typeof batchListFilterSchema>;
 export type KvBuildListFilters = z.infer<typeof kvBuildListFilterSchema>;
 export type DiscoveryJobListFilters = z.infer<typeof discoveryJobListFilterSchema>;
+export type ReviewGroupListFilters = z.infer<typeof reviewGroupListFilterSchema>;
+export type ReviewQueueListFilters = z.infer<typeof reviewQueueListFilterSchema>;
+export type MetricGroupListFilters = z.infer<typeof metricGroupListFilterSchema>;
+export type EntityDictionaryListFilters = z.infer<typeof entityDictionaryListFilterSchema>;
+export type CategoryDictionaryListFilters = z.infer<typeof categoryDictionaryListFilterSchema>;
+export type ProtocolDictionaryListFilters = z.infer<typeof protocolDictionaryListFilterSchema>;
+export type RoleDictionaryListFilters = z.infer<typeof roleDictionaryListFilterSchema>;
+export type KeyPrefixDictionaryListFilters = z.infer<typeof keyPrefixDictionaryListFilterSchema>;
 
 export function parseCandidateListFilters(input: unknown) {
   return candidateListFilterSchema.parse(input);
@@ -157,4 +269,36 @@ export function parseKvBuildListFilters(input: unknown) {
 
 export function parseDiscoveryJobListFilters(input: unknown) {
   return discoveryJobListFilterSchema.parse(input);
+}
+
+export function parseReviewGroupListFilters(input: unknown) {
+  return reviewGroupListFilterSchema.parse(input);
+}
+
+export function parseReviewQueueListFilters(input: unknown) {
+  return reviewQueueListFilterSchema.parse(input);
+}
+
+export function parseMetricGroupListFilters(input: unknown) {
+  return metricGroupListFilterSchema.parse(input);
+}
+
+export function parseEntityDictionaryListFilters(input: unknown) {
+  return entityDictionaryListFilterSchema.parse(input);
+}
+
+export function parseCategoryDictionaryListFilters(input: unknown) {
+  return categoryDictionaryListFilterSchema.parse(input);
+}
+
+export function parseProtocolDictionaryListFilters(input: unknown) {
+  return protocolDictionaryListFilterSchema.parse(input);
+}
+
+export function parseRoleDictionaryListFilters(input: unknown) {
+  return roleDictionaryListFilterSchema.parse(input);
+}
+
+export function parseKeyPrefixDictionaryListFilters(input: unknown) {
+  return keyPrefixDictionaryListFilterSchema.parse(input);
 }

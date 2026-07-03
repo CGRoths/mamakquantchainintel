@@ -18,6 +18,7 @@ import { MetricCard } from "@/components/mqchain/metric-card";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { buildApprovalEventTargetLinks } from "@/lib/mqchain/audit";
 import type { DistributionRow } from "@/lib/mqchain/batch-detail";
 import { getDashboardOverview } from "@/lib/mqchain/services/dashboard-service";
 
@@ -43,6 +44,24 @@ function DistributionTable({ rows, emptyLabel = "No rows." }: { rows: Distributi
         )}
       </TableBody>
     </Table>
+  );
+}
+
+function ApprovalTargetLinks({ event }: { event: Awaited<ReturnType<typeof getDashboardOverview>>["recentApprovalEvents"][number] }) {
+  const links = buildApprovalEventTargetLinks(event);
+
+  if (!links.length) {
+    return <span>-</span>;
+  }
+
+  return (
+    <div className="grid gap-1">
+      {links.map((link) => (
+        <Link key={link.key} className="font-mono text-xs text-primary hover:underline" href={link.href}>
+          {link.label}
+        </Link>
+      ))}
+    </div>
   );
 }
 
@@ -157,7 +176,7 @@ export default async function DashboardPage() {
                   {overview.recentApprovalEvents.map((event) => (
                     <TableRow key={event.id}>
                       <TableCell>{event.action.replace(/_/g, " ")}</TableCell>
-                      <TableCell className="font-mono text-xs">{event.candidateId ?? event.batchId ?? event.registryId ?? "-"}</TableCell>
+                      <TableCell><ApprovalTargetLinks event={event} /></TableCell>
                       <TableCell className="font-mono text-xs">{event.createdAt.toISOString()}</TableCell>
                     </TableRow>
                   ))}

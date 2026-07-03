@@ -20,6 +20,16 @@ type DeploymentExtractionOptions = IntakeDefaults & {
   trustTier?: string;
 };
 
+type GithubFileContext = {
+  github_owner?: string;
+  github_repo?: string;
+  github_ref?: string;
+  github_directory_path?: string;
+  source_file_path?: string;
+  source_network?: string;
+  market?: string;
+};
+
 const EVM_ADDRESS_RE = /\b0x[a-fA-F0-9]{40}\b/g;
 const BTC_ADDRESS_RE = /(?<![A-Za-z0-9])(?:bc1[ac-hj-np-z02-9]{11,87}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})(?![A-Za-z0-9])/gi;
 const GENERIC_CHAIN_TOKEN_RE = /\b(?:0x[a-fA-F0-9]{40}|[A-Za-z0-9]{25,100})\b/g;
@@ -50,6 +60,28 @@ function uniqueRows(rows: CsvIntakeRow[]) {
 
 function compactRecord(record: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined && value !== null && value !== ""));
+}
+
+function githubFileContextFromMarker(line: string): GithubFileContext | null {
+  if (!line.startsWith("MQCHAIN_GITHUB_FILE ")) return null;
+  const record: Record<string, string> = {};
+  for (const part of line.slice("MQCHAIN_GITHUB_FILE ".length).split(/\s+/)) {
+    const index = part.indexOf("=");
+    if (index <= 0) continue;
+    const key = part.slice(0, index);
+    const value = part.slice(index + 1);
+    if (value) record[key] = value;
+  }
+
+  return {
+    github_owner: record.owner,
+    github_repo: record.repo,
+    github_ref: record.ref,
+    github_directory_path: record.directory,
+    source_file_path: record.path,
+    source_network: record.network,
+    market: record.market,
+  };
 }
 
 function rowFromAddress(address: string, defaults: IntakeDefaults, extra?: Partial<CsvIntakeRow>): CsvIntakeRow {
@@ -225,9 +257,24 @@ function evidenceTypeForDeployment(sourceType?: string) {
   return "official_page";
 }
 
-function addDeploymentRow(rows: CsvIntakeRow[], address: string, context: string, lineNumber: number, options: DeploymentExtractionOptions, extra?: Partial<CsvIntakeRow>) {
+function addDeploymentRow(
+  rows: CsvIntakeRow[],
+  address: string,
+  context: string,
+  lineNumber: number,
+  options: DeploymentExtractionOptions,
+  extra?: Partial<CsvIntakeRow> & { githubFile?: GithubFileContext | null },
+) {
   const contractName = extra?.contract_name ?? contractNameFromLine(context, address);
-  const chain = extra?.chain ?? options.chainCode ?? chainFromContext(context) ?? chainFromContext(options.sourceUrl) ?? (address.toLowerCase().startsWith("0x") ? "ethereum" : undefined);
+  const fileContext = extra?.githubFile;
+  const chain =
+    extra?.chain ??
+    options.chainCode ??
+    chainFromContext(context) ??
+    chainFromContext(fileContext?.source_file_path) ??
+    chainFromContext(fileContext?.source_network) ??
+    chainFromContext(options.sourceUrl) ??
+    (address.toLowerCase().startsWith("0x") ? "ethereum" : undefined);
   const sourceInputType = extra?.source_input_type ?? options.sourceInputType ?? sourceInputTypeFor(options.sourceType, context, options.sourceUrl);
   const evidenceType = extra?.evidence_type ?? options.evidenceType ?? evidenceTypeForDeployment(options.sourceType);
   const roleSource = extra?.role_source ?? contractName;
@@ -239,6 +286,13 @@ function addDeploymentRow(rows: CsvIntakeRow[], address: string, context: string
     raw_line: context.slice(0, 1000),
     contract_name: contractName,
     role_source: roleSource,
+    github_owner: fileContext?.github_owner,
+    github_repo: fileContext?.github_repo,
+    github_ref: fileContext?.github_ref,
+    github_directory_path: fileContext?.github_directory_path,
+    source_file_path: fileContext?.source_file_path,
+    source_network: fileContext?.source_network,
+    market: fileContext?.market,
     ...extra?.raw_reference,
   });
 
@@ -262,12 +316,18 @@ export function extractDeploymentRowsFromText(text: string, options: DeploymentE
   const sourceText = sourceInputType.includes("html") ? stripHtmlToText(text) : text;
   const rows: CsvIntakeRow[] = [];
   const lines = sourceText.split(/\r?\n/);
+  let githubFile: GithubFileContext | null = null;
 
   for (const [index, line] of lines.entries()) {
+    const nextGithubFile = githubFileContextFromMarker(line);
+    if (nextGithubFile) {
+      githubFile = nextGithubFile;
+      continue;
+    }
     resetAddressRegexes();
     const tokens = candidateTokens(line, options.chainCode);
     for (const token of tokens) {
-      addDeploymentRow(rows, token, line, index + 1, { ...options, sourceInputType });
+      addDeploymentRow(rows, token, line, index + 1, { ...options, sourceInputType }, { githubFile });
     }
   }
 

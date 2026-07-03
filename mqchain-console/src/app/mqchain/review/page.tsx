@@ -10,11 +10,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { buildReviewReadiness } from "@/lib/mqchain/review";
 import { getReviewWorkspace } from "@/lib/mqchain/services/review-service";
 
-export default async function ReviewPage() {
+function pageHref(params: Record<string, string | undefined>, pageKey: "page" | "approvedPage", page: number) {
+  const next = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value && key !== pageKey) next.set(key, value);
+  }
+  if (page > 1) next.set(pageKey, String(page));
+  const query = next.toString();
+  return query ? `/mqchain/review?${query}` : "/mqchain/review";
+}
+
+export default async function ReviewPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const params = await searchParams;
+
   try {
-    const workspace = await getReviewWorkspace();
+    const workspace = await getReviewWorkspace(params);
 
     return (
       <>
@@ -31,11 +44,53 @@ export default async function ReviewPage() {
           <MetricCard title="Conflicts" value={workspace.counts.conflicts} icon={AlertTriangle} />
           <MetricCard title="Approved for batch" value={workspace.counts.approvedReady} icon={CheckCircle2} />
         </section>
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle>Filters</CardTitle>
+            <CardDescription>Narrow the review queue and approved-for-batch list without leaving the fast path.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form className="grid gap-3 md:grid-cols-7">
+              <Input name="q" placeholder="Address, hint, entity" defaultValue={params.q ?? ""} />
+              <Input name="chain" placeholder="btc, ethereum..." defaultValue={params.chain ?? ""} />
+              <Input name="entity" placeholder="Entity" defaultValue={params.entity ?? ""} />
+              <Input name="protocol" placeholder="Protocol" defaultValue={params.protocol ?? ""} />
+              <Input name="role" placeholder="Role" defaultValue={params.role ?? ""} />
+              <Input name="sourceType" placeholder="Source type" defaultValue={params.sourceType ?? ""} />
+              <Input name="discoveryType" placeholder="Discovery type" defaultValue={params.discoveryType ?? ""} />
+              <Input name="minConfidence" type="number" min="0" max="100" placeholder="Min confidence" defaultValue={params.minConfidence ?? ""} />
+              <Input name="maxConfidence" type="number" min="0" max="100" placeholder="Max confidence" defaultValue={params.maxConfidence ?? ""} />
+              <Input name="qualityTier" type="number" min="0" max="5" placeholder="Quality tier" defaultValue={params.qualityTier ?? ""} />
+              <select
+                name="sort"
+                defaultValue={params.sort ?? "confidence"}
+                className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <option value="confidence">Confidence</option>
+                <option value="created_at">Newest</option>
+                <option value="evidence_count">Evidence count</option>
+              </select>
+              <select
+                name="pageSize"
+                defaultValue={params.pageSize ?? "50"}
+                className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <option value="25">25 rows</option>
+                <option value="50">50 rows</option>
+                <option value="100">100 rows</option>
+              </select>
+              <Button type="submit">Search</Button>
+              <Button asChild type="button" variant="outline">
+                <Link href="/mqchain/review">Reset</Link>
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
         <section className="grid gap-4 xl:grid-cols-[minmax(280px,360px)_1fr]">
           <Card className="rounded-lg">
             <CardHeader>
               <CardTitle>Candidate groups</CardTitle>
-              <CardDescription>Entity, chain, and role clusters.</CardDescription>
+              <CardDescription>Entity, chain, and role clusters from this pending page.</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -46,7 +101,7 @@ export default async function ReviewPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {workspace.groups.slice(0, 10).map((group) => (
+                  {workspace.groups.map((group) => (
                     <TableRow key={group.slug}>
                       <TableCell>
                         <Link className="text-primary hover:underline" href={`/mqchain/review/groups/${group.slug}`}>
@@ -67,9 +122,30 @@ export default async function ReviewPage() {
           <Card className="rounded-lg">
             <CardHeader>
               <CardTitle>Pending candidates</CardTitle>
-              <CardDescription>Suggested labels stay staged until batch commit.</CardDescription>
+              <CardDescription>{workspace.pending.total} pending candidates match these filters.</CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="mb-3 flex items-center justify-between gap-3 text-sm text-muted-foreground">
+                <span>
+                  Page {workspace.pending.page} of {workspace.pending.totalPages}
+                </span>
+                <div className="flex gap-2">
+                  {workspace.pending.page > 1 ? (
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={pageHref(params, "page", workspace.pending.page - 1)}>Previous</Link>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" disabled>Previous</Button>
+                  )}
+                  {workspace.pending.page < workspace.pending.totalPages ? (
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={pageHref(params, "page", workspace.pending.page + 1)}>Next</Link>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" disabled>Next</Button>
+                  )}
+                </div>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -83,7 +159,7 @@ export default async function ReviewPage() {
                 </TableHeader>
                 <TableBody>
                   {workspace.pendingRows.map(({ candidate, entityName, roleCode, sourceType, latestEvidence }) => {
-                    const canQuickApprove = Boolean(candidate.suggestedEntityId && candidate.suggestedRoleId);
+                    const readiness = buildReviewReadiness(candidate);
                     return (
                       <TableRow key={candidate.id}>
                         <TableCell className="font-mono">{candidate.id}</TableCell>
@@ -98,6 +174,9 @@ export default async function ReviewPage() {
                         <TableCell className="max-w-80">
                           <span className="block"><StatusBadge status={sourceType ?? candidate.discoveredBy} /></span>
                           <span className="block truncate text-xs text-muted-foreground">{latestEvidence?.summary ?? "No evidence summary"}</span>
+                          {!readiness.canQuickApprove ? (
+                            <span className="mt-1 block font-mono text-xs text-amber-400">{readiness.blockers.join(", ")}</span>
+                          ) : null}
                         </TableCell>
                         <TableCell className="font-mono">{candidate.confidenceScore} / Q{candidate.qualityTier}</TableCell>
                         <TableCell>
@@ -105,7 +184,7 @@ export default async function ReviewPage() {
                             <ReviewQuickActionForm
                               action={reviewQuickActions.approve}
                               candidateId={candidate.id}
-                              disabled={!canQuickApprove}
+                              disabled={!readiness.canQuickApprove}
                               reason="Approved as suggested from review queue."
                               variant="default"
                             >
@@ -139,7 +218,7 @@ export default async function ReviewPage() {
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Boxes className="h-4 w-4 text-primary" />Batch select</CardTitle>
-            <CardDescription>Approved candidates ready for label batch creation.</CardDescription>
+            <CardDescription>{workspace.approved.total} approved candidates match these filters.</CardDescription>
           </CardHeader>
           <CardContent>
             <ReviewBatchSelectionForm disabled={!workspace.approvedRows.length}>
@@ -149,6 +228,27 @@ export default async function ReviewPage() {
                   <Input name="sourceName" defaultValue={`Review queue ${new Date().toISOString().slice(0, 10)}`} />
                 </div>
                 <Button type="submit" className="self-end">Create batch</Button>
+              </div>
+              <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+                <span>
+                  Approved page {workspace.approved.page} of {workspace.approved.totalPages}
+                </span>
+                <div className="flex gap-2">
+                  {workspace.approved.page > 1 ? (
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={pageHref(params, "approvedPage", workspace.approved.page - 1)}>Previous</Link>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" disabled>Previous</Button>
+                  )}
+                  {workspace.approved.page < workspace.approved.totalPages ? (
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={pageHref(params, "approvedPage", workspace.approved.page + 1)}>Next</Link>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" disabled>Next</Button>
+                  )}
+                </div>
               </div>
               <Table>
                 <TableHeader>

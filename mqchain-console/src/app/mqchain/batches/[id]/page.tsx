@@ -169,6 +169,48 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
               </CardContent>
             </Card>
             <Card className="rounded-lg">
+              <CardHeader><CardTitle>Registry rows produced</CardTitle></CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead>Entity</TableHead>
+                      <TableHead>Protocol</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Confidence</TableHead>
+                      <TableHead>Timeline</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {detail.registryRows.map(({ registry, entityName, protocolName, roleCode }) => (
+                      <TableRow key={registry.id}>
+                        <TableCell className="font-mono">
+                          <Link className="text-primary hover:underline" href={`/mqchain/registry/${registry.id}`}>{registry.id}</Link>
+                        </TableCell>
+                        <TableCell className="max-w-96 truncate font-mono text-xs">{registry.normalizedAddress}</TableCell>
+                        <TableCell>{entityName ?? "-"}</TableCell>
+                        <TableCell>{protocolName ?? "-"}</TableCell>
+                        <TableCell className="font-mono text-xs">{roleCode ?? registry.roleId}</TableCell>
+                        <TableCell className="font-mono">{registry.confidenceScore} / Q{registry.qualityTier}</TableCell>
+                        <TableCell className="font-mono text-xs">{registry.validFromBlock ?? "*"} / {registry.validToBlock ?? "*"}</TableCell>
+                        <TableCell><StatusBadge status={registry.isActive ? "approved" : "superseded"} /></TableCell>
+                      </TableRow>
+                    ))}
+                    {!detail.registryRows.length ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                          Registry rows appear here after the batch is committed.
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+            <Card className="rounded-lg">
               <CardHeader><CardTitle>Committed batch evidence rows</CardTitle></CardHeader>
               <CardContent>
                 <Table>
@@ -274,6 +316,15 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
                   <h2 className="mb-2 text-sm font-medium">Trust tier</h2>
                   <DistributionTable rows={detail.evidenceRollup.trustDistribution} emptyLabel="No trust data." />
                 </div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-lg">
+              <CardHeader><CardTitle>Registry output</CardTitle></CardHeader>
+              <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+                <div><span className="text-muted-foreground">Rows</span><div className="font-mono">{detail.registryRollup.totalRows}</div></div>
+                <div><span className="text-muted-foreground">Active</span><div className="font-mono">{detail.registryRollup.activeRows}</div></div>
+                <div><span className="text-muted-foreground">Inactive</span><div className="font-mono">{detail.registryRollup.inactiveRows}</div></div>
+                <div><span className="text-muted-foreground">Metric eligible</span><div className="font-mono">{detail.registryRollup.metricEligibleRows}</div></div>
               </CardContent>
             </Card>
             <Card className="rounded-lg">

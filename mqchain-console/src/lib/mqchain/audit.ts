@@ -23,6 +23,13 @@ export type AuditTimelineRow = {
   createdAt: Date;
 };
 
+export type ApprovalEventTargetLink = {
+  key: "candidate" | "registry" | "batch";
+  label: string;
+  href: string;
+  id: number;
+};
+
 function approvalTarget(input: AuditTimelineInput) {
   if (input.registryId) return `registry:${input.registryId}`;
   if (input.batchId) return `batch:${input.batchId}`;
@@ -32,6 +39,39 @@ function approvalTarget(input: AuditTimelineInput) {
 
 function systemTarget(input: AuditTimelineInput) {
   return `${input.targetTable ?? "system"}:${input.targetId ?? "-"}`;
+}
+
+export function buildApprovalEventTargetLinks(input: Pick<AuditTimelineInput, "candidateId" | "registryId" | "batchId">) {
+  const links: ApprovalEventTargetLink[] = [];
+
+  if (input.candidateId) {
+    links.push({
+      key: "candidate",
+      label: `candidate:${input.candidateId}`,
+      href: `/mqchain/candidates/${input.candidateId}`,
+      id: input.candidateId,
+    });
+  }
+
+  if (input.registryId) {
+    links.push({
+      key: "registry",
+      label: `registry:${input.registryId}`,
+      href: `/mqchain/registry/${input.registryId}`,
+      id: input.registryId,
+    });
+  }
+
+  if (input.batchId) {
+    links.push({
+      key: "batch",
+      label: `batch:${input.batchId}`,
+      href: `/mqchain/batches/${input.batchId}`,
+      id: input.batchId,
+    });
+  }
+
+  return links;
 }
 
 export function buildAuditTimeline(events: AuditTimelineInput[], limit = 200): AuditTimelineRow[] {
