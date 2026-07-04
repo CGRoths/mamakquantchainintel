@@ -33,7 +33,13 @@ function pageSlice<T>(rows: T[], page: number, pageSize: number) {
   return rows.slice(offset, offset + pageSize);
 }
 
-function serializeMember(row: MetricGroupPreviewRow) {
+function csvEscape(value: unknown) {
+  if (value === null || value === undefined) return "";
+  const text = String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+export function serializeMetricGroupMember(row: MetricGroupPreviewRow) {
   return {
     registryId: row.registry.id,
     chainCode: row.registry.chainCode,
@@ -66,6 +72,68 @@ function serializeMember(row: MetricGroupPreviewRow) {
   };
 }
 
+export function buildMetricGroupMembershipExportRows(input: MetricGroupMembershipApiInput) {
+  return pageSlice(input.members, input.query.page, input.query.pageSize).map((row) => ({
+    metricGroupCode: input.group.metricGroupCode,
+    registryId: row.registry.id,
+    chainCode: row.registry.chainCode,
+    normalizedAddress: row.registry.normalizedAddress,
+    entityCode: row.entity?.entityCode ?? "",
+    entityName: row.entity?.entityName ?? "",
+    protocolCode: row.protocol?.protocolCode ?? "",
+    protocolName: row.protocol?.protocolName ?? "",
+    roleCode: row.role?.roleCode ?? "",
+    categoryCode: row.category?.categoryCode ?? "",
+    confidenceScore: row.registry.confidenceScore,
+    qualityTier: row.registry.qualityTier,
+    flags: row.registry.flags,
+    sourceOfTruth: METRIC_GROUP_MEMBERSHIP_API_CONTRACT.sourceOfTruth,
+    artifactStatus: METRIC_GROUP_MEMBERSHIP_API_CONTRACT.artifactStatus,
+    externalCompileRequired: METRIC_GROUP_MEMBERSHIP_API_CONTRACT.externalCompileRequired,
+  }));
+}
+
+export function buildMetricGroupMembershipCsv(input: MetricGroupMembershipApiInput) {
+  const headers = [
+    "metric_group_code",
+    "registry_id",
+    "chain_code",
+    "normalized_address",
+    "entity_code",
+    "entity_name",
+    "protocol_code",
+    "protocol_name",
+    "role_code",
+    "category_code",
+    "confidence_score",
+    "quality_tier",
+    "flags",
+    "source_of_truth",
+    "artifact_status",
+    "external_compile_required",
+  ];
+  const rows = buildMetricGroupMembershipExportRows(input).map((row) => [
+    row.metricGroupCode,
+    row.registryId,
+    row.chainCode,
+    row.normalizedAddress,
+    row.entityCode,
+    row.entityName,
+    row.protocolCode,
+    row.protocolName,
+    row.roleCode,
+    row.categoryCode,
+    row.confidenceScore,
+    row.qualityTier,
+    row.flags,
+    row.sourceOfTruth,
+    row.artifactStatus,
+    row.externalCompileRequired,
+  ]);
+
+  return [headers, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
+}
+
 export function buildMetricGroupMembershipApiResponse(input: MetricGroupMembershipApiInput) {
   const totalMembers = input.members.length;
   const totalPages = Math.max(1, Math.ceil(totalMembers / input.query.pageSize));
@@ -94,7 +162,7 @@ export function buildMetricGroupMembershipApiResponse(input: MetricGroupMembersh
       returnedMembers: pageSlice(input.members, input.query.page, input.query.pageSize).length,
     },
     diagnostics: input.diagnostics,
-    members: pageSlice(input.members, input.query.page, input.query.pageSize).map(serializeMember),
+    members: pageSlice(input.members, input.query.page, input.query.pageSize).map(serializeMetricGroupMember),
     manifest: input.manifest,
     kvManifest: input.kvManifest,
     policy: {

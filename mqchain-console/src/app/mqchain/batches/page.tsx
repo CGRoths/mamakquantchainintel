@@ -52,13 +52,15 @@ export default async function BatchesPage({ searchParams }: { searchParams: Prom
 
   try {
     const [result, approvedResult] = await Promise.all([listBatches(params), listCandidates(approvedCandidateFilters(params))]);
-    const approvedCandidates = approvedResult.rows.map(({ candidate, entityName, roleCode, sourceType }) => ({
+    const approvedCandidates = approvedResult.rows.map(({ candidate, entityName, roleCode, sourceType, sourceVerificationContext }) => ({
       id: candidate.id,
       normalizedAddress: candidate.normalizedAddress,
       chainCode: candidate.chainCode,
       confidenceScore: candidate.confidenceScore,
       qualityTier: candidate.qualityTier,
       evidenceCount: candidate.evidenceCount,
+      sourceVerificationStatus: sourceVerificationContext?.status ?? null,
+      sourceVerificationMessage: sourceVerificationContext?.message ?? null,
       entityName,
       roleCode,
       sourceType,

@@ -18,6 +18,15 @@ function pageHref(params: Record<string, string | undefined>, page: number) {
   return query ? `/mqchain/candidates?${query}` : "/mqchain/candidates";
 }
 
+function candidateApiHref(params: Record<string, string | undefined>, format: "json" | "csv") {
+  const next = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) next.set(key, value);
+  }
+  next.set("format", format);
+  return `/api/mqchain/candidates?${next.toString()}`;
+}
+
 export default async function CandidatesPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const params = await searchParams;
 
@@ -30,6 +39,20 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
           <h1 className="text-2xl font-semibold">Candidates</h1>
           <p className="text-sm text-muted-foreground">Normalized, unapproved address intelligence awaiting review, rejection, or batching.</p>
         </div>
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle>Read-only staging API</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-3 text-sm">
+            <code className="rounded-md bg-muted px-2 py-1 text-xs">/api/mqchain/candidates</code>
+            <Button asChild variant="outline">
+              <Link href={candidateApiHref(params, "json")}>Open JSON</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={candidateApiHref(params, "csv")}>Export CSV</Link>
+            </Button>
+          </CardContent>
+        </Card>
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>Filters</CardTitle>

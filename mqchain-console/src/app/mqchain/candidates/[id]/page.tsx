@@ -7,7 +7,7 @@ import { FlagBadges } from "@/components/mqchain/flag-badges";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { buildCandidateTraceWarnings } from "@/lib/mqchain/candidate-detail";
+import { buildCandidateSourceVerificationContext, buildCandidateTraceWarnings } from "@/lib/mqchain/candidate-detail";
 import { FLAG_BITS, hasFlag } from "@/lib/mqchain/flags";
 import { buildEditedApprovalReadiness, buildReviewReadiness, REVIEW_READINESS_BLOCKER_LABELS } from "@/lib/mqchain/review";
 import { getCandidateDetail } from "@/lib/mqchain/services/candidate-service";
@@ -27,14 +27,6 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
     const selectedRole = dictionaries.roles.find((role) => role.roleId === candidate.suggestedRoleId);
     const candidateMetadata = candidate.metadata ?? {};
     const attachedEvidenceCount = detail.evidence.length;
-    const reviewReadiness = buildReviewReadiness({
-      chainCode: candidate.chainCode,
-      normalizedAddress: candidate.normalizedAddress,
-      suggestedEntityId: candidate.suggestedEntityId,
-      suggestedRoleId: candidate.suggestedRoleId,
-      evidenceCount: attachedEvidenceCount,
-    });
-    const editedApprovalReadiness = buildEditedApprovalReadiness(reviewReadiness.blockers);
     const reviewReason = typeof candidateMetadata.reviewReason === "string" ? candidateMetadata.reviewReason : null;
     const duplicateReason = typeof candidateMetadata.duplicateReason === "string" ? candidateMetadata.duplicateReason : null;
     const approvalDraft = candidateMetadata.approvalDraft && typeof candidateMetadata.approvalDraft === "object" && !Array.isArray(candidateMetadata.approvalDraft)
@@ -52,6 +44,24 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
       duplicateCandidateCount: detail.duplicateCandidates.length,
       registryMatchCount: detail.registryMatches.length,
     });
+    const sourceVerificationContext = buildCandidateSourceVerificationContext({
+      candidate: {
+        id: candidate.id,
+        sourceJobId: candidate.sourceJobId,
+        sourceDocumentId: candidate.sourceDocumentId,
+        metadata: candidateMetadata,
+      },
+      verifications: detail.sourceVerifications.map((row) => row.verification),
+    });
+    const reviewReadiness = buildReviewReadiness({
+      chainCode: candidate.chainCode,
+      normalizedAddress: candidate.normalizedAddress,
+      suggestedEntityId: candidate.suggestedEntityId,
+      suggestedRoleId: candidate.suggestedRoleId,
+      evidenceCount: attachedEvidenceCount,
+      sourceVerificationStatus: sourceVerificationContext.status,
+    });
+    const editedApprovalReadiness = buildEditedApprovalReadiness(reviewReadiness.blockers);
 
     return (
       <>
@@ -138,6 +148,63 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
                   </div>
                 </div>
                 <div><span className="text-muted-foreground">Discovery type</span><div>{detail.discoveryJob?.discoveryType ?? "-"}</div></div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-lg">
+              <CardHeader><CardTitle>Source verification context</CardTitle></CardHeader>
+              <CardContent className="grid gap-4 text-sm">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div><span className="text-muted-foreground">Status</span><div><StatusBadge status={sourceVerificationContext.status} /></div></div>
+                  <div><span className="text-muted-foreground">Matches</span><div className="font-mono">{sourceVerificationContext.matchingVerifiedCount}</div></div>
+                  <div><span className="text-muted-foreground">Sheet scope</span><div>{sourceVerificationContext.sheetVerificationRequired ? "required" : "not detected"}</div></div>
+                  <div><span className="text-muted-foreground">Sheets</span><div className="font-mono text-xs">{sourceVerificationContext.sheetNames.join(", ") || "-"}</div></div>
+                </div>
+                <div className={sourceVerificationContext.status.includes("missing") ? "rounded-md border border-destructive/30 bg-destructive/5 p-3" : "rounded-md border bg-muted/40 p-3"}>
+                  {sourceVerificationContext.message}
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Scope</TableHead>
+                      <TableHead>Trust</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Target</TableHead>
+                      <TableHead>Verifier</TableHead>
+                      <TableHead>Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {detail.sourceVerifications.map((row) => {
+                      const verification = row.verification;
+                      return (
+                        <TableRow key={verification.id}>
+                          <TableCell className="font-mono">{verification.id}</TableCell>
+                          <TableCell>{verification.verificationScope}</TableCell>
+                          <TableCell>{verification.sourceTrust}</TableCell>
+                          <TableCell><StatusBadge status={verification.status} /></TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {[
+                              verification.sourceDocumentId ? `document:${verification.sourceDocumentId}` : null,
+                              verification.candidateId ? `candidate:${verification.candidateId}` : null,
+                              verification.sourceSheet ? `sheet:${verification.sourceSheet}` : null,
+                              verification.sourceUrl ? `url:${verification.sourceUrl}` : null,
+                            ].filter(Boolean).join(" / ") || `source_job:${candidate.sourceJobId ?? "-"}`}
+                          </TableCell>
+                          <TableCell className="max-w-48 truncate text-xs">{row.verifierName || row.verifierEmail || verification.verifiedBy || "system"}</TableCell>
+                          <TableCell className="font-mono text-xs">{verification.createdAt.toISOString()}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {!detail.sourceVerifications.length ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                          No source verification records are linked to this candidate context yet.
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
             <Card className="rounded-lg">

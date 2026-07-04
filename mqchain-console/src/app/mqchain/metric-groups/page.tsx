@@ -260,13 +260,20 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
                   <div>
                     <div className="text-sm font-medium">External KV compile handoff</div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Register this member universe as a pending KV/RocksDB compile task. The worker output is still external to Vercel.
+                      Register this member universe as a pending KV/RocksDB compile task, or export the current preview page for a metrics worker.
                     </p>
                   </div>
-                  <CreateMetricGroupKvManifestForm
-                    rowCount={preview.kvManifest.rowCount}
-                    manifestJson={JSON.stringify(preview.kvManifest)}
-                  />
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button asChild variant="outline">
+                      <Link href={`/api/mqchain/metric-groups/${encodeURIComponent(preview.group.metricGroupCode)}/members?format=csv&pageSize=1000`}>
+                        Export CSV
+                      </Link>
+                    </Button>
+                    <CreateMetricGroupKvManifestForm
+                      rowCount={preview.kvManifest.rowCount}
+                      manifestJson={JSON.stringify(preview.kvManifest)}
+                    />
+                  </div>
                 </div>
               </div>
               {preview.focusedRegistryId ? (

@@ -1,8 +1,9 @@
 import { desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
-import { mqAddressCandidates, mqAddressEvidence, mqAddressRegistry, mqApprovalEvents, mqAuditLog, mqKvRoleDict } from "@/db/schema";
+import { mqAddressCandidates, mqAddressEvidence, mqAddressRegistry, mqApprovalEvents, mqAuditLog, mqKvRoleDict, mqSourceVerifications } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
+import { buildCandidateSourceVerificationContext, isCandidateSourceVerificationSatisfied } from "../candidate-detail";
 import { LABEL_STATUS } from "../constants";
 import { FLAG_BITS, applyMetricEligibilityToFlags, clearFlag, markHistoricalOnlyFlags } from "../flags";
 import { buildCandidateReviewAuditPayload } from "../review";
@@ -28,6 +29,57 @@ async function assertCandidateHasAttachedEvidence(tx: Pick<ReturnType<typeof get
 
   if (!row?.value) {
     throw new Error(`Candidate ${candidateId} must have at least one evidence row before approval.`);
+  }
+}
+
+async function assertCandidateSourceVerified(
+  tx: Pick<ReturnType<typeof getDb>, "select">,
+  candidate: typeof mqAddressCandidates.$inferSelect,
+) {
+  const verificationRowsById = new Map<number, typeof mqSourceVerifications.$inferSelect>();
+  const candidateVerifications = await tx
+    .select()
+    .from(mqSourceVerifications)
+    .where(eq(mqSourceVerifications.candidateId, candidate.id));
+
+  for (const verification of candidateVerifications) {
+    verificationRowsById.set(verification.id, verification);
+  }
+
+  if (candidate.sourceJobId) {
+    const sourceJobVerifications = await tx
+      .select()
+      .from(mqSourceVerifications)
+      .where(eq(mqSourceVerifications.sourceJobId, candidate.sourceJobId));
+
+    for (const verification of sourceJobVerifications) {
+      verificationRowsById.set(verification.id, verification);
+    }
+  }
+
+  if (candidate.sourceDocumentId) {
+    const sourceDocumentVerifications = await tx
+      .select()
+      .from(mqSourceVerifications)
+      .where(eq(mqSourceVerifications.sourceDocumentId, candidate.sourceDocumentId));
+
+    for (const verification of sourceDocumentVerifications) {
+      verificationRowsById.set(verification.id, verification);
+    }
+  }
+
+  const context = buildCandidateSourceVerificationContext({
+    candidate: {
+      id: candidate.id,
+      sourceJobId: candidate.sourceJobId,
+      sourceDocumentId: candidate.sourceDocumentId,
+      metadata: candidate.metadata,
+    },
+    verifications: Array.from(verificationRowsById.values()),
+  });
+
+  if (!isCandidateSourceVerificationSatisfied(context.status)) {
+    throw new Error(`Candidate ${candidate.id} must have verified source context before approval. ${context.message}`);
   }
 }
 
@@ -64,6 +116,7 @@ export async function approveCandidate(input: unknown) {
       throw new Error("Candidate not found.");
     }
     await assertCandidateHasAttachedEvidence(tx, candidate.id);
+    await assertCandidateSourceVerified(tx, candidate);
 
     const draftFlags = applyMetricEligibilityToFlags(parsed.flags, parsed.metricEligible === "true");
     const approvalDraft = {
@@ -141,6 +194,7 @@ export async function approveCandidateAsSuggested(input: unknown) {
       throw new Error("Candidate not found.");
     }
     await assertCandidateHasAttachedEvidence(tx, candidate.id);
+    await assertCandidateSourceVerified(tx, candidate);
 
     if (!candidate.suggestedEntityId || !candidate.suggestedRoleId) {
       throw new Error("Candidate needs suggested entity and role before quick approval.");
@@ -376,6 +430,7 @@ export async function markCandidateSupersedesRegistry(input: unknown) {
       throw new Error("Candidate or registry row not found.");
     }
     await assertCandidateHasAttachedEvidence(tx, candidate.id);
+    await assertCandidateSourceVerified(tx, candidate);
 
     if (candidate.chainCode !== registry.chainCode || candidate.normalizedAddress !== registry.normalizedAddress) {
       throw new Error("Superseded registry row must match the candidate chain and normalized address.");
@@ -449,6 +504,7 @@ export async function markCandidateHistoricalOnly(input: unknown) {
       throw new Error("Candidate not found.");
     }
     await assertCandidateHasAttachedEvidence(tx, candidate.id);
+    await assertCandidateSourceVerified(tx, candidate);
 
     const metadata = candidateMetadata(candidate);
     const existingDraft = metadata.approvalDraft ?? {};

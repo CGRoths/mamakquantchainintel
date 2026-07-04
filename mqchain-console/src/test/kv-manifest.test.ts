@@ -7,6 +7,7 @@ import {
   summarizeKvManifestIndexes,
   summarizePersistedKvIndexRecords,
 } from "@/lib/mqchain/kv-manifest";
+import { buildKvServingManifestApiResponse, KV_SERVING_MANIFEST_API_CONTRACT } from "@/lib/mqchain/kv-serving-api";
 import { createKvBuildManifestSchema } from "@/lib/mqchain/validators/kv-manifest";
 
 describe("KV build manifest validation", () => {
@@ -399,5 +400,124 @@ describe("KV build manifest validation", () => {
     expect(preflight.canActivate).toBe(false);
     expect(preflight.blockers.join(" ")).toContain("Required serving indexes");
     expect(preflight.blockers.join(" ")).toContain("Metric group membership");
+  });
+
+  it("serializes the active external KV serving manifest for MamakQuantNode", () => {
+    const payload = buildKvServingManifestApiResponse({
+      build: {
+        id: 9,
+        buildHash: "hash-active",
+        dictionaryVersion: "dict-active",
+        status: "active",
+        rowCount: 6,
+        storageUri: "s3://mqchain/kv/hash-active",
+        manifest: { artifactType: "rocksdb", rowCount: 6 },
+        createdAt: new Date("2026-07-04T01:00:00.000Z"),
+        activatedAt: new Date("2026-07-04T02:00:00.000Z"),
+      },
+      indexManifests: [
+        {
+          id: 1,
+          indexName: "address_label_current",
+          dictionaryVersion: "dict-active",
+          status: "active",
+          rowCount: 2,
+          storageUri: "s3://mqchain/kv/current",
+          manifestHash: "current-hash",
+          lastCommittedBatchId: 10,
+          activatedAt: new Date("2026-07-04T02:00:00.000Z"),
+        },
+        {
+          id: 2,
+          indexName: "address_label_timeline",
+          dictionaryVersion: "dict-active",
+          status: "active",
+          rowCount: 3,
+          storageUri: "s3://mqchain/kv/timeline",
+          manifestHash: "timeline-hash",
+          lastCommittedBatchId: 10,
+          activatedAt: new Date("2026-07-04T02:00:00.000Z"),
+        },
+        {
+          id: 3,
+          indexName: "metric_group_membership",
+          dictionaryVersion: "dict-active",
+          status: "active",
+          rowCount: 1,
+          storageUri: "s3://mqchain/kv/metric",
+          manifestHash: "metric-hash",
+          lastCommittedBatchId: 10,
+          activatedAt: new Date("2026-07-04T02:00:00.000Z"),
+        },
+      ],
+      indexShards: [
+        {
+          manifestId: 1,
+          shardId: "current-00",
+          shardKey: "00",
+          shardHash: "current-shard",
+          storageUri: "s3://mqchain/kv/current-00",
+          rowCount: 2,
+        },
+      ],
+      membershipSnapshots: [
+        {
+          id: 4,
+          metricGroupId: 7,
+          metricGroupCode: "btc_cex_flow_boundary",
+          dictionaryVersion: "dict-active",
+          status: "active",
+          memberCount: 1,
+          manifestHash: "metric-hash",
+          activatedAt: new Date("2026-07-04T02:00:00.000Z"),
+        },
+      ],
+      membershipRows: [{ id: 99, snapshotId: 4 }],
+    });
+
+    expect(payload).toMatchObject({
+      ...KV_SERVING_MANIFEST_API_CONTRACT,
+      activeBuild: {
+        id: 9,
+        buildHash: "hash-active",
+        status: "active",
+        storageUri: "s3://mqchain/kv/hash-active",
+        activatedAt: "2026-07-04T02:00:00.000Z",
+      },
+      indexSummary: {
+        indexCount: 3,
+        shardCount: 1,
+        missingRequired: [],
+      },
+      indexes: [
+        {
+          indexName: "address_label_current",
+          requiredKey: "addressLabelCurrent",
+          shardCount: 1,
+          shards: [{ shardId: "current-00", storageUri: "s3://mqchain/kv/current-00" }],
+        },
+        {
+          indexName: "address_label_timeline",
+          requiredKey: "addressLabelTimeline",
+        },
+        {
+          indexName: "metric_group_membership",
+          requiredKey: "metricGroupMembership",
+        },
+      ],
+      metricGroupMembership: [
+        {
+          snapshotId: 4,
+          metricGroupCode: "btc_cex_flow_boundary",
+          memberCount: 1,
+          persistedMemberRows: 1,
+        },
+      ],
+      policy: {
+        activeBuildOnly: true,
+        requiredServingIndexes: true,
+        externalWorkerOwnsArtifactStorage: true,
+      },
+    });
   });
 });

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const dictionarySnapshotScopeSchema = z.enum(["active", "all"]).default("active");
+
 export const idSchema = z.object({
   id: z.coerce.number().int().positive(),
 });

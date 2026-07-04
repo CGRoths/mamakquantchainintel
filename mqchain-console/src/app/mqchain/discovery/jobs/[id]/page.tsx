@@ -125,6 +125,20 @@ export default async function DiscoveryJobDetailPage({ params }: { params: Promi
             </div>
           </CardContent>
         </Card>
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Worker completion API</CardTitle></CardHeader>
+          <CardContent className="grid gap-3 text-sm md:grid-cols-[1fr_auto] md:items-center">
+            <div>
+              <code className="rounded-md bg-muted px-2 py-1 text-xs">POST /api/mqchain/discovery/jobs/{job.id}/complete</code>
+              <p className="mt-2 text-muted-foreground">
+                Authenticated scanners can submit result JSON here. Completion stages source documents, candidates, and evidence only; registry and KV writes remain blocked.
+              </p>
+            </div>
+            <Button asChild variant="outline">
+              <Link href={`/api/mqchain/discovery/jobs/${job.id}/complete`}>Endpoint</Link>
+            </Button>
+          </CardContent>
+        </Card>
         <section className="grid gap-4 xl:grid-cols-3">
           <Card className="rounded-lg"><CardHeader><CardTitle>Status distribution</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.candidateRollup.statusDistribution} emptyLabel="No candidates." /></CardContent></Card>
           <Card className="rounded-lg"><CardHeader><CardTitle>Evidence distribution</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.evidenceRollup.typeDistribution} emptyLabel="No evidence." /></CardContent></Card>

@@ -7,6 +7,9 @@ import { parseEvidencePayload, summarizeEvidencePayload } from "../evidence";
 import { candidateEvidenceSchema, registryEvidenceSchema } from "../validators/evidence";
 import { hashJson } from "./service-utils";
 
+export const CANDIDATE_EVIDENCE_PERMISSION = "candidate:evidence";
+export const REGISTRY_EVIDENCE_PERMISSION = "registry:edit";
+
 export async function listEvidenceForCandidate(candidateId: number) {
   return getDb().select().from(mqAddressEvidence).where(eq(mqAddressEvidence.candidateId, candidateId)).orderBy(desc(mqAddressEvidence.createdAt));
 }
@@ -16,7 +19,7 @@ export async function listEvidenceForRegistry(registryId: number) {
 }
 
 export async function addCandidateEvidence(input: unknown) {
-  const actor = await assertPermission("candidate:evidence");
+  const actor = await assertPermission(CANDIDATE_EVIDENCE_PERMISSION);
   const parsed = candidateEvidenceSchema.parse(input);
   const payload = parseEvidencePayload(parsed.payloadJson);
   const db = getDb();
@@ -86,7 +89,7 @@ export async function addCandidateEvidence(input: unknown) {
 }
 
 export async function addRegistryEvidence(input: unknown) {
-  const actor = await assertPermission("candidate:evidence");
+  const actor = await assertPermission(REGISTRY_EVIDENCE_PERMISSION);
   const parsed = registryEvidenceSchema.parse(input);
   const payload = parseEvidencePayload(parsed.payloadJson);
   const db = getDb();

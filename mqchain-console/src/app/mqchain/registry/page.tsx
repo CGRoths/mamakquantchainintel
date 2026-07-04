@@ -19,6 +19,15 @@ function pageHref(params: Record<string, string | undefined>, page: number) {
   return query ? `/mqchain/registry?${query}` : "/mqchain/registry";
 }
 
+function registryApiHref(params: Record<string, string | undefined>, format: "json" | "csv") {
+  const next = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) next.set(key, value);
+  }
+  next.set("format", format);
+  return `/api/mqchain/registry?${next.toString()}`;
+}
+
 export default async function RegistryPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const params = await searchParams;
 
@@ -31,6 +40,18 @@ export default async function RegistryPage({ searchParams }: { searchParams: Pro
           <h1 className="text-2xl font-semibold">Approved registry</h1>
           <p className="text-sm text-muted-foreground">Canonical truth for approved, evidence-backed address labels.</p>
         </div>
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Read-only export API</CardTitle></CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-3 text-sm">
+            <code className="rounded-md bg-muted px-2 py-1 text-xs">/api/mqchain/registry</code>
+            <Button asChild variant="outline">
+              <Link href={registryApiHref(params, "json")}>Open JSON</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={registryApiHref(params, "csv")}>Export CSV</Link>
+            </Button>
+          </CardContent>
+        </Card>
         <Card className="rounded-lg">
           <CardHeader><CardTitle>Filters</CardTitle></CardHeader>
           <CardContent>

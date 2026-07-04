@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const registryExportApiFormatSchema = z.enum(["json", "csv"]).default("json");
+
 export const resolverSchema = z.object({
   chainCode: z.string().trim().min(1),
   address: z.string().trim().min(1),

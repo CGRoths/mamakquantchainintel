@@ -87,6 +87,7 @@ type RegistryDetailFormsProps = {
   discoveryConfig: string;
   isHistorical: boolean;
   canEditRegistry: boolean;
+  canCreateDiscovery: boolean;
 };
 
 const initialState: RegistryMutationState = null;
@@ -154,6 +155,7 @@ export function RegistryDetailForms({
   discoveryConfig,
   isHistorical,
   canEditRegistry,
+  canCreateDiscovery,
 }: RegistryDetailFormsProps) {
   const availableSecondaryRoles = dictionaries.roles.filter(
     (role) => role.roleId !== registry.roleId && !secondaryRoles.some((secondary) => secondary.roleId === role.roleId),
@@ -381,81 +383,85 @@ export function RegistryDetailForms({
           ) : null}
         </CardContent>
       </Card>
-      <Card className="rounded-lg">
-        <CardHeader><CardTitle>Add registry evidence</CardTitle></CardHeader>
-        <CardContent>
-          <RegistryFormShell
-            action={addRegistryEvidenceResultAction}
-            failureTitle="Registry evidence attachment failed"
-            pendingLabel="Attaching..."
-            submitLabel="Attach registry evidence"
-          >
-            {({ fieldError }) => (
-              <>
-                <input type="hidden" name="registryId" value={registry.id} />
-                <div className="grid gap-3 sm:grid-cols-2">
+      {canEditRegistry ? (
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Add registry evidence</CardTitle></CardHeader>
+          <CardContent>
+            <RegistryFormShell
+              action={addRegistryEvidenceResultAction}
+              failureTitle="Registry evidence attachment failed"
+              pendingLabel="Attaching..."
+              submitLabel="Attach registry evidence"
+            >
+              {({ fieldError }) => (
+                <>
+                  <input type="hidden" name="registryId" value={registry.id} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label>Evidence type</Label>
+                      <Input name="evidenceType" placeholder="official_page" required />
+                      <FieldError error={fieldError("evidenceType")} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Trust tier</Label>
+                      <select name="trustTier" defaultValue="weak" className="h-10 rounded-md border bg-background px-3 text-sm">
+                        <option value="official">official</option>
+                        <option value="verified_third_party">verified third party</option>
+                        <option value="inferred">inferred</option>
+                        <option value="weak">weak</option>
+                        <option value="conflict">conflict</option>
+                      </select>
+                      <FieldError error={fieldError("trustTier")} />
+                    </div>
+                  </div>
+                  <Input name="sourceUrl" placeholder="https://source.example/evidence" />
+                  <FieldError error={fieldError("sourceUrl")} />
+                  <Input name="confidenceDelta" type="number" min="-100" max="100" defaultValue="0" />
+                  <FieldError error={fieldError("confidenceDelta")} />
+                  <Textarea name="summary" placeholder="Evidence summary" rows={2} required />
+                  <FieldError error={fieldError("summary")} />
+                  <Textarea name="payloadJson" placeholder='{"source_role_label":"cold wallet","block_height":123}' rows={5} />
+                  <FieldError error={fieldError("payloadJson")} />
+                </>
+              )}
+            </RegistryFormShell>
+          </CardContent>
+        </Card>
+      ) : null}
+      {canCreateDiscovery ? (
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Discovery loop</CardTitle></CardHeader>
+          <CardContent>
+            <RegistryFormShell
+              action={createRegistryDiscoveryJobResultAction}
+              failureTitle="Discovery job creation failed"
+              pendingLabel="Creating..."
+              submitLabel="Create discovery job"
+              submitVariant="default"
+            >
+              {({ fieldError }) => (
+                <>
+                  <input type="hidden" name="registryId" value={registry.id} />
+                  <input type="hidden" name="discoveryType" value="tx_graph_scanner" />
                   <div className="grid gap-2">
-                    <Label>Evidence type</Label>
-                    <Input name="evidenceType" placeholder="official_page" required />
-                    <FieldError error={fieldError("evidenceType")} />
+                    <Label>Seed</Label>
+                    <Input value={seedAddress} readOnly />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Trust tier</Label>
-                    <select name="trustTier" defaultValue="weak" className="h-10 rounded-md border bg-background px-3 text-sm">
-                      <option value="official">official</option>
-                      <option value="verified_third_party">verified third party</option>
-                      <option value="inferred">inferred</option>
-                      <option value="weak">weak</option>
-                      <option value="conflict">conflict</option>
-                    </select>
-                    <FieldError error={fieldError("trustTier")} />
+                    <Label>Scanner</Label>
+                    <Input value="tx_graph_scanner" readOnly />
                   </div>
-                </div>
-                <Input name="sourceUrl" placeholder="https://source.example/evidence" />
-                <FieldError error={fieldError("sourceUrl")} />
-                <Input name="confidenceDelta" type="number" min="-100" max="100" defaultValue="0" />
-                <FieldError error={fieldError("confidenceDelta")} />
-                <Textarea name="summary" placeholder="Evidence summary" rows={2} required />
-                <FieldError error={fieldError("summary")} />
-                <Textarea name="payloadJson" placeholder='{"source_role_label":"cold wallet","block_height":123}' rows={5} />
-                <FieldError error={fieldError("payloadJson")} />
-              </>
-            )}
-          </RegistryFormShell>
-        </CardContent>
-      </Card>
-      <Card className="rounded-lg">
-        <CardHeader><CardTitle>Discovery loop</CardTitle></CardHeader>
-        <CardContent>
-          <RegistryFormShell
-            action={createRegistryDiscoveryJobResultAction}
-            failureTitle="Discovery job creation failed"
-            pendingLabel="Creating..."
-            submitLabel="Create discovery job"
-            submitVariant="default"
-          >
-            {({ fieldError }) => (
-              <>
-                <input type="hidden" name="registryId" value={registry.id} />
-                <input type="hidden" name="discoveryType" value="tx_graph_scanner" />
-                <div className="grid gap-2">
-                  <Label>Seed</Label>
-                  <Input value={seedAddress} readOnly />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Scanner</Label>
-                  <Input value="tx_graph_scanner" readOnly />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Config JSON</Label>
-                  <Textarea name="configJson" rows={8} defaultValue={discoveryConfig} />
-                  <FieldError error={fieldError("configJson")} />
-                </div>
-              </>
-            )}
-          </RegistryFormShell>
-        </CardContent>
-      </Card>
+                  <div className="grid gap-2">
+                    <Label>Config JSON</Label>
+                    <Textarea name="configJson" rows={8} defaultValue={discoveryConfig} />
+                    <FieldError error={fieldError("configJson")} />
+                  </div>
+                </>
+              )}
+            </RegistryFormShell>
+          </CardContent>
+        </Card>
+      ) : null}
       {canEditRegistry ? (
         <Card className="rounded-lg">
           <CardHeader><CardTitle>Deactivate label</CardTitle></CardHeader>

@@ -8,6 +8,7 @@ export const ROLE_PERMISSIONS: Record<MqUserRole, string[]> = {
     "intake:create",
     "candidate:review",
     "candidate:evidence",
+    "source:verify",
     "batch:commit",
     "registry:edit",
     "dictionary:edit",
@@ -19,13 +20,14 @@ export const ROLE_PERMISSIONS: Record<MqUserRole, string[]> = {
     "intake:create",
     "candidate:review",
     "candidate:evidence",
+    "source:verify",
     "batch:commit",
     "registry:edit",
     "dictionary:edit",
     "discovery:create",
   ],
   analyst: ["view", "intake:create", "candidate:propose", "candidate:evidence", "discovery:create"],
-  reviewer: ["view", "candidate:review", "candidate:evidence"],
+  reviewer: ["view", "candidate:review", "candidate:evidence", "source:verify"],
   readonly: ["view"],
 };
 

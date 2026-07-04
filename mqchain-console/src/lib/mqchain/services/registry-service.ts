@@ -138,6 +138,7 @@ export async function listRegistry(input?: unknown) {
       registry: mqAddressRegistry,
       entityName: mqEntities.entityName,
       entityCode: mqEntities.entityCode,
+      protocolCode: mqProtocols.protocolCode,
       protocolName: mqProtocols.protocolName,
       roleCode: mqKvRoleDict.roleCode,
       categoryCode: mqCategoryDict.categoryCode,

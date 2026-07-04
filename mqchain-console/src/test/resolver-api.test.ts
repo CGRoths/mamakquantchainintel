@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { normalizeAddress } from "@/lib/mqchain/address/normalize";
 import { buildCexFlowMetricsSummary, type CexFlowSideLabel } from "@/lib/mqchain/cex-flow";
-import { buildMetricGroupMembershipApiResponse, METRIC_GROUP_MEMBERSHIP_API_CONTRACT } from "@/lib/mqchain/metric-group-api";
+import { buildMetricGroupMembershipApiResponse, buildMetricGroupMembershipCsv, METRIC_GROUP_MEMBERSHIP_API_CONTRACT } from "@/lib/mqchain/metric-group-api";
 import { buildCexFlowApiResponse, buildResolverApiResponse, RESOLVER_API_CONTRACT } from "@/lib/mqchain/resolver-api";
 import type { ResolverLabel, ResolverOutput } from "@/lib/mqchain/services/resolver-service";
 import {
@@ -274,6 +274,57 @@ describe("resolver API payloads", () => {
       },
     });
   });
+
+  it("exports metric group membership pages as deterministic worker CSV", () => {
+    const csv = buildMetricGroupMembershipCsv({
+      query: {
+        metricGroupCode: "btc_cex_flow_boundary",
+        page: 1,
+        pageSize: 2,
+      },
+      group: {
+        id: 7,
+        metricGroupCode: "btc_cex_flow_boundary",
+        metricGroupName: "BTC CEX Flow Boundary",
+        chainCode: "btc",
+        minConfidence: 80,
+        requireMetricEligible: true,
+        isActive: true,
+      },
+      members: [
+        {
+          registry: {
+            id: 11,
+            chainCode: "btc",
+            normalizedAddress: "bc1qmember",
+            confidenceScore: 95,
+            qualityTier: 3,
+            flags: 1,
+            isActive: true,
+          },
+          entity: { entityCode: "binance", entityName: "Binance, Global" },
+          protocol: null,
+          role: { roleCode: "cex_cold_wallet" },
+          category: { categoryCode: "cex_hot_cold" },
+        },
+      ],
+      diagnostics: {
+        evaluatedRows: 1,
+        memberRows: 1,
+        excludedInactive: 0,
+        excludedOutOfChainScope: 0,
+        excludedMetricIneligible: 0,
+        excludedRuleMismatch: 0,
+      },
+      manifest: { artifactType: "metric_group_preview", registryIds: [11], rowCount: 1 },
+      kvManifest: { artifactType: "metric_group_kv", artifactStatus: "pending_external_compile", registryIds: [11], rowCount: 1 },
+    });
+
+    expect(csv.split("\n")).toEqual([
+      "metric_group_code,registry_id,chain_code,normalized_address,entity_code,entity_name,protocol_code,protocol_name,role_code,category_code,confidence_score,quality_tier,flags,source_of_truth,artifact_status,external_compile_required",
+      'btc_cex_flow_boundary,11,btc,bc1qmember,binance,"Binance, Global",,,cex_cold_wallet,cex_hot_cold,95,3,1,postgres_registry,preview_only,true',
+    ]);
+  });
 });
 
 describe("resolver API validators", () => {
@@ -309,7 +360,9 @@ describe("resolver API validators", () => {
     expect(metricGroupMembershipApiQuerySchema.parse({ page: "2", pageSize: "250" })).toEqual({
       page: 2,
       pageSize: 250,
+      format: "json",
     });
+    expect(metricGroupMembershipApiQuerySchema.parse({ format: "csv" }).format).toBe("csv");
     expect(() => metricGroupMembershipApiQuerySchema.parse({ pageSize: "5000" })).toThrow();
   });
 });

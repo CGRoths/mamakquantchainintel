@@ -14,8 +14,9 @@ import {
   defaultEvidenceTypeForDiscovery,
   parseDiscoveryResultsJson,
 } from "@/lib/mqchain/discovery";
+import { buildDiscoveryCompletionApiResponse, DISCOVERY_COMPLETION_API_CONTRACT } from "@/lib/mqchain/discovery-api";
 import { formatDiscoveryConfigTemplate } from "@/lib/mqchain/discovery-templates";
-import { registryDiscoveryJobSchema } from "@/lib/mqchain/validators/discovery";
+import { discoveryResultsApiRequestSchema, registryDiscoveryJobSchema } from "@/lib/mqchain/validators/discovery";
 
 describe("discovery result helpers", () => {
   it("parses discovered address result arrays", () => {
@@ -41,6 +42,22 @@ describe("discovery result helpers", () => {
     expect(rows[0]?.address).toBe("0x000000000000000000000000000000000000dEaD");
     expect(rows[0]?.confidence).toBe(65);
     expect(rows[0]?.payload?.tx_hash).toBe("0x1");
+  });
+
+  it("accepts worker completion API results as an array or serialized JSON", () => {
+    const results = [
+      {
+        address: "0x000000000000000000000000000000000000dEaD",
+        chain: "ethereum",
+        evidence_type: "registry_call",
+      },
+    ];
+
+    expect(discoveryResultsApiRequestSchema.parse({ results })).toEqual({ results });
+    expect(discoveryResultsApiRequestSchema.parse({ resultsJson: JSON.stringify(results) })).toEqual({
+      resultsJson: JSON.stringify(results),
+    });
+    expect(() => discoveryResultsApiRequestSchema.parse({})).toThrow("Provide either results or resultsJson");
   });
 
   it("rejects non-array discovery result payloads", () => {
@@ -229,6 +246,58 @@ describe("discovery result helpers", () => {
         approvalAllowed: false,
         registryCommitAllowed: false,
         kvWriteAllowed: false,
+      },
+    });
+  });
+
+  it("serializes discovery worker completion responses with canonical write blockers", () => {
+    const payload = buildDiscoveryCompletionApiResponse({
+      query: { jobId: 7 },
+      result: {
+        job: {
+          id: 7,
+          discoveryType: "factory_event_scanner",
+          status: "completed",
+          candidatesCreated: 2,
+          evidenceCreated: 2,
+        },
+        sourceJobId: 31,
+        sourceDocumentId: 41,
+        rows: 3,
+        candidatesCreated: 2,
+        evidenceCreated: 2,
+        invalidRows: 1,
+        duplicates: 0,
+      },
+    });
+
+    expect(payload).toMatchObject({
+      ...DISCOVERY_COMPLETION_API_CONTRACT,
+      mutationAllowed: true,
+      registryWriteAllowed: false,
+      kvWriteAllowed: false,
+      stagedArtifacts: {
+        sourceJobId: 31,
+        sourceDocumentId: 41,
+        candidatesCreated: 2,
+        evidenceCreated: 2,
+      },
+      canonicalWrites: {
+        approvalsCreated: 0,
+        registryRowsCreated: 0,
+        batchesCreated: 0,
+        kvBuildsCreated: 0,
+      },
+      nextActions: {
+        reviewCandidatesHref: "/mqchain/candidates?discoveryType=factory_event_scanner&status=pending_review&sort=evidence_count",
+        discoveryJobHref: "/mqchain/discovery/jobs/7",
+        sourceJobHref: "/mqchain/source-jobs/31",
+      },
+      policy: {
+        discoveryIsNotApproval: true,
+        candidatesRequireReview: true,
+        batchCommitIsRegistryBoundary: true,
+        externalScannerCannotWriteRegistryOrKv: true,
       },
     });
   });

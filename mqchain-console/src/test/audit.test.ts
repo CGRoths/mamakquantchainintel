@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { buildApprovalEventTargetLinks, buildAuditTimeline, summarizeAuditPayload } from "@/lib/mqchain/audit";
@@ -113,5 +116,16 @@ describe("audit timeline", () => {
         "hasPassword: true",
       ],
     });
+  });
+
+  it("keeps approval and system audit tables append-only at the database boundary", () => {
+    const migration = readFileSync(join(process.cwd(), "drizzle", "0003_audit_trail_immutability.sql"), "utf8");
+
+    expect(migration).toContain('CREATE OR REPLACE FUNCTION "mq_prevent_audit_event_mutation"()');
+    expect(migration).toContain('BEFORE UPDATE ON "mq_approval_events"');
+    expect(migration).toContain('BEFORE DELETE ON "mq_approval_events"');
+    expect(migration).toContain('BEFORE UPDATE ON "mq_audit_log"');
+    expect(migration).toContain('BEFORE DELETE ON "mq_audit_log"');
+    expect(migration).toContain('RAISE EXCEPTION \'MQCHAIN audit table % is append-only; % is not allowed\'');
   });
 });

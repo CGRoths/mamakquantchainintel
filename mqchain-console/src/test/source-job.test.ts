@@ -9,7 +9,10 @@ import {
   buildSourceJobIntakeAuditPayload,
   buildSourceJobOperationalSummary,
   buildSourceJobScopeSummary,
+  buildSourceVerificationDecisionPayload,
+  buildSourceJobVerificationRollup,
 } from "@/lib/mqchain/source-job";
+import { sourceVerificationSchema } from "@/lib/mqchain/validators/source-job";
 
 describe("source job rollups", () => {
   it("summarizes candidate status, chain, confidence, and evidence counts", () => {
@@ -50,6 +53,90 @@ describe("source job rollups", () => {
         { label: "official", count: 2 },
         { label: "weak", count: 1 },
       ],
+    });
+  });
+
+  it("summarizes operator-driven source verification scope and trust", () => {
+    expect(
+      buildSourceJobVerificationRollup([
+        { verificationScope: "source_job", sourceTrust: "official", status: "verified" },
+        { verificationScope: "source_sheet", sourceTrust: "official", status: "verified" },
+        { verificationScope: "source_url", sourceTrust: "conflict", status: "rejected" },
+      ]),
+    ).toEqual({
+      totalVerifications: 3,
+      verifiedCount: 2,
+      nonVerifiedCount: 1,
+      scopeDistribution: [
+        { label: "source_job", count: 1 },
+        { label: "source_sheet", count: 1 },
+        { label: "source_url", count: 1 },
+      ],
+      trustDistribution: [
+        { label: "official", count: 2 },
+        { label: "conflict", count: 1 },
+      ],
+      statusDistribution: [
+        { label: "verified", count: 2 },
+        { label: "rejected", count: 1 },
+      ],
+    });
+  });
+
+  it("allows blank optional source verification form fields", () => {
+    expect(
+      sourceVerificationSchema.parse({
+        sourceJobId: "12",
+        sourceDocumentId: "",
+        candidateId: "",
+        verificationScope: "source_job",
+        sourceSheet: "",
+        sourceUrl: "",
+        sourceTrust: "official",
+        status: "verified",
+        notes: "",
+        verificationEvidenceJson: "",
+      }),
+    ).toMatchObject({
+      sourceJobId: 12,
+      verificationScope: "source_job",
+      sourceTrust: "official",
+      status: "verified",
+    });
+  });
+
+  it("builds source verification decision payloads for audit and approval timelines", () => {
+    expect(
+      buildSourceVerificationDecisionPayload({
+        sourceVerificationId: 55,
+        sourceJobId: 12,
+        sourceDocumentId: 34,
+        candidateId: 99,
+        verificationScope: "source_sheet",
+        sourceSheet: "Reserve BTC",
+        sourceUrl: "https://example.com/reserves",
+        sourceTrust: "official",
+        status: "verified",
+        evidenceKeys: ["method", "checked_url"],
+      }),
+    ).toEqual({
+      sourceVerificationId: 55,
+      sourceJobId: 12,
+      sourceDocumentId: 34,
+      candidateId: 99,
+      verificationScope: "source_sheet",
+      sourceSheet: "Reserve BTC",
+      sourceUrl: "https://example.com/reserves",
+      sourceTrust: "official",
+      status: "verified",
+      evidenceKeys: ["checked_url", "method"],
+      policy: {
+        verificationIsOperatorDriven: true,
+        registryWriteAllowed: false,
+        kvWriteAllowed: false,
+        candidateApprovalStillRequired: true,
+        batchCommitStillRequired: true,
+      },
     });
   });
 

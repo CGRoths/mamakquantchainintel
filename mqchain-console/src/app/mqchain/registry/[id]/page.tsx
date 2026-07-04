@@ -41,6 +41,7 @@ export default async function RegistryDetailPage({ params }: { params: Promise<{
       notFound();
     }
     const canEditRegistry = roleCan(currentUser?.role, "registry:edit");
+    const canCreateDiscovery = roleCan(currentUser?.role, "discovery:create");
     const discoveryConfig = registryTxGraphConfig(detail);
     const isHistorical = isHistoricalLabel(detail.registry);
     const resolverHref = buildRegistryResolverHref({
@@ -200,6 +201,7 @@ export default async function RegistryDetailPage({ params }: { params: Promise<{
             discoveryConfig={discoveryConfig}
             isHistorical={isHistorical}
             canEditRegistry={canEditRegistry}
+            canCreateDiscovery={canCreateDiscovery}
           />
           <Card className="rounded-lg">
             <CardHeader><CardTitle>Evidence</CardTitle></CardHeader>

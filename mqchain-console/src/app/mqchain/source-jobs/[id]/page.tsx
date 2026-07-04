@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { DbError } from "@/components/mqchain/db-error";
-import { ArchiveSourceJobForm } from "@/components/mqchain/source-job-forms";
+import { ArchiveSourceJobForm, SourceVerificationForm } from "@/components/mqchain/source-job-forms";
 import { StatusBadge } from "@/components/mqchain/status-badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DistributionRow } from "@/lib/mqchain/batch-detail";
@@ -94,6 +95,15 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
           <h1 className="text-2xl font-semibold">{detail.sourceJob.sourceName ?? `Source job ${detail.sourceJob.id}`}</h1>
           <p className="text-sm text-muted-foreground">{detail.sourceJob.sourceType} / parser {detail.sourceJob.parserVersion}</p>
         </div>
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Read-only provenance API</CardTitle></CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-3 text-sm">
+            <code className="rounded-md bg-muted px-2 py-1 text-xs">/api/mqchain/source-jobs/{detail.sourceJob.id}</code>
+            <Button asChild variant="outline">
+              <Link href={`/api/mqchain/source-jobs/${detail.sourceJob.id}`}>Open JSON</Link>
+            </Button>
+          </CardContent>
+        </Card>
         <section className="grid gap-4 md:grid-cols-4 xl:grid-cols-8">
           {[
             "totalRows",
@@ -154,6 +164,17 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
             </CardContent>
           </Card>
           <Card className="rounded-lg">
+            <CardHeader><CardTitle>Source verification</CardTitle></CardHeader>
+            <CardContent className="grid gap-3 text-sm">
+              <div className="grid grid-cols-3 gap-3">
+                <div><span className="text-muted-foreground">Rows</span><div className="font-mono">{detail.verificationRollup.totalVerifications}</div></div>
+                <div><span className="text-muted-foreground">Verified</span><div className="font-mono">{detail.verificationRollup.verifiedCount}</div></div>
+                <div><span className="text-muted-foreground">Other</span><div className="font-mono">{detail.verificationRollup.nonVerifiedCount}</div></div>
+              </div>
+              <DistributionTable rows={detail.verificationRollup.trustDistribution} emptyLabel="No verification trust data." />
+            </CardContent>
+          </Card>
+          <Card className="rounded-lg">
             <CardHeader><CardTitle>Archive coverage</CardTitle></CardHeader>
             <CardContent className="grid gap-3 text-sm">
               <div className="grid grid-cols-3 gap-3">
@@ -190,10 +211,18 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
             />
           </CardContent>
         </Card>
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Record source verification</CardTitle></CardHeader>
+          <CardContent>
+            <SourceVerificationForm defaultSourceUrl={detail.sourceJob.sourceUrl} sourceJobId={detail.sourceJob.id} />
+          </CardContent>
+        </Card>
         <section className="grid gap-4 xl:grid-cols-3">
           <Card className="rounded-lg"><CardHeader><CardTitle>Chains</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.candidateRollup.chainDistribution} emptyLabel="No chains." /></CardContent></Card>
           <Card className="rounded-lg"><CardHeader><CardTitle>Confidence</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.candidateRollup.confidenceDistribution} emptyLabel="No confidence data." /></CardContent></Card>
           <Card className="rounded-lg"><CardHeader><CardTitle>Trust tiers</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.evidenceRollup.trustDistribution} emptyLabel="No trust data." /></CardContent></Card>
+          <Card className="rounded-lg"><CardHeader><CardTitle>Verification scopes</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.verificationRollup.scopeDistribution} emptyLabel="No source verifications." /></CardContent></Card>
+          <Card className="rounded-lg"><CardHeader><CardTitle>Verification status</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.verificationRollup.statusDistribution} emptyLabel="No source verifications." /></CardContent></Card>
         </section>
         {Array.isArray(summary.errors) && summary.errors.length ? (
           <Card className="rounded-lg">
@@ -203,6 +232,60 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
             </CardContent>
           </Card>
         ) : null}
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle>Source verification ledger</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Scope</TableHead>
+                  <TableHead>Trust</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Target</TableHead>
+                  <TableHead>Verifier</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead>Evidence keys</TableHead>
+                  <TableHead>Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detail.verifications.map((row) => {
+                  const verification = row.verification;
+                  return (
+                    <TableRow key={verification.id}>
+                      <TableCell className="font-mono">{verification.id}</TableCell>
+                      <TableCell>{verification.verificationScope}</TableCell>
+                      <TableCell>{verification.sourceTrust}</TableCell>
+                      <TableCell><StatusBadge status={verification.status} /></TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {[
+                          verification.sourceDocumentId ? `document:${verification.sourceDocumentId}` : null,
+                          verification.candidateId ? `candidate:${verification.candidateId}` : null,
+                          verification.sourceSheet ? `sheet:${verification.sourceSheet}` : null,
+                          verification.sourceUrl ? `url:${verification.sourceUrl}` : null,
+                        ].filter(Boolean).join(" / ") || `source_job:${detail.sourceJob.id}`}
+                      </TableCell>
+                      <TableCell className="max-w-48 truncate text-xs">{row.verifierName || row.verifierEmail || verification.verifiedBy || "system"}</TableCell>
+                      <TableCell className="max-w-72 truncate text-xs">{verification.notes ?? "-"}</TableCell>
+                      <TableCell className="font-mono text-xs">{Object.keys(verification.verificationEvidence).sort().join(", ") || "-"}</TableCell>
+                      <TableCell className="font-mono text-xs">{verification.createdAt.toISOString()}</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {!detail.verifications.length ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-sm text-muted-foreground">
+                      No source verification records have been created for this source job yet.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>Candidates</CardTitle>

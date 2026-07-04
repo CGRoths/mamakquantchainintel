@@ -29,6 +29,18 @@ export const discoveryResultsSchema = z.object({
   resultsJson: z.string().trim().min(2),
 });
 
+export const DISCOVERY_RESULTS_API_MAX_BODY_BYTES = 1024 * 1024;
+
+export const discoveryResultsApiRequestSchema = z
+  .object({
+    results: z.array(discoveryResultRowSchema).optional(),
+    resultsJson: z.string().trim().min(2).optional(),
+  })
+  .refine((value) => value.results || value.resultsJson, {
+    message: "Provide either results or resultsJson.",
+    path: ["results"],
+  });
+
 export const registryDiscoveryJobSchema = z.object({
   registryId: z.coerce.number().int().positive(),
   discoveryType: z.string().trim().min(1),

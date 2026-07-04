@@ -15,9 +15,12 @@ import {
   mqProtocols,
   mqSourceDocuments,
   mqSourceJobs,
+  mqSourceVerifications,
+  mqUsers,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
 import { normalizeAddress } from "../address/normalize";
+import { buildCandidateSourceVerificationContext } from "../candidate-detail";
 import { PARSER_VERSION } from "../constants";
 import { extractAddressRowsFromText, extractDeploymentRowsFromText, parseJsonEvidenceRows, stripHtmlToText } from "../intake-extraction";
 import { parseCandidateListFilters, type CandidateListFilters } from "../list-filters";
@@ -543,6 +546,59 @@ function addCondition(conditions: SQL[], condition: SQL | undefined) {
   if (condition) conditions.push(condition);
 }
 
+async function buildCandidateSourceVerificationContextMap(
+  tx: Pick<ReturnType<typeof getDb>, "select">,
+  candidates: (typeof mqAddressCandidates.$inferSelect)[],
+) {
+  const candidateIds = candidates.map((candidate) => candidate.id);
+  if (!candidateIds.length) {
+    return new Map<number, ReturnType<typeof buildCandidateSourceVerificationContext>>();
+  }
+
+  const sourceJobIds = Array.from(
+    new Set(candidates.map((candidate) => candidate.sourceJobId).filter((id): id is number => typeof id === "number")),
+  );
+  const sourceDocumentIds = Array.from(
+    new Set(candidates.map((candidate) => candidate.sourceDocumentId).filter((id): id is number => typeof id === "number")),
+  );
+  const verificationRowsById = new Map<number, typeof mqSourceVerifications.$inferSelect>();
+  const verificationQueries = [
+    tx.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.candidateId, candidateIds)),
+    sourceJobIds.length
+      ? tx.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceJobId, sourceJobIds))
+      : Promise.resolve([]),
+    sourceDocumentIds.length
+      ? tx.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceDocumentId, sourceDocumentIds))
+      : Promise.resolve([]),
+  ];
+
+  for (const verifications of await Promise.all(verificationQueries)) {
+    for (const verification of verifications) {
+      verificationRowsById.set(verification.id, verification);
+    }
+  }
+
+  const verificationRows = Array.from(verificationRowsById.values());
+  return new Map(
+    candidates.map((candidate) => [
+      candidate.id,
+      buildCandidateSourceVerificationContext({
+        candidate: {
+          id: candidate.id,
+          sourceJobId: candidate.sourceJobId,
+          sourceDocumentId: candidate.sourceDocumentId,
+          metadata: candidate.metadata,
+        },
+        verifications: verificationRows.filter((verification) => {
+          if (verification.candidateId === candidate.id) return true;
+          if (candidate.sourceDocumentId && verification.sourceDocumentId === candidate.sourceDocumentId) return true;
+          return Boolean(candidate.sourceJobId && verification.sourceJobId === candidate.sourceJobId);
+        }),
+      }),
+    ]),
+  );
+}
+
 export async function listCandidates(input?: unknown) {
   const filters = parseCandidateListFilters(input ?? {});
   const conditions: SQL[] = [];
@@ -654,9 +710,16 @@ export async function listCandidates(input?: unknown) {
     .orderBy(candidateOrderBy(filters.sort), asc(mqAddressCandidates.id))
     .limit(filters.pageSize)
     .offset(offset);
+  const sourceVerificationContextByCandidateId = await buildCandidateSourceVerificationContextMap(
+    db,
+    rows.map((row) => row.candidate),
+  );
 
   return {
-    rows,
+    rows: rows.map((row) => ({
+      ...row,
+      sourceVerificationContext: sourceVerificationContextByCandidateId.get(row.candidate.id) ?? null,
+    })),
     filters,
     total,
     page: filters.page,
@@ -692,7 +755,15 @@ export async function getCandidateDetail(id: number) {
         .limit(20)
     : Promise.resolve([]);
 
-  const [evidence, dictionaries, sourceJob, sourceDocument, registryMatches, approvalEvents, duplicateOfCandidate, duplicateCandidates, discoveryJob] =
+  const sourceVerificationConditions: SQL[] = [eq(mqSourceVerifications.candidateId, id)];
+  if (candidate.sourceJobId) {
+    sourceVerificationConditions.push(eq(mqSourceVerifications.sourceJobId, candidate.sourceJobId));
+  }
+  if (candidate.sourceDocumentId) {
+    sourceVerificationConditions.push(eq(mqSourceVerifications.sourceDocumentId, candidate.sourceDocumentId));
+  }
+
+  const [evidence, dictionaries, sourceJob, sourceDocument, registryMatches, approvalEvents, duplicateOfCandidate, duplicateCandidates, discoveryJob, sourceVerifications] =
     await Promise.all([
     db.select().from(mqAddressEvidence).where(eq(mqAddressEvidence.candidateId, id)).orderBy(desc(mqAddressEvidence.createdAt)),
     getDictionaryMaps(),
@@ -716,6 +787,17 @@ export async function getCandidateDetail(id: number) {
     candidate.discoveryJobId
       ? db.select().from(mqDiscoveryJobs).where(eq(mqDiscoveryJobs.id, candidate.discoveryJobId)).limit(1)
       : Promise.resolve([]),
+    db
+      .select({
+        verification: mqSourceVerifications,
+        verifierEmail: mqUsers.email,
+        verifierName: mqUsers.displayName,
+      })
+      .from(mqSourceVerifications)
+      .leftJoin(mqUsers, eq(mqSourceVerifications.verifiedBy, mqUsers.id))
+      .where(or(...sourceVerificationConditions))
+      .orderBy(desc(mqSourceVerifications.createdAt))
+      .limit(100),
   ]);
 
   return {
@@ -729,6 +811,7 @@ export async function getCandidateDetail(id: number) {
     duplicateOfCandidate: duplicateOfCandidate[0] ?? null,
     duplicateCandidates,
     discoveryJob: discoveryJob[0] ?? null,
+    sourceVerifications,
   };
 }
 

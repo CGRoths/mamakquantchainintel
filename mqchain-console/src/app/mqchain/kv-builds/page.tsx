@@ -29,6 +29,18 @@ export default async function KvBuildsPage({ searchParams }: { searchParams: Pro
         <div><h1 className="text-2xl font-semibold">KV build manifests</h1><p className="text-sm text-muted-foreground">RocksDB compilation is external; the console tracks manifests and batch handoffs.</p></div>
         <Card className="rounded-lg">
           <CardHeader>
+            <CardTitle>Active serving manifest</CardTitle>
+            <CardDescription>Authenticated read-only endpoint for MamakQuantNode and external KV workers.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-3">
+            <code className="rounded-md bg-muted px-2 py-1 text-xs">/api/mqchain/kv-builds/active</code>
+            <Button asChild variant="outline">
+              <Link href="/api/mqchain/kv-builds/active">Open JSON</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card className="rounded-lg">
+          <CardHeader>
             <CardTitle>Register external build</CardTitle>
             <CardDescription>Record a worker-produced JSONL/RocksDB artifact without compiling inside Vercel.</CardDescription>
           </CardHeader>

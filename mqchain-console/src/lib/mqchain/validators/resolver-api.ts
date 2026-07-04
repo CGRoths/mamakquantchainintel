@@ -40,6 +40,7 @@ export const metricGroupMembershipApiQuerySchema = z.object({
     (value) => (value === "" || value === null || value === undefined ? 100 : value),
     z.coerce.number().int().min(1).max(1000).default(100),
   ),
+  format: z.enum(["json", "csv"]).default("json"),
 });
 
 export const metricGroupCodeParamSchema = z.string().trim().min(1).max(120);

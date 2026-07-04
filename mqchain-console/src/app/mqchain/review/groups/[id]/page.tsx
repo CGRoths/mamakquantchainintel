@@ -74,8 +74,11 @@ export default async function ReviewGroupDetailPage({ params }: { params: Promis
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {detail.rows.map(({ candidate, sourceType, latestEvidence }) => {
-                  const readiness = buildReviewReadiness(candidate);
+                {detail.rows.map(({ candidate, sourceType, latestEvidence, sourceVerificationContext }) => {
+                  const readiness = buildReviewReadiness({
+                    ...candidate,
+                    sourceVerificationStatus: sourceVerificationContext.status,
+                  });
                   return (
                     <TableRow key={candidate.id}>
                       <TableCell className="font-mono">{candidate.id}</TableCell>

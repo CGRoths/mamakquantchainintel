@@ -116,6 +116,17 @@ export async function getKvBuildDetail(id: number) {
   return { build, indexManifests, indexShards, membershipSnapshots, membershipRows };
 }
 
+export async function getActiveKvBuildDetail() {
+  const [build] = await getDb()
+    .select()
+    .from(mqKvBuilds)
+    .where(eq(mqKvBuilds.status, "active"))
+    .orderBy(desc(mqKvBuilds.activatedAt), desc(mqKvBuilds.id))
+    .limit(1);
+
+  return build ? getKvBuildDetail(build.id) : null;
+}
+
 export async function createKvBuildManifest(input: unknown) {
   const actor = await assertPermission("batch:commit");
   const parsed = createKvBuildManifestSchema.parse(input);

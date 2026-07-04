@@ -367,6 +367,32 @@ export const mqAddressEvidence = pgTable(
   ],
 );
 
+export const mqSourceVerifications = pgTable(
+  "mq_source_verifications",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    sourceJobId: bigint("source_job_id", { mode: "number" }).references(() => mqSourceJobs.id),
+    sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(() => mqSourceDocuments.id),
+    candidateId: bigint("candidate_id", { mode: "number" }).references(() => mqAddressCandidates.id),
+    verificationScope: text("verification_scope").notNull().default("source_job"),
+    sourceSheet: text("source_sheet"),
+    sourceUrl: text("source_url"),
+    sourceTrust: text("source_trust").notNull(),
+    status: text("status").notNull().default("verified"),
+    notes: text("notes"),
+    verificationEvidence: jsonb("verification_evidence").$type<Record<string, unknown>>().notNull().default({}),
+    verifiedBy: uuid("verified_by").references(() => mqUsers.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_mq_source_verifications_job").on(table.sourceJobId),
+    index("idx_mq_source_verifications_document").on(table.sourceDocumentId),
+    index("idx_mq_source_verifications_candidate").on(table.candidateId),
+    index("idx_mq_source_verifications_scope").on(table.verificationScope),
+    index("idx_mq_source_verifications_trust").on(table.sourceTrust),
+  ],
+);
+
 export const mqLabelBatchEvidence = pgTable(
   "mq_label_batch_evidence",
   {
@@ -566,3 +592,4 @@ export type MqUser = typeof mqUsers.$inferSelect;
 export type MqAddressCandidate = typeof mqAddressCandidates.$inferSelect;
 export type MqAddressRegistryRow = typeof mqAddressRegistry.$inferSelect;
 export type MqLabelBatch = typeof mqLabelBatches.$inferSelect;
+export type MqSourceVerification = typeof mqSourceVerifications.$inferSelect;

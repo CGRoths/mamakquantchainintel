@@ -1,7 +1,8 @@
 import { count, desc, eq, inArray } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
-import { mqAddressCandidates, mqAddressEvidence } from "@/db/schema";
+import { mqAddressCandidates, mqAddressEvidence, mqSourceVerifications } from "@/db/schema";
+import { buildCandidateSourceVerificationContext } from "../candidate-detail";
 import { parseReviewGroupListFilters, parseReviewQueueListFilters, type ReviewQueueListFilters } from "../list-filters";
 import {
   buildReviewCandidateGroups,
@@ -16,6 +17,7 @@ type CandidateListRow = Awaited<ReturnType<typeof listCandidates>>["rows"][numbe
 
 type ReviewQueueRow = CandidateListRow & {
   latestEvidence: typeof mqAddressEvidence.$inferSelect | null;
+  sourceVerificationContext: ReturnType<typeof buildCandidateSourceVerificationContext>;
 };
 
 async function getReviewCounts() {
@@ -54,9 +56,45 @@ async function attachLatestEvidence(rows: CandidateListRow[]): Promise<ReviewQue
     }
   }
 
+  const sourceJobIds = Array.from(
+    new Set(rows.map((row) => row.candidate.sourceJobId).filter((id): id is number => typeof id === "number")),
+  );
+  const sourceDocumentIds = Array.from(
+    new Set(rows.map((row) => row.candidate.sourceDocumentId).filter((id): id is number => typeof id === "number")),
+  );
+  const verificationRowsById = new Map<number, typeof mqSourceVerifications.$inferSelect>();
+  const verificationQueries = [
+    getDb().select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.candidateId, candidateIds)),
+    sourceJobIds.length
+      ? getDb().select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceJobId, sourceJobIds))
+      : Promise.resolve([]),
+    sourceDocumentIds.length
+      ? getDb().select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceDocumentId, sourceDocumentIds))
+      : Promise.resolve([]),
+  ];
+  for (const verifications of await Promise.all(verificationQueries)) {
+    for (const verification of verifications) {
+      verificationRowsById.set(verification.id, verification);
+    }
+  }
+  const verificationRows = Array.from(verificationRowsById.values());
+
   return rows.map((row) => ({
     ...row,
     latestEvidence: latestEvidenceByCandidate.get(row.candidate.id) ?? null,
+    sourceVerificationContext: buildCandidateSourceVerificationContext({
+      candidate: {
+        id: row.candidate.id,
+        sourceJobId: row.candidate.sourceJobId,
+        sourceDocumentId: row.candidate.sourceDocumentId,
+        metadata: row.candidate.metadata,
+      },
+      verifications: verificationRows.filter((verification) => {
+        if (verification.candidateId === row.candidate.id) return true;
+        if (row.candidate.sourceDocumentId && verification.sourceDocumentId === row.candidate.sourceDocumentId) return true;
+        return Boolean(row.candidate.sourceJobId && verification.sourceJobId === row.candidate.sourceJobId);
+      }),
+    }),
   }));
 }
 

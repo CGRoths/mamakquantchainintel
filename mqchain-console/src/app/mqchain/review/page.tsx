@@ -158,8 +158,11 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {workspace.pendingRows.map(({ candidate, entityName, roleCode, sourceType, latestEvidence }) => {
-                    const readiness = buildReviewReadiness(candidate);
+                  {workspace.pendingRows.map(({ candidate, entityName, roleCode, sourceType, latestEvidence, sourceVerificationContext }) => {
+                    const readiness = buildReviewReadiness({
+                      ...candidate,
+                      sourceVerificationStatus: sourceVerificationContext.status,
+                    });
                     return (
                       <TableRow key={candidate.id}>
                         <TableCell className="font-mono">{candidate.id}</TableCell>

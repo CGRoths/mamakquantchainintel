@@ -1,7 +1,10 @@
+import { isCandidateSourceVerificationSatisfied, type CandidateSourceVerificationStatus } from "./candidate-detail";
+
 export type BatchCandidateReadinessRow = {
   id: number;
   candidateStatus: string;
   evidenceCount?: number | null;
+  sourceVerificationStatus?: CandidateSourceVerificationStatus | null;
 };
 
 export function assertSelectedCandidatesApproved(selectedIds: number[], candidates: BatchCandidateReadinessRow[]) {
@@ -10,8 +13,11 @@ export function assertSelectedCandidatesApproved(selectedIds: number[], candidat
   const missingIds = selected.filter((id) => !candidatesById.has(id));
   const notApproved = candidates.filter((candidate) => selected.includes(candidate.id) && candidate.candidateStatus !== "approved");
   const missingEvidence = candidates.filter((candidate) => selected.includes(candidate.id) && (candidate.evidenceCount ?? 0) < 1);
+  const missingSourceVerification = candidates.filter(
+    (candidate) => selected.includes(candidate.id) && !isCandidateSourceVerificationSatisfied(candidate.sourceVerificationStatus),
+  );
 
-  if (missingIds.length || notApproved.length || missingEvidence.length) {
+  if (missingIds.length || notApproved.length || missingEvidence.length || missingSourceVerification.length) {
     const parts: string[] = [];
     if (missingIds.length) {
       parts.push(`missing candidate IDs: ${missingIds.join(", ")}`);
@@ -26,6 +32,11 @@ export function assertSelectedCandidatesApproved(selectedIds: number[], candidat
         `missing evidence: ${missingEvidence.map((candidate) => `${candidate.id} (${candidate.evidenceCount ?? 0} evidence)`).join(", ")}`,
       );
     }
+    if (missingSourceVerification.length) {
+      parts.push(
+        `missing source verification: ${missingSourceVerification.map((candidate) => `${candidate.id} (${candidate.sourceVerificationStatus ?? "missing"})`).join(", ")}`,
+      );
+    }
 
     throw new Error(`Only approved candidates can be added to a label batch; ${parts.join("; ")}.`);
   }
@@ -34,8 +45,9 @@ export function assertSelectedCandidatesApproved(selectedIds: number[], candidat
 export function assertBatchCandidatesStillApproved(candidates: BatchCandidateReadinessRow[]) {
   const notApproved = candidates.filter((candidate) => candidate.candidateStatus !== "approved");
   const missingEvidence = candidates.filter((candidate) => (candidate.evidenceCount ?? 0) < 1);
+  const missingSourceVerification = candidates.filter((candidate) => !isCandidateSourceVerificationSatisfied(candidate.sourceVerificationStatus));
 
-  if (notApproved.length || missingEvidence.length) {
+  if (notApproved.length || missingEvidence.length || missingSourceVerification.length) {
     const parts: string[] = [];
     if (notApproved.length) {
       parts.push(
@@ -47,9 +59,14 @@ export function assertBatchCandidatesStillApproved(candidates: BatchCandidateRea
         `missing evidence: ${missingEvidence.map((candidate) => `${candidate.id} (${candidate.evidenceCount ?? 0} evidence)`).join(", ")}`,
       );
     }
+    if (missingSourceVerification.length) {
+      parts.push(
+        `missing source verification: ${missingSourceVerification.map((candidate) => `${candidate.id} (${candidate.sourceVerificationStatus ?? "missing"})`).join(", ")}`,
+      );
+    }
 
     throw new Error(
-      `Batch candidate readiness changed; only approved candidates with evidence can be committed. ${parts.join("; ")}.`,
+      `Batch candidate readiness changed; only approved candidates with evidence and source verification can be committed. ${parts.join("; ")}.`,
     );
   }
 }

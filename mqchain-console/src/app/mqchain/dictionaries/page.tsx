@@ -19,6 +19,21 @@ export default async function DictionariesPage() {
         </div>
         <Card className="rounded-lg">
           <CardHeader>
+            <CardTitle>Read-only dictionary snapshot API</CardTitle>
+            <CardDescription>Export active compiler dictionaries by default, or include inactive historical rows with scope=all.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-3 text-sm">
+            <code className="rounded-md bg-muted px-2 py-1 text-xs">/api/mqchain/dictionaries</code>
+            <Button asChild variant="outline">
+              <Link href="/api/mqchain/dictionaries">Open active JSON</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/api/mqchain/dictionaries?scope=all">Open all JSON</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card className="rounded-lg">
+          <CardHeader>
             <CardTitle>Current dictionary version</CardTitle>
             <CardDescription>Version hashes include entities, protocols, roles, categories, key prefixes, metric groups, and metric-group rules.</CardDescription>
           </CardHeader>

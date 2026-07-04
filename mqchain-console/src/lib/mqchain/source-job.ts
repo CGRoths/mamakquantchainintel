@@ -20,6 +20,12 @@ export type SourceJobDocumentRollupInput = {
   extractedText?: string | null;
 };
 
+export type SourceJobVerificationRollupInput = {
+  verificationScope: string;
+  sourceTrust: string;
+  status: string;
+};
+
 export type SourceJobScopeInput = {
   chainCode?: string | null;
   roleHint?: string | null;
@@ -61,6 +67,19 @@ export type SourceJobIntakeAuditInput = {
   evidenceCreated: number;
   conflictsFound: number;
   errors: string[];
+};
+
+export type SourceVerificationDecisionInput = {
+  sourceVerificationId: number;
+  sourceJobId: number;
+  sourceDocumentId?: number | null;
+  candidateId?: number | null;
+  verificationScope: string;
+  sourceSheet?: string | null;
+  sourceUrl?: string | null;
+  sourceTrust: string;
+  status: string;
+  evidenceKeys: string[];
 };
 
 function increment(map: Map<string, number>, key: string) {
@@ -201,6 +220,31 @@ export function buildSourceJobDocumentRollup(documents: SourceJobDocumentRollupI
   };
 }
 
+export function buildSourceJobVerificationRollup(verifications: SourceJobVerificationRollupInput[]) {
+  const scopeCounts = new Map<string, number>();
+  const trustCounts = new Map<string, number>();
+  const statusCounts = new Map<string, number>();
+  let verifiedCount = 0;
+
+  for (const verification of verifications) {
+    increment(scopeCounts, verification.verificationScope || "unknown");
+    increment(trustCounts, verification.sourceTrust || "unknown");
+    increment(statusCounts, verification.status || "unknown");
+    if (verification.status === "verified") {
+      verifiedCount += 1;
+    }
+  }
+
+  return {
+    totalVerifications: verifications.length,
+    verifiedCount,
+    nonVerifiedCount: verifications.length - verifiedCount,
+    scopeDistribution: toDistribution(scopeCounts),
+    trustDistribution: toDistribution(trustCounts),
+    statusDistribution: toDistribution(statusCounts),
+  };
+}
+
 export function buildSourceJobDownstreamRollup(
   batches: SourceJobDownstreamBatchInput[],
   registryRows: SourceJobDownstreamRegistryInput[],
@@ -251,6 +295,28 @@ export function buildSourceJobIntakeAuditPayload(input: SourceJobIntakeAuditInpu
       errorCount: input.errors.length,
     },
     errors: input.errors,
+  };
+}
+
+export function buildSourceVerificationDecisionPayload(input: SourceVerificationDecisionInput) {
+  return {
+    sourceVerificationId: input.sourceVerificationId,
+    sourceJobId: input.sourceJobId,
+    sourceDocumentId: input.sourceDocumentId ?? null,
+    candidateId: input.candidateId ?? null,
+    verificationScope: input.verificationScope,
+    sourceSheet: input.sourceSheet ?? null,
+    sourceUrl: input.sourceUrl ?? null,
+    sourceTrust: input.sourceTrust,
+    status: input.status,
+    evidenceKeys: [...input.evidenceKeys].sort((left, right) => left.localeCompare(right)),
+    policy: {
+      verificationIsOperatorDriven: true,
+      registryWriteAllowed: false,
+      kvWriteAllowed: false,
+      candidateApprovalStillRequired: true,
+      batchCommitStillRequired: true,
+    },
   };
 }
 

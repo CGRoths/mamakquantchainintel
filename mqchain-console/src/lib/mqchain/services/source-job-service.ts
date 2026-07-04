@@ -5,6 +5,7 @@ import {
   mqAddressCandidates,
   mqAddressEvidence,
   mqAddressRegistry,
+  mqApprovalEvents,
   mqAuditLog,
   mqEntities,
   mqKvRoleDict,
@@ -12,6 +13,8 @@ import {
   mqProtocols,
   mqSourceDocuments,
   mqSourceJobs,
+  mqSourceVerifications,
+  mqUsers,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
 import { parseSourceJobListFilters, type SourceJobListFilters } from "../list-filters";
@@ -21,8 +24,10 @@ import {
   buildSourceJobDocumentRollup,
   buildSourceJobDownstreamRollup,
   buildSourceJobEvidenceRollup,
+  buildSourceVerificationDecisionPayload,
+  buildSourceJobVerificationRollup,
 } from "../source-job";
-import { sourceJobArchiveSchema } from "../validators/source-job";
+import { sourceJobArchiveSchema, sourceVerificationSchema } from "../validators/source-job";
 
 function sourceJobOrderBy(sort: SourceJobListFilters["sort"]) {
   if (sort === "updated_at") return desc(mqSourceJobs.updatedAt);
@@ -101,10 +106,20 @@ export async function getSourceJob(id: number) {
     return null;
   }
 
-  const [documents, candidates, downstreamBatches, downstreamRegistryRows] = await Promise.all([
+  const [documents, candidates, downstreamBatches, verifications, downstreamRegistryRows] = await Promise.all([
     db.select().from(mqSourceDocuments).where(eq(mqSourceDocuments.sourceJobId, id)),
     db.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.sourceJobId, id)).orderBy(desc(mqAddressCandidates.createdAt)),
     db.select().from(mqLabelBatches).where(eq(mqLabelBatches.sourceJobId, id)).orderBy(desc(mqLabelBatches.createdAt)),
+    db
+      .select({
+        verification: mqSourceVerifications,
+        verifierEmail: mqUsers.email,
+        verifierName: mqUsers.displayName,
+      })
+      .from(mqSourceVerifications)
+      .leftJoin(mqUsers, eq(mqSourceVerifications.verifiedBy, mqUsers.id))
+      .where(eq(mqSourceVerifications.sourceJobId, id))
+      .orderBy(desc(mqSourceVerifications.createdAt)),
     db
       .select({
         registry: mqAddressRegistry,
@@ -133,14 +148,129 @@ export async function getSourceJob(id: number) {
     sourceJob,
     documents,
     candidates,
+    verifications,
     evidence,
     downstreamBatches,
     downstreamRegistryRows,
     documentRollup: buildSourceJobDocumentRollup(documents),
     candidateRollup: buildSourceJobCandidateRollup(candidates),
     evidenceRollup: buildSourceJobEvidenceRollup(evidence),
+    verificationRollup: buildSourceJobVerificationRollup(verifications.map((row) => row.verification)),
     downstreamRollup: buildSourceJobDownstreamRollup(downstreamBatches, downstreamRegistryRows.map((row) => row.registry)),
   };
+}
+
+function parseVerificationEvidence(value: string | undefined) {
+  if (!value) return {};
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("Verification evidence JSON must be an object.");
+    }
+    return parsed as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Verification evidence JSON is invalid: ${error.message}`);
+    }
+    throw new Error("Verification evidence JSON is invalid.");
+  }
+}
+
+export async function recordSourceVerification(input: unknown) {
+  const actor = await assertPermission("source:verify");
+  const parsed = sourceVerificationSchema.parse(input);
+  const db = getDb();
+
+  return db.transaction(async (tx) => {
+    const [sourceJob] = await tx.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, parsed.sourceJobId)).limit(1);
+    if (!sourceJob) {
+      throw new Error("Source job not found.");
+    }
+
+    if (parsed.sourceDocumentId) {
+      const [document] = await tx
+        .select()
+        .from(mqSourceDocuments)
+        .where(and(eq(mqSourceDocuments.id, parsed.sourceDocumentId), eq(mqSourceDocuments.sourceJobId, parsed.sourceJobId)))
+        .limit(1);
+      if (!document) {
+        throw new Error("Source document does not belong to this source job.");
+      }
+    }
+
+    if (parsed.candidateId) {
+      const [candidate] = await tx
+        .select()
+        .from(mqAddressCandidates)
+        .where(and(eq(mqAddressCandidates.id, parsed.candidateId), eq(mqAddressCandidates.sourceJobId, parsed.sourceJobId)))
+        .limit(1);
+      if (!candidate) {
+        throw new Error("Candidate does not belong to this source job.");
+      }
+    }
+
+    if (parsed.verificationScope === "source_document" && !parsed.sourceDocumentId) {
+      throw new Error("Source document verification requires a source document id.");
+    }
+    if (parsed.verificationScope === "source_sheet" && !parsed.sourceSheet) {
+      throw new Error("Source sheet verification requires a sheet or tab name.");
+    }
+    if (parsed.verificationScope === "source_url" && !parsed.sourceUrl) {
+      throw new Error("Source URL verification requires a source URL.");
+    }
+
+    const verificationEvidence = parseVerificationEvidence(parsed.verificationEvidenceJson);
+    const evidenceKeys = Object.keys(verificationEvidence).sort((left, right) => left.localeCompare(right));
+    const [verification] = await tx
+      .insert(mqSourceVerifications)
+      .values({
+        sourceJobId: parsed.sourceJobId,
+        sourceDocumentId: parsed.sourceDocumentId ?? null,
+        candidateId: parsed.candidateId ?? null,
+        verificationScope: parsed.verificationScope,
+        sourceSheet: parsed.sourceSheet || null,
+        sourceUrl: parsed.sourceUrl || null,
+        sourceTrust: parsed.sourceTrust,
+        status: parsed.status,
+        notes: parsed.notes || null,
+        verificationEvidence,
+        verifiedBy: actor.id,
+      })
+      .returning();
+    const decisionPayload = buildSourceVerificationDecisionPayload({
+      sourceVerificationId: verification.id,
+      sourceJobId: parsed.sourceJobId,
+      sourceDocumentId: parsed.sourceDocumentId ?? null,
+      candidateId: parsed.candidateId ?? null,
+      verificationScope: parsed.verificationScope,
+      sourceSheet: parsed.sourceSheet ?? null,
+      sourceUrl: parsed.sourceUrl ?? null,
+      sourceTrust: parsed.sourceTrust,
+      status: parsed.status,
+      evidenceKeys,
+    });
+
+    await tx.insert(mqApprovalEvents).values({
+      candidateId: parsed.candidateId ?? null,
+      action: "source_verification_recorded",
+      actorId: actor.id,
+      reason: parsed.notes || `${parsed.verificationScope} ${parsed.status}`,
+      beforeJson: sourceJob,
+      afterJson: verification,
+      metadata: decisionPayload,
+    });
+
+    await tx.insert(mqAuditLog).values({
+      actorId: actor.id,
+      action: "source_verification_recorded",
+      targetTable: "mq_source_verifications",
+      targetId: String(verification.id),
+      payload: decisionPayload,
+    });
+
+    return verification;
+  });
 }
 
 export async function archiveSourceJob(input: unknown) {

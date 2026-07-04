@@ -40,6 +40,7 @@ export const SETTINGS_PERMISSION_LABELS = [
   { permission: "intake:create", label: "Create intake" },
   { permission: "candidate:propose", label: "Propose labels" },
   { permission: "candidate:evidence", label: "Add evidence" },
+  { permission: "source:verify", label: "Verify sources" },
   { permission: "candidate:review", label: "Review candidates" },
   { permission: "batch:commit", label: "Commit batches" },
   { permission: "registry:edit", label: "Edit registry" },

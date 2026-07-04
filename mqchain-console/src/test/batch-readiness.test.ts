@@ -17,7 +17,7 @@ describe("batch candidate readiness", () => {
           { id: 2, candidateStatus: "pending_review", evidenceCount: 1 },
         ],
       ),
-    ).toThrow("missing candidate IDs: 3; not approved: 2 (pending_review)");
+    ).toThrow("missing candidate IDs: 3; not approved: 2 (pending_review); missing source verification: 1 (missing), 2 (missing)");
   });
 
   it("allows only fully approved selected candidates into a batch", () => {
@@ -25,8 +25,8 @@ describe("batch candidate readiness", () => {
       assertSelectedCandidatesApproved(
         [1, 2],
         [
-          { id: 1, candidateStatus: "approved", evidenceCount: 1 },
-          { id: 2, candidateStatus: "approved", evidenceCount: 2 },
+          { id: 1, candidateStatus: "approved", evidenceCount: 1, sourceVerificationStatus: "source_job_verified" },
+          { id: 2, candidateStatus: "approved", evidenceCount: 2, sourceVerificationStatus: "candidate_verified" },
         ],
       ),
     ).not.toThrow();
@@ -37,18 +37,30 @@ describe("batch candidate readiness", () => {
       assertSelectedCandidatesApproved(
         [1, 2],
         [
-          { id: 1, candidateStatus: "approved", evidenceCount: 1 },
-          { id: 2, candidateStatus: "approved", evidenceCount: 0 },
+          { id: 1, candidateStatus: "approved", evidenceCount: 1, sourceVerificationStatus: "source_job_verified" },
+          { id: 2, candidateStatus: "approved", evidenceCount: 0, sourceVerificationStatus: "source_job_verified" },
         ],
       ),
     ).toThrow("missing evidence: 2 (0 evidence)");
   });
 
+  it("rejects approved selected candidates without source verification", () => {
+    expect(() =>
+      assertSelectedCandidatesApproved(
+        [1, 2],
+        [
+          { id: 1, candidateStatus: "approved", evidenceCount: 1, sourceVerificationStatus: "source_job_verified" },
+          { id: 2, candidateStatus: "approved", evidenceCount: 1, sourceVerificationStatus: "source_verification_missing" },
+        ],
+      ),
+    ).toThrow("missing source verification: 2 (source_verification_missing)");
+  });
+
   it("blocks commit if a batched candidate left approved status", () => {
     expect(() =>
       assertBatchCandidatesStillApproved([
-        { id: 10, candidateStatus: "approved", evidenceCount: 1 },
-        { id: 11, candidateStatus: "rejected", evidenceCount: 1 },
+        { id: 10, candidateStatus: "approved", evidenceCount: 1, sourceVerificationStatus: "source_job_verified" },
+        { id: 11, candidateStatus: "rejected", evidenceCount: 1, sourceVerificationStatus: "source_job_verified" },
       ]),
     ).toThrow("Batch candidate readiness changed");
   });
@@ -56,9 +68,18 @@ describe("batch candidate readiness", () => {
   it("blocks commit if a batched candidate lost evidence", () => {
     expect(() =>
       assertBatchCandidatesStillApproved([
-        { id: 10, candidateStatus: "approved", evidenceCount: 1 },
-        { id: 11, candidateStatus: "approved", evidenceCount: 0 },
+        { id: 10, candidateStatus: "approved", evidenceCount: 1, sourceVerificationStatus: "source_job_verified" },
+        { id: 11, candidateStatus: "approved", evidenceCount: 0, sourceVerificationStatus: "source_job_verified" },
       ]),
     ).toThrow("missing evidence: 11 (0 evidence)");
+  });
+
+  it("blocks commit if a batched candidate lost source verification coverage", () => {
+    expect(() =>
+      assertBatchCandidatesStillApproved([
+        { id: 10, candidateStatus: "approved", evidenceCount: 1, sourceVerificationStatus: "candidate_verified" },
+        { id: 11, candidateStatus: "approved", evidenceCount: 1, sourceVerificationStatus: "source_sheet_verification_missing" },
+      ]),
+    ).toThrow("missing source verification: 11 (source_sheet_verification_missing)");
   });
 });

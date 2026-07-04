@@ -5,9 +5,11 @@ import { BatchLifecycleForms, BatchPrimaryActions } from "@/components/mqchain/b
 import { DbError } from "@/components/mqchain/db-error";
 import { FlagBadges } from "@/components/mqchain/flag-badges";
 import { StatusBadge } from "@/components/mqchain/status-badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { batchLifecyclePermissions } from "@/lib/mqchain/batch-detail";
+import { isCandidateSourceVerificationSatisfied } from "@/lib/mqchain/candidate-detail";
 import { getBatchDetail } from "@/lib/mqchain/services/batch-service";
 
 type DistributionRow = {
@@ -53,6 +55,7 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
     }
 
     const lifecycle = batchLifecyclePermissions(detail.batch.status);
+    const readinessByCandidateId = new Map(detail.candidateReadiness.map((row) => [row.id, row]));
 
     return (
       <>
@@ -64,6 +67,15 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
           <StatusBadge status={detail.batch.status} />
         </div>
         <BatchPrimaryActions batchId={detail.batch.id} canApprove={lifecycle.canApprove} canCommit={lifecycle.canCommit} />
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Read-only batch provenance API</CardTitle></CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-3 text-sm">
+            <code className="rounded-md bg-muted px-2 py-1 text-xs">/api/mqchain/batches/{detail.batch.id}</code>
+            <Button asChild variant="outline">
+              <Link href={`/api/mqchain/batches/${detail.batch.id}`}>Open JSON</Link>
+            </Button>
+          </CardContent>
+        </Card>
         <section className="grid gap-4 xl:grid-cols-[1fr_420px]">
           <div className="grid gap-4">
             <Card className="rounded-lg">
@@ -105,25 +117,34 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
                       <TableHead>Confidence</TableHead>
                       <TableHead>Quality</TableHead>
                       <TableHead>Evidence</TableHead>
+                      <TableHead>Source verification</TableHead>
                       <TableHead>Seen range</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {detail.candidates.map((candidate) => (
-                      <TableRow key={candidate.id}>
-                        <TableCell className="font-mono"><Link className="text-primary hover:underline" href={`/mqchain/candidates/${candidate.id}`}>{candidate.id}</Link></TableCell>
-                        <TableCell className="max-w-96 truncate font-mono text-xs">{candidate.normalizedAddress}</TableCell>
-                        <TableCell>{candidate.chainCode}</TableCell>
-                        <TableCell><StatusBadge status={candidate.candidateStatus} /></TableCell>
-                        <TableCell className="font-mono">{candidate.confidenceScore}</TableCell>
-                        <TableCell className="font-mono">{candidate.qualityTier}</TableCell>
-                        <TableCell className="font-mono">{candidate.evidenceCount}</TableCell>
-                        <TableCell className="font-mono text-xs">{candidate.firstSeenBlock ?? "-"} / {candidate.lastSeenBlock ?? "-"}</TableCell>
-                      </TableRow>
-                    ))}
+                    {detail.candidates.map((candidate) => {
+                      const readiness = readinessByCandidateId.get(candidate.id);
+                      const sourceReady = isCandidateSourceVerificationSatisfied(readiness?.sourceVerificationStatus);
+
+                      return (
+                        <TableRow key={candidate.id}>
+                          <TableCell className="font-mono"><Link className="text-primary hover:underline" href={`/mqchain/candidates/${candidate.id}`}>{candidate.id}</Link></TableCell>
+                          <TableCell className="max-w-96 truncate font-mono text-xs">{candidate.normalizedAddress}</TableCell>
+                          <TableCell>{candidate.chainCode}</TableCell>
+                          <TableCell><StatusBadge status={candidate.candidateStatus} /></TableCell>
+                          <TableCell className="font-mono">{candidate.confidenceScore}</TableCell>
+                          <TableCell className="font-mono">{candidate.qualityTier}</TableCell>
+                          <TableCell className={(candidate.evidenceCount ?? 0) > 0 ? "font-mono" : "font-mono text-destructive"}>{candidate.evidenceCount}</TableCell>
+                          <TableCell className={sourceReady ? "font-mono text-xs text-emerald-400" : "font-mono text-xs text-destructive"}>
+                            {readiness?.sourceVerificationStatus?.replace(/_/g, " ") ?? "source verification missing"}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{candidate.firstSeenBlock ?? "-"} / {candidate.lastSeenBlock ?? "-"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                     {!detail.candidates.length ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                        <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
                           No candidates are linked to this batch.
                         </TableCell>
                       </TableRow>

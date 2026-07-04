@@ -1,3 +1,5 @@
+import { isCandidateSourceVerificationSatisfied, type CandidateSourceVerificationStatus } from "./candidate-detail";
+
 export type ReviewCandidateGroupInput = {
   candidate: {
     id: number;
@@ -51,6 +53,7 @@ export type ReviewReadinessInput = {
   suggestedEntityId?: number | null;
   suggestedRoleId?: number | null;
   evidenceCount?: number | null;
+  sourceVerificationStatus?: CandidateSourceVerificationStatus | null;
 };
 
 export type ReviewReadinessBlocker =
@@ -58,7 +61,8 @@ export type ReviewReadinessBlocker =
   | "missing_normalized_address"
   | "missing_entity"
   | "missing_role"
-  | "missing_evidence";
+  | "missing_evidence"
+  | "missing_source_verification";
 
 export const REVIEW_READINESS_BLOCKER_LABELS: Record<ReviewReadinessBlocker, string> = {
   missing_chain: "Missing chain",
@@ -66,12 +70,14 @@ export const REVIEW_READINESS_BLOCKER_LABELS: Record<ReviewReadinessBlocker, str
   missing_entity: "Missing entity",
   missing_role: "Missing role",
   missing_evidence: "Missing attached evidence",
+  missing_source_verification: "Missing source verification",
 };
 
 const EDITED_APPROVAL_HARD_BLOCKERS = new Set<ReviewReadinessBlocker>([
   "missing_chain",
   "missing_normalized_address",
   "missing_evidence",
+  "missing_source_verification",
 ]);
 
 export function buildReviewReadiness(candidate: ReviewReadinessInput) {
@@ -82,6 +88,9 @@ export function buildReviewReadiness(candidate: ReviewReadinessInput) {
   if (!candidate.suggestedEntityId) blockers.push("missing_entity");
   if (!candidate.suggestedRoleId) blockers.push("missing_role");
   if ((candidate.evidenceCount ?? 0) < 1) blockers.push("missing_evidence");
+  if (candidate.sourceVerificationStatus && !isCandidateSourceVerificationSatisfied(candidate.sourceVerificationStatus)) {
+    blockers.push("missing_source_verification");
+  }
 
   return {
     canQuickApprove: blockers.length === 0,

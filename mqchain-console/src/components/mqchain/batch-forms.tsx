@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { isCandidateSourceVerificationSatisfied, type CandidateSourceVerificationStatus } from "@/lib/mqchain/candidate-detail";
 
 type BatchAction = (previousState: BatchMutationState, formData: FormData) => Promise<BatchMutationState>;
 
@@ -29,6 +30,8 @@ type BatchCandidateOption = {
   confidenceScore: number | null;
   qualityTier: number | null;
   evidenceCount: number | null;
+  sourceVerificationStatus: CandidateSourceVerificationStatus | null;
+  sourceVerificationMessage: string | null;
   entityName: string | null;
   roleCode: string | null;
   sourceType: string | null;
@@ -143,32 +146,56 @@ export function CreateBatchForm({ approvedCandidates }: { approvedCandidates: Ba
                   <TableHead>Address</TableHead>
                   <TableHead>Label</TableHead>
                   <TableHead>Evidence</TableHead>
+                  <TableHead>Source verification</TableHead>
                   <TableHead>Score</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {approvedCandidates.map((candidate) => (
-                  <TableRow key={candidate.id}>
-                    <TableCell><input className="h-4 w-4 accent-primary" type="checkbox" name="candidateId" value={candidate.id} defaultChecked /></TableCell>
-                    <TableCell className="font-mono">{candidate.id}</TableCell>
-                    <TableCell className="max-w-96 truncate font-mono text-xs">
-                      <a className="text-primary hover:underline" href={`/mqchain/candidates/${candidate.id}`}>{candidate.normalizedAddress}</a>
-                      <span className="block text-muted-foreground">{candidate.chainCode ?? "-"}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="block">{candidate.entityName ?? "-"}</span>
-                      <span className="block font-mono text-xs text-muted-foreground">{candidate.roleCode ?? "-"}</span>
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      <span className="block">{candidate.sourceType ?? "-"}</span>
-                      <span className="font-mono text-muted-foreground">{candidate.evidenceCount ?? 0} rows</span>
-                    </TableCell>
-                    <TableCell className="font-mono">{candidate.confidenceScore ?? 0} / Q{candidate.qualityTier ?? 0}</TableCell>
-                  </TableRow>
-                ))}
+                {approvedCandidates.map((candidate) => {
+                  const evidenceReady = (candidate.evidenceCount ?? 0) > 0;
+                  const sourceReady = isCandidateSourceVerificationSatisfied(candidate.sourceVerificationStatus);
+                  const isBatchReady = evidenceReady && sourceReady;
+
+                  return (
+                    <TableRow key={candidate.id}>
+                      <TableCell>
+                        <input
+                          className="h-4 w-4 accent-primary disabled:opacity-40"
+                          type="checkbox"
+                          name="candidateId"
+                          value={candidate.id}
+                          defaultChecked={isBatchReady}
+                          disabled={!isBatchReady}
+                        />
+                      </TableCell>
+                      <TableCell className="font-mono">{candidate.id}</TableCell>
+                      <TableCell className="max-w-96 truncate font-mono text-xs">
+                        <a className="text-primary hover:underline" href={`/mqchain/candidates/${candidate.id}`}>{candidate.normalizedAddress}</a>
+                        <span className="block text-muted-foreground">{candidate.chainCode ?? "-"}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="block">{candidate.entityName ?? "-"}</span>
+                        <span className="block font-mono text-xs text-muted-foreground">{candidate.roleCode ?? "-"}</span>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <span className="block">{candidate.sourceType ?? "-"}</span>
+                        <span className={evidenceReady ? "font-mono text-muted-foreground" : "font-mono text-destructive"}>
+                          {candidate.evidenceCount ?? 0} rows
+                        </span>
+                      </TableCell>
+                      <TableCell className="max-w-64 text-xs">
+                        <span className={sourceReady ? "font-mono text-emerald-400" : "font-mono text-destructive"}>
+                          {candidate.sourceVerificationStatus?.replace(/_/g, " ") ?? "source verification missing"}
+                        </span>
+                        <span className="block text-muted-foreground">{candidate.sourceVerificationMessage ?? "-"}</span>
+                      </TableCell>
+                      <TableCell className="font-mono">{candidate.confidenceScore ?? 0} / Q{candidate.qualityTier ?? 0}</TableCell>
+                    </TableRow>
+                  );
+                })}
                 {!approvedCandidates.length ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
                       No approved candidates match the picker filters.
                     </TableCell>
                   </TableRow>

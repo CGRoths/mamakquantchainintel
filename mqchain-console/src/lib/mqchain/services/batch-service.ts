@@ -15,6 +15,7 @@ import {
   mqLabelBatches,
   mqProtocols,
   mqSourceDocuments,
+  mqSourceVerifications,
   mqSourceJobs,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
@@ -25,7 +26,8 @@ import {
   buildBatchLifecycleAuditPayload,
   buildBatchRegistryRollup,
 } from "../batch-detail";
-import { assertBatchCandidatesStillApproved, assertSelectedCandidatesApproved } from "../batch-readiness";
+import { assertBatchCandidatesStillApproved, assertSelectedCandidatesApproved, type BatchCandidateReadinessRow } from "../batch-readiness";
+import { buildCandidateSourceVerificationContext } from "../candidate-detail";
 import { LABEL_STATUS } from "../constants";
 import { markHistoricalOnlyFlags } from "../flags";
 import { buildPendingBatchKvManifest } from "../kv-manifest";
@@ -42,6 +44,63 @@ import { hashJson, optionalNumber } from "./service-utils";
 function getApprovalDraft(candidate: typeof mqAddressCandidates.$inferSelect) {
   const metadata = candidate.metadata as { approvalDraft?: Record<string, unknown> } | null;
   return metadata?.approvalDraft ?? {};
+}
+
+async function buildBatchCandidateReadinessRows(
+  tx: Pick<ReturnType<typeof getDb>, "select">,
+  candidates: (typeof mqAddressCandidates.$inferSelect)[],
+): Promise<BatchCandidateReadinessRow[]> {
+  const candidateIds = candidates.map((candidate) => candidate.id);
+  if (!candidateIds.length) {
+    return [];
+  }
+
+  const sourceJobIds = Array.from(
+    new Set(candidates.map((candidate) => candidate.sourceJobId).filter((id): id is number => typeof id === "number")),
+  );
+  const sourceDocumentIds = Array.from(
+    new Set(candidates.map((candidate) => candidate.sourceDocumentId).filter((id): id is number => typeof id === "number")),
+  );
+  const verificationRowsById = new Map<number, typeof mqSourceVerifications.$inferSelect>();
+  const verificationQueries = [
+    tx.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.candidateId, candidateIds)),
+    sourceJobIds.length
+      ? tx.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceJobId, sourceJobIds))
+      : Promise.resolve([]),
+    sourceDocumentIds.length
+      ? tx.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceDocumentId, sourceDocumentIds))
+      : Promise.resolve([]),
+  ];
+
+  for (const verifications of await Promise.all(verificationQueries)) {
+    for (const verification of verifications) {
+      verificationRowsById.set(verification.id, verification);
+    }
+  }
+
+  const verificationRows = Array.from(verificationRowsById.values());
+  return candidates.map((candidate) => {
+    const context = buildCandidateSourceVerificationContext({
+      candidate: {
+        id: candidate.id,
+        sourceJobId: candidate.sourceJobId,
+        sourceDocumentId: candidate.sourceDocumentId,
+        metadata: candidate.metadata,
+      },
+      verifications: verificationRows.filter((verification) => {
+        if (verification.candidateId === candidate.id) return true;
+        if (candidate.sourceDocumentId && verification.sourceDocumentId === candidate.sourceDocumentId) return true;
+        return Boolean(candidate.sourceJobId && verification.sourceJobId === candidate.sourceJobId);
+      }),
+    });
+
+    return {
+      id: candidate.id,
+      candidateStatus: candidate.candidateStatus,
+      evidenceCount: candidate.evidenceCount,
+      sourceVerificationStatus: context.status,
+    };
+  });
 }
 
 function batchOrderBy(sort: BatchListFilters["sort"]) {
@@ -195,10 +254,12 @@ export async function getBatchDetail(batchId: number) {
       .where(eq(mqAddressRegistry.approvedBatchId, batchId))
       .orderBy(desc(mqAddressRegistry.createdAt)),
   ]);
+  const candidateReadiness = await buildBatchCandidateReadinessRows(db, candidates);
 
   return {
     batch,
     candidates,
+    candidateReadiness,
     sourceJob: sourceJob[0] ?? null,
     sourceDocument: sourceDocument[0] ?? null,
     entity: entity[0] ?? null,
@@ -228,7 +289,7 @@ export async function createBatchFromCandidates(input: unknown) {
   return db.transaction(async (tx) => {
     const candidates = await tx.select().from(mqAddressCandidates).where(inArray(mqAddressCandidates.id, parsed.candidateIds));
 
-    assertSelectedCandidatesApproved(parsed.candidateIds, candidates);
+    assertSelectedCandidatesApproved(parsed.candidateIds, await buildBatchCandidateReadinessRows(tx, candidates));
 
     const batchHash = hashJson(candidates.map((candidate) => [candidate.id, candidate.normalizedAddress, candidate.chainCode]));
     const first = candidates[0];
@@ -424,7 +485,7 @@ export async function commitBatch(input: unknown) {
       throw new Error("Batch has no candidates.");
     }
 
-    assertBatchCandidatesStillApproved(rows.map((row) => row.candidate));
+    assertBatchCandidatesStillApproved(await buildBatchCandidateReadinessRows(tx, rows.map((row) => row.candidate)));
 
     const registryIds: number[] = [];
     const plannedRegistryTargets: RegistryCommitTarget[] = [];

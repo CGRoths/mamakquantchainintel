@@ -19,6 +19,15 @@ function pageHref(params: Record<string, string | undefined>, page: number) {
   return query ? `/mqchain/audit-log?${query}` : "/mqchain/audit-log";
 }
 
+function auditApiHref(params: Record<string, string | undefined>) {
+  const next = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) next.set(key, value);
+  }
+  const query = next.toString();
+  return query ? `/api/mqchain/audit-log?${query}` : "/api/mqchain/audit-log";
+}
+
 function ApprovalEventTargets({ event }: { event: Awaited<ReturnType<typeof listAuditTimeline>>["approvalEvents"][number] }) {
   const links = buildApprovalEventTargetLinks(event);
 
@@ -102,6 +111,17 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
                 </Button>
               </div>
             </form>
+          </CardContent>
+        </Card>
+        <Card className="rounded-lg">
+          <CardHeader><CardTitle>Worker export</CardTitle></CardHeader>
+          <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+            <span>
+              {timeline.rows.length} displayed events from {timeline.total} matching audit rows; raw JSON is excluded from the export.
+            </span>
+            <Button asChild variant="outline">
+              <Link href={auditApiHref(params)}>Open JSON</Link>
+            </Button>
           </CardContent>
         </Card>
         <Card className="rounded-lg">

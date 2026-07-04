@@ -59,6 +59,7 @@ describe("review grouping", () => {
         suggestedEntityId: 1,
         suggestedRoleId: 1001,
         evidenceCount: 1,
+        sourceVerificationStatus: "source_job_verified",
       }),
     ).toEqual({ canQuickApprove: true, blockers: [] });
 
@@ -69,10 +70,18 @@ describe("review grouping", () => {
         suggestedEntityId: null,
         suggestedRoleId: null,
         evidenceCount: 0,
+        sourceVerificationStatus: "source_verification_missing",
       }),
     ).toEqual({
       canQuickApprove: false,
-      blockers: ["missing_chain", "missing_normalized_address", "missing_entity", "missing_role", "missing_evidence"],
+      blockers: [
+        "missing_chain",
+        "missing_normalized_address",
+        "missing_entity",
+        "missing_role",
+        "missing_evidence",
+        "missing_source_verification",
+      ],
     });
   });
 
@@ -83,9 +92,9 @@ describe("review grouping", () => {
       editableBlockers: ["missing_entity", "missing_role"],
     });
 
-    expect(buildEditedApprovalReadiness(["missing_entity", "missing_evidence"])).toEqual({
+    expect(buildEditedApprovalReadiness(["missing_entity", "missing_evidence", "missing_source_verification"])).toEqual({
       canApproveWithEdits: false,
-      hardBlockers: ["missing_evidence"],
+      hardBlockers: ["missing_evidence", "missing_source_verification"],
       editableBlockers: ["missing_entity"],
     });
   });

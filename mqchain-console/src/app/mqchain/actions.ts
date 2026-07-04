@@ -53,7 +53,7 @@ import {
   updateRegistryLabel,
 } from "@/lib/mqchain/services/registry-service";
 import { createSettingsUser, updateSettingsUserAccess } from "@/lib/mqchain/services/settings-service";
-import { archiveSourceJob } from "@/lib/mqchain/services/source-job-service";
+import { archiveSourceJob, recordSourceVerification } from "@/lib/mqchain/services/source-job-service";
 import { csvInputFromFormData } from "@/lib/mqchain/csv-upload";
 import { formValue, runAction } from "@/lib/mqchain/services/service-utils";
 import type { ActionResult } from "@/lib/mqchain/types";
@@ -120,6 +120,7 @@ export type DiscoveryMutationState = ActionResult<DiscoveryMutationData> | null;
 
 export type SourceJobMutationData = {
   sourceJobId: number;
+  sourceVerificationId?: number;
   status?: string | null;
   archiveStorageUri?: string | null;
   message: string;
@@ -1863,6 +1864,34 @@ export async function archiveSourceJobResultAction(
       status: sourceJob.status,
       archiveStorageUri: sourceJob.archiveStorageUri,
       message: `Source job ${sourceJob.id} marked archived and audit logged.`,
+    };
+  });
+}
+
+export async function recordSourceVerificationResultAction(
+  _previousState: SourceJobMutationState,
+  formData: FormData,
+): Promise<SourceJobMutationState> {
+  return runAction(async () => {
+    const verification = await recordSourceVerification({
+      sourceJobId: formValue(formData, "sourceJobId"),
+      sourceDocumentId: formValue(formData, "sourceDocumentId"),
+      candidateId: formValue(formData, "candidateId"),
+      verificationScope: formValue(formData, "verificationScope"),
+      sourceSheet: formValue(formData, "sourceSheet"),
+      sourceUrl: formValue(formData, "sourceUrl"),
+      sourceTrust: formValue(formData, "sourceTrust"),
+      status: formValue(formData, "status"),
+      notes: formValue(formData, "notes"),
+      verificationEvidenceJson: formValue(formData, "verificationEvidenceJson"),
+    });
+
+    revalidateSourceJobPaths(verification.sourceJobId ?? undefined);
+    return {
+      sourceJobId: verification.sourceJobId ?? 0,
+      sourceVerificationId: verification.id,
+      status: verification.status,
+      message: `Source verification ${verification.id} recorded; candidates still require review and batch commit.`,
     };
   });
 }
