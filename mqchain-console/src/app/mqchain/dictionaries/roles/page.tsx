@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { QUALITY_TIER_MAX } from "@/lib/mqchain/constants";
 import { listDictionaries, listRoles } from "@/lib/mqchain/services/dictionary-service";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
@@ -44,8 +45,8 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
               <Input name="roleGroup" placeholder="Role group" defaultValue={params.roleGroup ?? ""} />
               <Input name="metricUsage" placeholder="Metric usage" defaultValue={params.metricUsage ?? ""} />
               <Input name="boundary" placeholder="Boundary class" defaultValue={params.boundary ?? ""} />
-              <Input name="minQuality" type="number" min="0" max="5" placeholder="Min quality" defaultValue={params.minQuality ?? ""} />
-              <Input name="maxQuality" type="number" min="0" max="5" placeholder="Max quality" defaultValue={params.maxQuality ?? ""} />
+              <Input name="minQuality" type="number" min="0" max={QUALITY_TIER_MAX} placeholder="Min quality" defaultValue={params.minQuality ?? ""} />
+              <Input name="maxQuality" type="number" min="0" max={QUALITY_TIER_MAX} placeholder="Max quality" defaultValue={params.maxQuality ?? ""} />
               <select
                 name="active"
                 defaultValue={params.active ?? "active"}

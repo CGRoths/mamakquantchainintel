@@ -13,6 +13,7 @@ import {
   mqMetricGroupRules,
   mqMetricGroups,
   mqProtocols,
+  mqUsers,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildDictionaryInventory } from "../dictionary-overview";
@@ -32,11 +33,13 @@ import {
 } from "../validators/dictionary";
 import {
   parseCategoryDictionaryListFilters,
+  parseDictionaryVersionListFilters,
   parseEntityDictionaryListFilters,
   parseKeyPrefixDictionaryListFilters,
   parseProtocolDictionaryListFilters,
   parseRoleDictionaryListFilters,
   type CategoryDictionaryListFilters,
+  type DictionaryVersionListFilters,
   type EntityDictionaryListFilters,
   type KeyPrefixDictionaryListFilters,
   type ProtocolDictionaryListFilters,
@@ -103,6 +106,12 @@ function keyPrefixDictionaryOrderBy(sort: KeyPrefixDictionaryListFilters["sort"]
   if (sort === "created_at") return desc(mqKvKeyPrefixDict.createdAt);
   if (sort === "updated_at") return desc(mqKvKeyPrefixDict.updatedAt);
   return asc(mqKvKeyPrefixDict.prefixCode);
+}
+
+function dictionaryVersionOrderBy(sort: DictionaryVersionListFilters["sort"]) {
+  if (sort === "hash") return asc(mqDictionaryVersions.versionHash);
+  if (sort === "reason") return asc(sql`${mqDictionaryVersions.summary}->>'reason'`);
+  return desc(mqDictionaryVersions.createdAt);
 }
 
 function addCondition(conditions: SQL[], condition: SQL | undefined) {
@@ -601,6 +610,61 @@ async function auditDictionaryChange(actorId: string, action: string, targetTabl
 
 export async function listDictionaryVersions(limit = 20) {
   return getDb().select().from(mqDictionaryVersions).orderBy(desc(mqDictionaryVersions.createdAt)).limit(limit);
+}
+
+export async function listDictionaryVersionHistory(input: unknown = {}) {
+  const filters = parseDictionaryVersionListFilters(input);
+  const conditions: SQL[] = [];
+
+  if (filters.q) {
+    addCondition(
+      conditions,
+      or(
+        ilike(mqDictionaryVersions.versionHash, `%${filters.q}%`),
+        sql`${mqDictionaryVersions.summary}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqUsers.email, `%${filters.q}%`),
+        ilike(mqUsers.displayName, `%${filters.q}%`),
+      ),
+    );
+  }
+
+  if (filters.reason) {
+    conditions.push(sql`${mqDictionaryVersions.summary}->>'reason' ilike ${`%${filters.reason}%`}`);
+  }
+
+  if (filters.actor) {
+    addCondition(conditions, or(ilike(mqUsers.email, `%${filters.actor}%`), ilike(mqUsers.displayName, `%${filters.actor}%`)));
+  }
+
+  const db = getDb();
+  const where = conditions.length ? and(...conditions) : sql`true`;
+  const offset = (filters.page - 1) * filters.pageSize;
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(mqDictionaryVersions)
+    .leftJoin(mqUsers, eq(mqDictionaryVersions.createdBy, mqUsers.id))
+    .where(where);
+  const rows = await db
+    .select({
+      version: mqDictionaryVersions,
+      creatorEmail: mqUsers.email,
+      creatorName: mqUsers.displayName,
+    })
+    .from(mqDictionaryVersions)
+    .leftJoin(mqUsers, eq(mqDictionaryVersions.createdBy, mqUsers.id))
+    .where(where)
+    .orderBy(dictionaryVersionOrderBy(filters.sort), desc(mqDictionaryVersions.id))
+    .limit(filters.pageSize)
+    .offset(offset);
+
+  return {
+    rows,
+    filters,
+    total,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+  };
 }
 
 export async function getDictionaryOverview() {

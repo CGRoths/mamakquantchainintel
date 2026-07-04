@@ -36,6 +36,13 @@
       "when": 1783137600000,
       "tag": "0004_source_verifications",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783138200000,
+      "tag": "0005_control_plane_check_constraints",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { QUALITY_TIER_MAX } from "@/lib/mqchain/constants";
 import { listCandidates } from "@/lib/mqchain/services/candidate-service";
 import { listBatches } from "@/lib/mqchain/services/batch-service";
 
@@ -86,7 +87,7 @@ export default async function BatchesPage({ searchParams }: { searchParams: Prom
               <Input name="approvedRole" placeholder="Role" defaultValue={params.approvedRole ?? ""} />
               <Input name="approvedSourceType" placeholder="Source type" defaultValue={params.approvedSourceType ?? ""} />
               <Input name="approvedMinConfidence" type="number" min="0" max="100" placeholder="Min confidence" defaultValue={params.approvedMinConfidence ?? ""} />
-              <Input name="approvedQualityTier" type="number" min="0" max="5" placeholder="Quality tier" defaultValue={params.approvedQualityTier ?? ""} />
+              <Input name="approvedQualityTier" type="number" min="0" max={QUALITY_TIER_MAX} placeholder="Quality tier" defaultValue={params.approvedQualityTier ?? ""} />
               <select
                 name="approvedSort"
                 defaultValue={params.approvedSort ?? "confidence"}

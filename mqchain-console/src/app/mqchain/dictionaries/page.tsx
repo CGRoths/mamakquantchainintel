@@ -19,8 +19,8 @@ export default async function DictionariesPage() {
         </div>
         <Card className="rounded-lg">
           <CardHeader>
-            <CardTitle>Read-only dictionary snapshot API</CardTitle>
-            <CardDescription>Export active compiler dictionaries by default, or include inactive historical rows with scope=all.</CardDescription>
+            <CardTitle>Read-only dictionary APIs</CardTitle>
+            <CardDescription>Export compiler dictionaries and the dictionary-version handoff ledger for KV workers.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center gap-3 text-sm">
             <code className="rounded-md bg-muted px-2 py-1 text-xs">/api/mqchain/dictionaries</code>
@@ -29,6 +29,10 @@ export default async function DictionariesPage() {
             </Button>
             <Button asChild variant="outline">
               <Link href="/api/mqchain/dictionaries?scope=all">Open all JSON</Link>
+            </Button>
+            <code className="rounded-md bg-muted px-2 py-1 text-xs">/api/mqchain/dictionaries/versions</code>
+            <Button asChild variant="outline">
+              <Link href="/api/mqchain/dictionaries/versions">Open versions JSON</Link>
             </Button>
           </CardContent>
         </Card>

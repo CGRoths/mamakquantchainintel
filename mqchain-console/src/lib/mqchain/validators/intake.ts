@@ -1,7 +1,9 @@
 import { z } from "zod";
 
-import { SOURCE_TYPES } from "../constants";
+import { QUALITY_TIER_MAX, QUALITY_TIER_MIN, SOURCE_TYPES } from "../constants";
 import { CSV_UPLOAD_MAX_BYTES } from "../csv-upload";
+
+export const SOURCE_JOB_INTAKE_API_MAX_BODY_BYTES = CSV_UPLOAD_MAX_BYTES + 32 * 1024;
 
 const boundedCsvText = z
   .string()
@@ -22,7 +24,7 @@ export const manualIntakeSchema = z.object({
   addresses: z.string().trim().min(1, "At least one address is required"),
   notes: z.string().trim().optional(),
   confidenceScore: z.coerce.number().int().min(0).max(100).default(50),
-  qualityTier: z.coerce.number().int().min(0).max(5).default(1),
+  qualityTier: z.coerce.number().int().min(QUALITY_TIER_MIN).max(QUALITY_TIER_MAX).default(1),
 });
 
 export const csvIntakeSchema = z.object({
@@ -47,7 +49,7 @@ export const urlIntakeSchema = z.object({
   chainCode: z.string().trim().optional(),
   notes: z.string().trim().optional(),
   confidenceScore: z.coerce.number().int().min(0).max(100).default(60),
-  qualityTier: z.coerce.number().int().min(0).max(5).default(1),
+  qualityTier: z.coerce.number().int().min(QUALITY_TIER_MIN).max(QUALITY_TIER_MAX).default(1),
 });
 
 export const jsonEvidenceIntakeSchema = z.object({
@@ -59,7 +61,7 @@ export const jsonEvidenceIntakeSchema = z.object({
   chainCode: z.string().trim().optional(),
   notes: z.string().trim().optional(),
   confidenceScore: z.coerce.number().int().min(0).max(100).default(60),
-  qualityTier: z.coerce.number().int().min(0).max(5).default(1),
+  qualityTier: z.coerce.number().int().min(QUALITY_TIER_MIN).max(QUALITY_TIER_MAX).default(1),
   jsonText: z.string().trim().min(1, "JSON evidence input is required"),
 });
 
@@ -79,7 +81,7 @@ export const deploymentSourceIntakeSchema = z
     chainCode: z.string().trim().optional(),
     notes: z.string().trim().optional(),
     confidenceScore: z.coerce.number().int().min(0).max(100).default(70),
-    qualityTier: z.coerce.number().int().min(0).max(5).default(2),
+    qualityTier: z.coerce.number().int().min(QUALITY_TIER_MIN).max(QUALITY_TIER_MAX).default(2),
   })
   .superRefine((value, ctx) => {
     if (!value.sourceUrl && !value.sourceText) {
@@ -90,3 +92,8 @@ export const deploymentSourceIntakeSchema = z
       });
     }
   });
+
+export const sourceJobIntakeApiRequestSchema = z.object({
+  intakeType: z.enum(["manual", "csv", "ai_cleaned_csv", "url", "json_evidence", "deployment_source"]),
+  payload: z.record(z.string(), z.unknown()),
+});

@@ -7,8 +7,17 @@ import {
   summarizeKvManifestIndexes,
   summarizePersistedKvIndexRecords,
 } from "@/lib/mqchain/kv-manifest";
-import { buildKvServingManifestApiResponse, KV_SERVING_MANIFEST_API_CONTRACT } from "@/lib/mqchain/kv-serving-api";
-import { createKvBuildManifestSchema } from "@/lib/mqchain/validators/kv-manifest";
+import {
+  buildKvBuildDetailApiResponse,
+  buildKvBuildListApiResponse,
+  buildKvBuildRegistrationApiResponse,
+  buildKvServingManifestApiResponse,
+  KV_BUILD_DETAIL_API_CONTRACT,
+  KV_BUILD_LIST_API_CONTRACT,
+  KV_BUILD_REGISTRATION_API_CONTRACT,
+  KV_SERVING_MANIFEST_API_CONTRACT,
+} from "@/lib/mqchain/kv-serving-api";
+import { createKvBuildManifestSchema, kvBuildRegistrationApiRequestSchema } from "@/lib/mqchain/validators/kv-manifest";
 
 describe("KV build manifest validation", () => {
   it("parses external compiler manifests", () => {
@@ -31,6 +40,43 @@ describe("KV build manifest validation", () => {
 
   it("rejects non-object manifests", () => {
     expect(() => createKvBuildManifestSchema.parse({ manifestJson: "[1,2,3]" })).toThrow();
+  });
+
+  it("normalizes external worker KV registration requests", () => {
+    expect(
+      kvBuildRegistrationApiRequestSchema.parse({
+        buildHash: " hash-compiled ",
+        dictionaryVersion: " dict-compiled ",
+        status: "compiled",
+        rowCount: "6",
+        storageUri: " s3://mqchain/kv/hash-compiled ",
+        manifest: {
+          artifactType: "jsonl-kv-preview",
+          rowCount: 6,
+        },
+      }),
+    ).toEqual({
+      buildHash: "hash-compiled",
+      dictionaryVersion: "dict-compiled",
+      status: "compiled",
+      rowCount: 6,
+      storageUri: "s3://mqchain/kv/hash-compiled",
+      manifestJson: JSON.stringify({
+        artifactType: "jsonl-kv-preview",
+        rowCount: 6,
+      }),
+    });
+    expect(
+      kvBuildRegistrationApiRequestSchema.parse({
+        rowCount: 1,
+        manifestJson: '{"artifactType":"rocksdb"}',
+      }),
+    ).toMatchObject({
+      status: "compiled",
+      rowCount: 1,
+      manifestJson: '{"artifactType":"rocksdb"}',
+    });
+    expect(() => kvBuildRegistrationApiRequestSchema.parse({ rowCount: 1 })).toThrow("Provide either manifest or manifestJson");
   });
 
   it("builds pending batch commit handoff manifests with dictionary version", () => {
@@ -517,6 +563,360 @@ describe("KV build manifest validation", () => {
         activeBuildOnly: true,
         requiredServingIndexes: true,
         externalWorkerOwnsArtifactStorage: true,
+      },
+    });
+  });
+
+  it("serializes KV build queue exports without full manifest bodies", () => {
+    const payload = buildKvBuildListApiResponse({
+      query: {
+        page: 1,
+        pageSize: 25,
+        filters: {
+          status: "compiled",
+          sort: "created_at",
+        },
+      },
+      total: 1,
+      totalPages: 1,
+      rows: [
+        {
+          id: 12,
+          buildHash: "hash-compiled",
+          dictionaryVersion: "dict-compiled",
+          status: "compiled",
+          rowCount: 6,
+          storageUri: "s3://mqchain/kv/hash-compiled",
+          manifest: {
+            artifactType: "jsonl-kv-preview",
+            artifactStatus: "compiled",
+            rowCount: 6,
+            privateCompilerNote: "full manifest body should stay on detail endpoint",
+            indexes: {
+              addressLabelCurrent: {
+                indexName: "address_label_current",
+                rowCount: 2,
+                hash: "current-hash",
+              },
+              addressLabelTimeline: {
+                indexName: "address_label_timeline",
+                rowCount: 3,
+                hash: "timeline-hash",
+              },
+              metricGroupMembership: {
+                indexName: "metric_group_membership",
+                rowCount: 1,
+                hash: "metric-hash",
+              },
+            },
+          },
+          createdAt: new Date("2026-07-04T01:00:00.000Z"),
+          activatedAt: null,
+        },
+      ],
+    });
+
+    expect(payload).toMatchObject({
+      ...KV_BUILD_LIST_API_CONTRACT,
+      mutationAllowed: false,
+      registryWriteAllowed: false,
+      kvWriteAllowed: false,
+      fullManifestIncluded: false,
+      pagination: {
+        totalRows: 1,
+        returnedRows: 1,
+      },
+      rows: [
+        {
+          id: 12,
+          buildHash: "hash-compiled",
+          dictionaryVersion: "dict-compiled",
+          status: "compiled",
+          rowCount: 6,
+          storageUri: "s3://mqchain/kv/hash-compiled",
+          artifactType: "jsonl-kv-preview",
+          artifactStatus: "compiled",
+          manifestRowCount: 6,
+          manifestKeys: ["artifactStatus", "artifactType", "indexes", "privateCompilerNote", "rowCount"],
+          declaredIndexes: {
+            hasIndexes: true,
+            missingRequired: [],
+            totalRowCount: 6,
+            indexCount: 3,
+          },
+          activationPreflight: {
+            canActivate: true,
+            blockerCount: 0,
+            blockers: [],
+          },
+          hrefs: {
+            detailApi: "/api/mqchain/kv-builds/12",
+            detailPage: "/mqchain/kv-builds/12",
+            activeApi: "/api/mqchain/kv-builds/active",
+          },
+        },
+      ],
+      policy: {
+        queueContainsControlPlaneManifestsOnly: true,
+        externalWorkerOwnsArtifactStorage: true,
+        consoleOnlyTracksControlPlaneState: true,
+        rocksDbCompilationNotPerformedInVercel: true,
+        activationRequiresPreflightPass: true,
+      },
+    });
+    expect(payload.rows[0]).not.toHaveProperty("manifest");
+    expect(JSON.stringify(payload)).not.toContain("full manifest body should stay on detail endpoint");
+  });
+
+  it("serializes KV build registration responses as control-plane writes only", () => {
+    const payload = buildKvBuildRegistrationApiResponse({
+      build: {
+        id: 12,
+        buildHash: "hash-compiled",
+        dictionaryVersion: "dict-compiled",
+        status: "compiled",
+        rowCount: 6,
+        storageUri: "s3://mqchain/kv/hash-compiled",
+        manifest: {
+          artifactType: "jsonl-kv-preview",
+          artifactStatus: "compiled",
+          rowCount: 6,
+          privateCompilerNote: "full compiler note is only summarized here",
+          indexes: {
+            addressLabelCurrent: {
+              indexName: "address_label_current",
+              rowCount: 2,
+            },
+            addressLabelTimeline: {
+              indexName: "address_label_timeline",
+              rowCount: 3,
+            },
+            metricGroupMembership: {
+              indexName: "metric_group_membership",
+              rowCount: 1,
+            },
+          },
+        },
+        createdAt: new Date("2026-07-04T01:00:00.000Z"),
+        activatedAt: null,
+      },
+    });
+
+    expect(payload).toMatchObject({
+      ...KV_BUILD_REGISTRATION_API_CONTRACT,
+      mutationAllowed: true,
+      registryWriteAllowed: false,
+      kvArtifactWriteAllowed: false,
+      rocksDbCompiledInsideVercel: false,
+      build: {
+        id: 12,
+        buildHash: "hash-compiled",
+        dictionaryVersion: "dict-compiled",
+        status: "compiled",
+        artifactType: "jsonl-kv-preview",
+        activationPreflight: {
+          canActivate: true,
+          blockerCount: 0,
+        },
+      },
+      canonicalWrites: {
+        registryRowsCreated: 0,
+        labelsCreated: 0,
+        candidatesCreated: 0,
+      },
+      controlPlaneWrites: {
+        kvBuildsCreated: 1,
+        indexManifestsMayBeCreated: true,
+        indexShardsMayBeCreated: true,
+        metricGroupSnapshotsMayBeCreated: true,
+      },
+      nextActions: {
+        detailApi: "/api/mqchain/kv-builds/12",
+        detailPage: "/mqchain/kv-builds/12",
+      },
+      policy: {
+        externalWorkerOwnsArtifactStorage: true,
+        consoleRegistersManifestOnly: true,
+        rocksDbCompilationNotPerformedInVercel: true,
+        registryRowsRequireBatchCommitBeforeCompile: true,
+        kvArtifactRegistrationDoesNotCreateLabels: true,
+      },
+    });
+    expect(payload.build).not.toHaveProperty("manifest");
+    expect(JSON.stringify(payload)).not.toContain("full compiler note is only summarized here");
+  });
+
+  it("serializes KV build detail diagnostics without making Vercel the artifact compiler", () => {
+    const payload = buildKvBuildDetailApiResponse({
+      build: {
+        id: 12,
+        buildHash: "hash-compiled",
+        dictionaryVersion: "dict-compiled",
+        status: "compiled",
+        rowCount: 6,
+        storageUri: "s3://mqchain/kv/hash-compiled",
+        manifest: {
+          artifactType: "jsonl-kv-preview",
+          rowCount: 6,
+          indexes: {
+            addressLabelCurrent: {
+              indexName: "address_label_current",
+              rowCount: 2,
+              hash: "current-hash",
+              path: "current.jsonl",
+            },
+            addressLabelTimeline: {
+              indexName: "address_label_timeline",
+              rowCount: 3,
+              hash: "timeline-hash",
+              path: "timeline.jsonl",
+            },
+            metricGroupMembership: {
+              indexName: "metric_group_membership",
+              rowCount: 1,
+              hash: "metric-hash",
+              path: "metric.jsonl",
+            },
+          },
+        },
+        createdAt: new Date("2026-07-04T01:00:00.000Z"),
+        activatedAt: null,
+      },
+      indexManifests: [
+        {
+          id: 1,
+          indexName: "address_label_current",
+          dictionaryVersion: "dict-compiled",
+          status: "compiled",
+          rowCount: 2,
+          storageUri: "s3://mqchain/kv/current",
+          manifestHash: "current-hash",
+          lastCommittedBatchId: 10,
+          activatedAt: null,
+        },
+        {
+          id: 2,
+          indexName: "address_label_timeline",
+          dictionaryVersion: "dict-compiled",
+          status: "compiled",
+          rowCount: 3,
+          storageUri: "s3://mqchain/kv/timeline",
+          manifestHash: "timeline-hash",
+          lastCommittedBatchId: 10,
+          activatedAt: null,
+        },
+        {
+          id: 3,
+          indexName: "metric_group_membership",
+          dictionaryVersion: "dict-compiled",
+          status: "compiled",
+          rowCount: 1,
+          storageUri: "s3://mqchain/kv/metric",
+          manifestHash: "metric-hash",
+          lastCommittedBatchId: 10,
+          activatedAt: null,
+        },
+      ],
+      indexShards: [
+        {
+          manifestId: 1,
+          shardId: "current-00",
+          shardKey: "00",
+          shardHash: "current-shard",
+          storageUri: "s3://mqchain/kv/current-00",
+          rowCount: 2,
+        },
+      ],
+      membershipSnapshots: [
+        {
+          id: 4,
+          metricGroupId: 7,
+          metricGroupCode: "btc_cex_flow_boundary",
+          dictionaryVersion: "dict-compiled",
+          status: "compiled",
+          memberCount: 1,
+          manifestHash: "metric-hash",
+          activatedAt: null,
+        },
+      ],
+      membershipRows: [
+        {
+          id: 99,
+          snapshotId: 4,
+          registryId: 42,
+          chainCode: "btc",
+          normalizedAddress: "bc1qcanonical",
+          entityId: 7,
+          roleId: 1002,
+          confidenceScore: 95,
+          flags: 1,
+        },
+      ],
+    });
+
+    expect(payload).toMatchObject({
+      ...KV_BUILD_DETAIL_API_CONTRACT,
+      servingBackend: "external_kv_artifact",
+      rocksDbCompiledInsideVercel: false,
+      build: {
+        id: 12,
+        buildHash: "hash-compiled",
+        status: "compiled",
+        storageUri: "s3://mqchain/kv/hash-compiled",
+        activatedAt: null,
+      },
+      activationPreflight: {
+        canActivate: true,
+        blockers: [],
+      },
+      declaredIndexes: {
+        hasIndexes: true,
+        missingRequired: [],
+        totalRowCount: 6,
+      },
+      persistedIndexes: {
+        indexCount: 3,
+        shardCount: 1,
+        missingRequired: [],
+        rows: [
+          {
+            indexName: "address_label_current",
+            requiredKey: "addressLabelCurrent",
+            shardCount: 1,
+            shards: [{ shardId: "current-00", rowCount: 2 }],
+          },
+          {
+            indexName: "address_label_timeline",
+            requiredKey: "addressLabelTimeline",
+          },
+          {
+            indexName: "metric_group_membership",
+            requiredKey: "metricGroupMembership",
+          },
+        ],
+      },
+      metricGroupMembership: [
+        {
+          snapshotId: 4,
+          metricGroupCode: "btc_cex_flow_boundary",
+          persistedMemberRows: 1,
+          memberPreview: [
+            {
+              id: 99,
+              registryId: 42,
+              chainCode: "btc",
+              normalizedAddress: "bc1qcanonical",
+              confidenceScore: 95,
+            },
+          ],
+        },
+      ],
+      policy: {
+        externalWorkerOwnsArtifactStorage: true,
+        consoleOnlyTracksControlPlaneState: true,
+        rocksDbCompilationNotPerformedInVercel: true,
+        activationRequiresPreflightPass: true,
+        requiredServingIndexesPersisted: true,
       },
     });
   });

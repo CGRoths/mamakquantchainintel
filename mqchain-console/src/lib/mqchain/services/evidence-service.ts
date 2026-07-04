@@ -1,9 +1,20 @@
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
-import { mqAddressCandidates, mqAddressEvidence, mqAddressRegistry, mqApprovalEvents, mqAuditLog } from "@/db/schema";
+import {
+  mqAddressCandidates,
+  mqAddressEvidence,
+  mqAddressRegistry,
+  mqApprovalEvents,
+  mqAuditLog,
+  mqSourceDocuments,
+  mqSourceJobs,
+  mqSourceVerifications,
+  mqUsers,
+} from "@/db/schema";
 import { assertPermission } from "@/lib/auth/permissions";
 import { parseEvidencePayload, summarizeEvidencePayload } from "../evidence";
+import { parseEvidenceLedgerListFilters, type EvidenceLedgerListFilters } from "../list-filters";
 import { candidateEvidenceSchema, registryEvidenceSchema } from "../validators/evidence";
 import { hashJson } from "./service-utils";
 
@@ -16,6 +27,167 @@ export async function listEvidenceForCandidate(candidateId: number) {
 
 export async function listEvidenceForRegistry(registryId: number) {
   return getDb().select().from(mqAddressEvidence).where(eq(mqAddressEvidence.registryId, registryId)).orderBy(desc(mqAddressEvidence.createdAt));
+}
+
+function addCondition(conditions: SQL[], condition: SQL | undefined) {
+  if (condition) conditions.push(condition);
+}
+
+function evidenceOrderBy(sort: EvidenceLedgerListFilters["sort"]) {
+  if (sort === "type") return asc(mqAddressEvidence.evidenceType);
+  if (sort === "trust") return asc(mqAddressEvidence.trustTier);
+  return desc(mqAddressEvidence.createdAt);
+}
+
+function sourceVerificationOrderBy(sort: EvidenceLedgerListFilters["sort"]) {
+  if (sort === "type") return asc(mqSourceVerifications.verificationScope);
+  if (sort === "trust") return asc(mqSourceVerifications.sourceTrust);
+  return desc(mqSourceVerifications.createdAt);
+}
+
+function buildEvidenceConditions(filters: EvidenceLedgerListFilters) {
+  const conditions: SQL[] = [];
+
+  if (filters.q) {
+    addCondition(
+      conditions,
+      or(
+        ilike(mqAddressEvidence.summary, `%${filters.q}%`),
+        ilike(mqAddressEvidence.sourceUrl, `%${filters.q}%`),
+        ilike(mqAddressEvidence.evidenceHash, `%${filters.q}%`),
+        ilike(mqAddressEvidence.storageUri, `%${filters.q}%`),
+        ilike(mqAddressCandidates.normalizedAddress, `%${filters.q}%`),
+        ilike(mqAddressRegistry.normalizedAddress, `%${filters.q}%`),
+        ilike(mqSourceJobs.sourceName, `%${filters.q}%`),
+        ilike(mqSourceJobs.sourceUrl, `%${filters.q}%`),
+      ),
+    );
+  }
+
+  if (filters.evidenceType) conditions.push(eq(mqAddressEvidence.evidenceType, filters.evidenceType));
+  if (filters.trustTier) conditions.push(eq(mqAddressEvidence.trustTier, filters.trustTier));
+  if (filters.sourceType) conditions.push(eq(mqSourceJobs.sourceType, filters.sourceType));
+  if (filters.chain) addCondition(conditions, or(eq(mqAddressCandidates.chainCode, filters.chain), eq(mqAddressRegistry.chainCode, filters.chain)));
+  if (filters.candidateId) conditions.push(eq(mqAddressEvidence.candidateId, filters.candidateId));
+  if (filters.registryId) conditions.push(eq(mqAddressEvidence.registryId, filters.registryId));
+  if (filters.sourceJobId) conditions.push(eq(mqSourceJobs.id, filters.sourceJobId));
+  if (filters.sourceDocumentId) conditions.push(eq(mqAddressEvidence.sourceDocumentId, filters.sourceDocumentId));
+
+  return conditions.length ? and(...conditions) : sql`true`;
+}
+
+function buildSourceVerificationConditions(filters: EvidenceLedgerListFilters) {
+  const conditions: SQL[] = [];
+
+  if (filters.q) {
+    addCondition(
+      conditions,
+      or(
+        ilike(mqSourceVerifications.notes, `%${filters.q}%`),
+        ilike(mqSourceVerifications.sourceUrl, `%${filters.q}%`),
+        ilike(mqSourceVerifications.sourceSheet, `%${filters.q}%`),
+        ilike(mqAddressCandidates.normalizedAddress, `%${filters.q}%`),
+        ilike(mqSourceJobs.sourceName, `%${filters.q}%`),
+        ilike(mqSourceJobs.sourceUrl, `%${filters.q}%`),
+      ),
+    );
+  }
+
+  if (filters.sourceTrust) conditions.push(eq(mqSourceVerifications.sourceTrust, filters.sourceTrust));
+  if (filters.verificationStatus) conditions.push(eq(mqSourceVerifications.status, filters.verificationStatus));
+  if (filters.verificationScope) conditions.push(eq(mqSourceVerifications.verificationScope, filters.verificationScope));
+  if (filters.sourceType) conditions.push(eq(mqSourceJobs.sourceType, filters.sourceType));
+  if (filters.chain) conditions.push(eq(mqAddressCandidates.chainCode, filters.chain));
+  if (filters.candidateId) conditions.push(eq(mqSourceVerifications.candidateId, filters.candidateId));
+  if (filters.sourceJobId) conditions.push(eq(mqSourceVerifications.sourceJobId, filters.sourceJobId));
+  if (filters.sourceDocumentId) conditions.push(eq(mqSourceVerifications.sourceDocumentId, filters.sourceDocumentId));
+
+  return conditions.length ? and(...conditions) : sql`true`;
+}
+
+export async function listEvidenceLedger(input?: unknown) {
+  const filters = parseEvidenceLedgerListFilters(input ?? {});
+  const db = getDb();
+  const offset = (filters.page - 1) * filters.pageSize;
+  const evidenceWhere = buildEvidenceConditions(filters);
+  const verificationWhere = buildSourceVerificationConditions(filters);
+
+  const evidenceBase = db
+    .select({
+      evidence: mqAddressEvidence,
+      candidate: mqAddressCandidates,
+      registry: mqAddressRegistry,
+      sourceDocument: mqSourceDocuments,
+      sourceJob: mqSourceJobs,
+      creatorEmail: mqUsers.email,
+      creatorName: mqUsers.displayName,
+    })
+    .from(mqAddressEvidence)
+    .leftJoin(mqAddressCandidates, eq(mqAddressEvidence.candidateId, mqAddressCandidates.id))
+    .leftJoin(mqAddressRegistry, eq(mqAddressEvidence.registryId, mqAddressRegistry.id))
+    .leftJoin(mqSourceDocuments, eq(mqAddressEvidence.sourceDocumentId, mqSourceDocuments.id))
+    .leftJoin(
+      mqSourceJobs,
+      or(eq(mqAddressCandidates.sourceJobId, mqSourceJobs.id), eq(mqSourceDocuments.sourceJobId, mqSourceJobs.id)),
+    )
+    .leftJoin(mqUsers, eq(mqAddressEvidence.createdBy, mqUsers.id));
+
+  const verificationBase = db
+    .select({
+      verification: mqSourceVerifications,
+      candidate: mqAddressCandidates,
+      sourceDocument: mqSourceDocuments,
+      sourceJob: mqSourceJobs,
+      verifierEmail: mqUsers.email,
+      verifierName: mqUsers.displayName,
+    })
+    .from(mqSourceVerifications)
+    .leftJoin(mqAddressCandidates, eq(mqSourceVerifications.candidateId, mqAddressCandidates.id))
+    .leftJoin(mqSourceDocuments, eq(mqSourceVerifications.sourceDocumentId, mqSourceDocuments.id))
+    .leftJoin(mqSourceJobs, eq(mqSourceVerifications.sourceJobId, mqSourceJobs.id))
+    .leftJoin(mqUsers, eq(mqSourceVerifications.verifiedBy, mqUsers.id));
+
+  const [evidenceCount, verificationCount, evidenceRows, verificationRows] = await Promise.all([
+    db
+      .select({ total: sql<number>`count(distinct ${mqAddressEvidence.id})::int` })
+      .from(mqAddressEvidence)
+      .leftJoin(mqAddressCandidates, eq(mqAddressEvidence.candidateId, mqAddressCandidates.id))
+      .leftJoin(mqAddressRegistry, eq(mqAddressEvidence.registryId, mqAddressRegistry.id))
+      .leftJoin(mqSourceDocuments, eq(mqAddressEvidence.sourceDocumentId, mqSourceDocuments.id))
+      .leftJoin(
+        mqSourceJobs,
+        or(eq(mqAddressCandidates.sourceJobId, mqSourceJobs.id), eq(mqSourceDocuments.sourceJobId, mqSourceJobs.id)),
+      )
+      .where(evidenceWhere),
+    db
+      .select({ total: sql<number>`count(distinct ${mqSourceVerifications.id})::int` })
+      .from(mqSourceVerifications)
+      .leftJoin(mqAddressCandidates, eq(mqSourceVerifications.candidateId, mqAddressCandidates.id))
+      .leftJoin(mqSourceDocuments, eq(mqSourceVerifications.sourceDocumentId, mqSourceDocuments.id))
+      .leftJoin(mqSourceJobs, eq(mqSourceVerifications.sourceJobId, mqSourceJobs.id))
+      .where(verificationWhere),
+    evidenceBase.where(evidenceWhere).orderBy(evidenceOrderBy(filters.sort), desc(mqAddressEvidence.id)).limit(filters.pageSize).offset(offset),
+    verificationBase
+      .where(verificationWhere)
+      .orderBy(sourceVerificationOrderBy(filters.sort), desc(mqSourceVerifications.id))
+      .limit(filters.pageSize)
+      .offset(offset),
+  ]);
+
+  const evidenceTotal = evidenceCount[0]?.total ?? 0;
+  const verificationTotal = verificationCount[0]?.total ?? 0;
+
+  return {
+    evidenceRows,
+    sourceVerificationRows: verificationRows,
+    filters,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    evidenceTotal,
+    evidenceTotalPages: Math.max(1, Math.ceil(evidenceTotal / filters.pageSize)),
+    sourceVerificationTotal: verificationTotal,
+    sourceVerificationTotalPages: Math.max(1, Math.ceil(verificationTotal / filters.pageSize)),
+  };
 }
 
 export async function addCandidateEvidence(input: unknown) {

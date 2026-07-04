@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 import { assertPermission } from "@/lib/auth/permissions";
+import { readBoundedJsonBody, RequestBodyTooLargeError } from "@/lib/mqchain/api-json";
 import { buildCexFlowApiResponse, buildResolverApiResponse } from "@/lib/mqchain/resolver-api";
 import { classifyCexTransactionFlow } from "@/lib/mqchain/services/cex-flow-service";
 import { getAddressResolver } from "@/lib/mqchain/services/resolver-service";
@@ -75,12 +76,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const rawBody = await request.text();
-    if (Buffer.byteLength(rawBody, "utf8") > RESOLVER_API_MAX_BODY_BYTES) {
-      return errorResponse(`Request body exceeds ${RESOLVER_API_MAX_BODY_BYTES} bytes.`, 413);
-    }
-
-    const parsed = cexFlowApiRequestSchema.parse(JSON.parse(rawBody));
+    const parsed = cexFlowApiRequestSchema.parse(await readBoundedJsonBody(request, RESOLVER_API_MAX_BODY_BYTES));
     const blockNumber = typeof parsed.blockNumber === "number" ? parsed.blockNumber : null;
     const result = await classifyCexTransactionFlow({
       chainCode: parsed.chainCode,
@@ -109,6 +105,10 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof SyntaxError) {
       return errorResponse("Request body must be valid JSON.", 400);
+    }
+
+    if (error instanceof RequestBodyTooLargeError) {
+      return errorResponse(error.message, 413);
     }
 
     return errorResponse(error instanceof Error ? error.message : "CEX flow request failed.", 500);

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { QUALITY_TIER_MAX, QUALITY_TIER_MIN } from "../constants";
+
 export const discoveryJobSchema = z.object({
   discoveryType: z.string().trim().min(1),
   chainCode: z.string().trim().optional(),
@@ -17,7 +19,7 @@ export const discoveryResultRowSchema = z.object({
   evidence_type: z.string().trim().optional(),
   source_url: z.string().trim().url().optional().or(z.literal("")),
   confidence: z.coerce.number().int().min(0).max(100).optional(),
-  quality_tier: z.coerce.number().int().min(0).max(5).optional(),
+  quality_tier: z.coerce.number().int().min(QUALITY_TIER_MIN).max(QUALITY_TIER_MAX).optional(),
   first_seen_block: z.coerce.number().int().positive().optional().or(z.literal("")),
   last_seen_block: z.coerce.number().int().positive().optional().or(z.literal("")),
   summary: z.string().trim().optional(),

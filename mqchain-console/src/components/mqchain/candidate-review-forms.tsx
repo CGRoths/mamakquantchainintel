@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { QUALITY_TIER_MAX } from "@/lib/mqchain/constants";
 import { FlagBadges } from "./flag-badges";
 
 type CandidateAction = (previousState: CandidateMutationState, formData: FormData) => Promise<CandidateMutationState>;
@@ -247,7 +248,7 @@ export function CandidateReviewForms({
                   </div>
                   <div className="grid gap-2">
                     <Label>Quality</Label>
-                    <Input name="qualityTier" type="number" min="0" max="5" defaultValue={candidate.qualityTier} />
+                    <Input name="qualityTier" type="number" min="0" max={QUALITY_TIER_MAX} defaultValue={candidate.qualityTier} />
                     <FieldError error={fieldError("qualityTier")} />
                   </div>
                   <div className="grid gap-2">

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { QUALITY_TIER_MAX, QUALITY_TIER_MIN } from "../constants";
+
 export const dictionarySnapshotScopeSchema = z.enum(["active", "all"]).default("active");
 
 export const idSchema = z.object({
@@ -42,7 +44,7 @@ export const roleSchema = z.object({
   roleGroup: z.string().trim().optional(),
   metricUsageDefault: z.string().trim().optional(),
   boundaryClass: z.string().trim().optional(),
-  defaultQualityTier: z.coerce.number().int().min(0).max(5).default(1),
+  defaultQualityTier: z.coerce.number().int().min(QUALITY_TIER_MIN).max(QUALITY_TIER_MAX).default(1),
   defaultFlags: z.coerce.number().int().min(0).default(0),
   description: z.string().trim().optional(),
 });

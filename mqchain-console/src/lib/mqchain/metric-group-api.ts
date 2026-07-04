@@ -1,4 +1,6 @@
 import type { MetricGroupPreviewDiagnostics, MetricGroupPreviewGroup, MetricGroupPreviewRow } from "./metric-group-preview";
+import { metricGroupRuleSections } from "./metric-rules";
+import type { MetricGroupRule } from "./types";
 
 export const METRIC_GROUP_MEMBERSHIP_API_CONTRACT = {
   apiVersion: "mqchain-metric-group-membership-api-v1",
@@ -12,6 +14,54 @@ export const METRIC_GROUP_MEMBERSHIP_API_CONTRACT = {
   kvWriteAllowed: false,
   externalCompileRequired: true,
 } as const;
+
+export const METRIC_GROUP_LIST_API_CONTRACT = {
+  apiVersion: "mqchain-metric-group-list-api-v1",
+  sourceOfTruth: "postgres_dictionary_and_registry_rules",
+  servingBackend: "postgres",
+  artifactType: "metric_group_catalog_export",
+  artifactStatus: "preview_only",
+  mutationAllowed: false,
+  dictionaryWriteAllowed: false,
+  registryWriteAllowed: false,
+  kvWriteAllowed: false,
+  fullRuleJsonIncluded: false,
+  externalCompileRequired: true,
+  postgresIsCanonicalTruth: true,
+  rocksDbIsCompiledArtifact: true,
+} as const;
+
+type JsonRecord = Record<string, unknown>;
+
+type MetricGroupListRow = {
+  id: number;
+  metricGroupCode: string;
+  metricGroupName: string;
+  chainCode: string | null;
+  minConfidence: number;
+  requireMetricEligible: boolean;
+  description: string | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  rules: Array<{
+    id: number;
+    metricGroupId: number | null;
+    ruleJson: JsonRecord;
+    createdAt: Date;
+  }>;
+};
+
+export type MetricGroupListApiInput = {
+  query: {
+    page: number;
+    pageSize: number;
+    filters: Record<string, unknown>;
+  };
+  rows: MetricGroupListRow[];
+  total: number;
+  totalPages: number;
+};
 
 export type MetricGroupMembershipApiInput = {
   query: {
@@ -27,6 +77,10 @@ export type MetricGroupMembershipApiInput = {
   manifest: Record<string, unknown>;
   kvManifest: Record<string, unknown>;
 };
+
+function isoDate(value: Date | null | undefined) {
+  return value ? value.toISOString() : null;
+}
 
 function pageSlice<T>(rows: T[], page: number, pageSize: number) {
   const offset = (page - 1) * pageSize;
@@ -132,6 +186,61 @@ export function buildMetricGroupMembershipCsv(input: MetricGroupMembershipApiInp
   ]);
 
   return [headers, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
+}
+
+function serializeMetricGroupListRow(group: MetricGroupListRow) {
+  return {
+    id: group.id,
+    code: group.metricGroupCode,
+    name: group.metricGroupName,
+    chainCode: group.chainCode,
+    minConfidence: group.minConfidence,
+    requireMetricEligible: group.requireMetricEligible,
+    description: group.description,
+    isActive: group.isActive,
+    ruleCount: group.rules.length,
+    rules: group.rules.map((rule) => {
+      const ruleJson = rule.ruleJson as MetricGroupRule;
+
+      return {
+        id: rule.id,
+        metricGroupId: rule.metricGroupId,
+        ruleKeys: Object.keys(rule.ruleJson).sort((left, right) => left.localeCompare(right)),
+        sections: metricGroupRuleSections(ruleJson),
+        createdAt: isoDate(rule.createdAt),
+      };
+    }),
+    createdAt: isoDate(group.createdAt),
+    updatedAt: isoDate(group.updatedAt),
+    hrefs: {
+      membersApi: `/api/mqchain/metric-groups/${encodeURIComponent(group.metricGroupCode)}/members`,
+      membersCsv: `/api/mqchain/metric-groups/${encodeURIComponent(group.metricGroupCode)}/members?format=csv`,
+      page: `/mqchain/metric-groups?group=${encodeURIComponent(group.metricGroupCode)}`,
+    },
+  };
+}
+
+export function buildMetricGroupListApiResponse(input: MetricGroupListApiInput) {
+  return {
+    ...METRIC_GROUP_LIST_API_CONTRACT,
+    query: input.query,
+    pagination: {
+      totalRows: input.total,
+      page: input.query.page,
+      pageSize: input.query.pageSize,
+      totalPages: input.totalPages,
+      returnedRows: input.rows.length,
+    },
+    rows: input.rows.map(serializeMetricGroupListRow),
+    policy: {
+      catalogOnly: true,
+      membershipRowsLiveOnMembersEndpoint: true,
+      rulesAreOperatorMaintainedDictionaryState: true,
+      previewDoesNotWriteRegistryOrKv: true,
+      externalWorkerMustCompileKvArtifact: true,
+      fullRuleJsonExcludedByDefault: true,
+    },
+  };
 }
 
 export function buildMetricGroupMembershipApiResponse(input: MetricGroupMembershipApiInput) {

@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CSV_UPLOAD_MAX_BYTES } from "@/lib/mqchain/csv-upload";
+import { QUALITY_TIER_MAX } from "@/lib/mqchain/constants";
 
 type IntakeAction = (previousState: IntakeActionState, formData: FormData) => Promise<IntakeActionState>;
 
@@ -127,7 +128,7 @@ export function ManualIntakeForm() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="manual-quality">Quality tier</Label>
-              <Input id="manual-quality" name="qualityTier" type="number" min="0" max="5" defaultValue="1" />
+              <Input id="manual-quality" name="qualityTier" type="number" min="0" max={QUALITY_TIER_MAX} defaultValue="1" />
               <FieldError error={fieldError("qualityTier")} />
             </div>
           </div>
@@ -267,7 +268,7 @@ export function UrlIntakeForm() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="url-quality">Quality tier</Label>
-              <Input id="url-quality" name="qualityTier" type="number" min="0" max="5" defaultValue="2" />
+              <Input id="url-quality" name="qualityTier" type="number" min="0" max={QUALITY_TIER_MAX} defaultValue="2" />
               <FieldError error={fieldError("qualityTier")} />
             </div>
           </div>
@@ -332,7 +333,7 @@ export function JsonEvidenceIntakeForm() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="json-quality">Quality tier</Label>
-              <Input id="json-quality" name="qualityTier" type="number" min="0" max="5" defaultValue="1" />
+              <Input id="json-quality" name="qualityTier" type="number" min="0" max={QUALITY_TIER_MAX} defaultValue="1" />
               <FieldError error={fieldError("qualityTier")} />
             </div>
           </div>
@@ -420,7 +421,7 @@ export function DeploymentSourceIntakeForm() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="deployment-quality">Quality tier</Label>
-              <Input id="deployment-quality" name="qualityTier" type="number" min="0" max="5" defaultValue="2" />
+              <Input id="deployment-quality" name="qualityTier" type="number" min="0" max={QUALITY_TIER_MAX} defaultValue="2" />
               <FieldError error={fieldError("qualityTier")} />
             </div>
           </div>

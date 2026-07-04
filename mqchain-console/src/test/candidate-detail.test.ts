@@ -4,6 +4,7 @@ import {
   buildCandidateSourceVerificationContext,
   buildCandidateTraceWarnings,
   extractCandidateSourceSheetNames,
+  extractCandidateSourceUrls,
   isCandidateSourceVerificationSatisfied,
 } from "@/lib/mqchain/candidate-detail";
 
@@ -53,6 +54,20 @@ describe("candidate detail trace warnings", () => {
         },
       }),
     ).toEqual(["BTC", "Ethereum"]);
+  });
+
+  it("extracts source URLs from explicit candidate provenance fields only", () => {
+    expect(
+      extractCandidateSourceUrls({
+        sourceUrl: "https://docs.example.org/deployments",
+        rawReference: {
+          source_evidence: {
+            source_url: "https://docs.example.org/deployments#router",
+            sheet_profiles: [{ sheet_name: "Ethereum" }],
+          },
+        },
+      }),
+    ).toEqual(["https://docs.example.org/deployments", "https://docs.example.org/deployments#router"]);
   });
 
   it("does not let source-job verification satisfy sheet-scoped candidates", () => {
@@ -147,6 +162,65 @@ describe("candidate detail trace warnings", () => {
       status: "candidate_verified",
       hasVerifiedCandidate: true,
       matchingVerifiedCount: 1,
+    });
+  });
+
+  it("requires source-url verification to match the candidate source URL", () => {
+    const candidate = {
+      id: 31,
+      sourceJobId: 12,
+      sourceDocumentId: 13,
+      metadata: {
+        sourceUrl: "https://docs.example.org/deployments#router",
+      },
+    };
+    const createdAt = new Date("2026-07-04T01:00:00.000Z");
+
+    const mismatchContext = buildCandidateSourceVerificationContext({
+      candidate,
+      verifications: [
+        {
+          id: 4,
+          sourceJobId: 12,
+          sourceDocumentId: null,
+          candidateId: null,
+          verificationScope: "source_url",
+          sourceUrl: "https://docs.example.org/deployments#treasury",
+          sourceTrust: "official",
+          status: "verified",
+          createdAt,
+        },
+      ],
+    });
+
+    expect(mismatchContext).toMatchObject({
+      sourceUrls: ["https://docs.example.org/deployments#router"],
+      hasVerifiedSourceUrl: false,
+      matchingVerifiedCount: 0,
+      status: "source_verification_missing",
+    });
+
+    const matchedContext = buildCandidateSourceVerificationContext({
+      candidate,
+      verifications: [
+        {
+          id: 5,
+          sourceJobId: 12,
+          sourceDocumentId: null,
+          candidateId: null,
+          verificationScope: "source_url",
+          sourceUrl: "https://docs.example.org/deployments#router",
+          sourceTrust: "official",
+          status: "verified",
+          createdAt,
+        },
+      ],
+    });
+
+    expect(matchedContext).toMatchObject({
+      hasVerifiedSourceUrl: true,
+      matchingVerifiedCount: 1,
+      status: "source_url_verified",
     });
   });
 

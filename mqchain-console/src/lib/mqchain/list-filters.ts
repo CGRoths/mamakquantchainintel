@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { QUALITY_TIER_MAX, QUALITY_TIER_MIN } from "./constants";
+
 function optionalText() {
   return z.preprocess(
     (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
@@ -13,6 +15,15 @@ function optionalInt() {
     z.coerce.number().int().optional(),
   );
 }
+
+function optionalRangedInt(min: number, max: number) {
+  return z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.coerce.number().int().min(min).max(max).optional(),
+  );
+}
+
+const optionalQualityTier = () => optionalRangedInt(QUALITY_TIER_MIN, QUALITY_TIER_MAX);
 
 const pageSchema = z.preprocess(
   (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
@@ -36,7 +47,7 @@ export const candidateListFilterSchema = z.object({
   conflicts: z.enum(["true", "false"]).optional(),
   minConfidence: optionalInt(),
   maxConfidence: optionalInt(),
-  qualityTier: optionalInt(),
+  qualityTier: optionalQualityTier(),
   sort: z.enum(["created_at", "confidence", "evidence_count"]).default("created_at"),
   page: pageSchema,
   pageSize: pageSizeSchema,
@@ -53,7 +64,7 @@ export const registryListFilterSchema = z.object({
   active: z.enum(["active", "inactive", "historical", "all"]).default("active"),
   minConfidence: optionalInt(),
   maxConfidence: optionalInt(),
-  qualityTier: optionalInt(),
+  qualityTier: optionalQualityTier(),
   sourceBatch: optionalInt(),
   conflicts: z.enum(["true", "false"]).optional(),
   sort: z.enum(["created_at", "confidence", "quality", "address"]).default("created_at"),
@@ -69,6 +80,24 @@ export const sourceJobListFilterSchema = z.object({
   protocol: optionalText(),
   chain: optionalText(),
   sort: z.enum(["created_at", "updated_at", "source_type", "status"]).default("created_at"),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
+export const evidenceLedgerListFilterSchema = z.object({
+  q: optionalText(),
+  evidenceType: optionalText(),
+  trustTier: optionalText(),
+  sourceTrust: optionalText(),
+  verificationStatus: optionalText(),
+  verificationScope: optionalText(),
+  sourceType: optionalText(),
+  chain: optionalText(),
+  candidateId: optionalInt(),
+  registryId: optionalInt(),
+  sourceJobId: optionalInt(),
+  sourceDocumentId: optionalInt(),
+  sort: z.enum(["created_at", "type", "trust"]).default("created_at"),
   page: pageSchema,
   pageSize: pageSizeSchema,
 });
@@ -148,7 +177,7 @@ export const reviewQueueListFilterSchema = z.object({
   discoveryType: optionalText(),
   minConfidence: optionalInt(),
   maxConfidence: optionalInt(),
-  qualityTier: optionalInt(),
+  qualityTier: optionalQualityTier(),
   sort: z.enum(["created_at", "confidence", "evidence_count"]).default("confidence"),
   page: pageSchema,
   approvedPage: pageSchema,
@@ -173,6 +202,15 @@ export const entityDictionaryListFilterSchema = z.object({
   category: optionalText(),
   active: z.enum(["active", "inactive", "all"]).default("active"),
   sort: z.enum(["name", "code", "type", "created_at", "updated_at"]).default("name"),
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+});
+
+export const dictionaryVersionListFilterSchema = z.object({
+  q: optionalText(),
+  reason: optionalText(),
+  actor: optionalText(),
+  sort: z.enum(["created_at", "hash", "reason"]).default("created_at"),
   page: pageSchema,
   pageSize: pageSizeSchema,
 });
@@ -204,8 +242,8 @@ export const roleDictionaryListFilterSchema = z.object({
   roleGroup: optionalText(),
   metricUsage: optionalText(),
   boundary: optionalText(),
-  minQuality: optionalInt(),
-  maxQuality: optionalInt(),
+  minQuality: optionalQualityTier(),
+  maxQuality: optionalQualityTier(),
   active: z.enum(["active", "inactive", "all"]).default("active"),
   sort: z.enum(["id", "code", "name", "group", "quality", "created_at", "updated_at"]).default("id"),
   page: pageSchema,
@@ -230,6 +268,7 @@ export const keyPrefixDictionaryListFilterSchema = z.object({
 export type CandidateListFilters = z.infer<typeof candidateListFilterSchema>;
 export type RegistryListFilters = z.infer<typeof registryListFilterSchema>;
 export type SourceJobListFilters = z.infer<typeof sourceJobListFilterSchema>;
+export type EvidenceLedgerListFilters = z.infer<typeof evidenceLedgerListFilterSchema>;
 export type AuditListFilters = z.infer<typeof auditListFilterSchema>;
 export type BatchListFilters = z.infer<typeof batchListFilterSchema>;
 export type KvBuildListFilters = z.infer<typeof kvBuildListFilterSchema>;
@@ -238,6 +277,7 @@ export type ReviewGroupListFilters = z.infer<typeof reviewGroupListFilterSchema>
 export type ReviewQueueListFilters = z.infer<typeof reviewQueueListFilterSchema>;
 export type MetricGroupListFilters = z.infer<typeof metricGroupListFilterSchema>;
 export type EntityDictionaryListFilters = z.infer<typeof entityDictionaryListFilterSchema>;
+export type DictionaryVersionListFilters = z.infer<typeof dictionaryVersionListFilterSchema>;
 export type CategoryDictionaryListFilters = z.infer<typeof categoryDictionaryListFilterSchema>;
 export type ProtocolDictionaryListFilters = z.infer<typeof protocolDictionaryListFilterSchema>;
 export type RoleDictionaryListFilters = z.infer<typeof roleDictionaryListFilterSchema>;
@@ -253,6 +293,10 @@ export function parseRegistryListFilters(input: unknown) {
 
 export function parseSourceJobListFilters(input: unknown) {
   return sourceJobListFilterSchema.parse(input);
+}
+
+export function parseEvidenceLedgerListFilters(input: unknown) {
+  return evidenceLedgerListFilterSchema.parse(input);
 }
 
 export function parseAuditListFilters(input: unknown) {
@@ -285,6 +329,10 @@ export function parseMetricGroupListFilters(input: unknown) {
 
 export function parseEntityDictionaryListFilters(input: unknown) {
   return entityDictionaryListFilterSchema.parse(input);
+}
+
+export function parseDictionaryVersionListFilters(input: unknown) {
+  return dictionaryVersionListFilterSchema.parse(input);
 }
 
 export function parseCategoryDictionaryListFilters(input: unknown) {

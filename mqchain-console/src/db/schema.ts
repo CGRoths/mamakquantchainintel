@@ -1,7 +1,9 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   bigserial,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -13,16 +15,38 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const mqUsers = pgTable("mq_users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  email: text("email").notNull().unique(),
-  displayName: text("display_name"),
-  passwordHash: text("password_hash"),
-  role: text("role").notNull().default("analyst"),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+import {
+  BATCH_LABEL_ACTIONS,
+  BATCH_STATUSES,
+  CANDIDATE_STATUSES,
+  DISCOVERY_JOB_STATUSES,
+  KV_ARTIFACT_STATUSES,
+  MQCHAIN_ROLES,
+  SOURCE_JOB_STATUSES,
+  SOURCE_TYPES,
+  SOURCE_VERIFICATION_SCOPES,
+  SOURCE_VERIFICATION_STATUSES,
+  TRUST_TIERS,
+} from "@/lib/mqchain/constants";
+
+function sqlStringList(values: readonly string[]) {
+  return sql.raw(values.map((value) => `'${value.replace(/'/g, "''")}'`).join(", "));
+}
+
+export const mqUsers = pgTable(
+  "mq_users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    email: text("email").notNull().unique(),
+    displayName: text("display_name"),
+    passwordHash: text("password_hash"),
+    role: text("role").notNull().default("analyst"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("ck_mq_users_role", sql`${table.role} in (${sqlStringList(MQCHAIN_ROLES)})`)],
+);
 
 export const mqSourceJobs = pgTable(
   "mq_source_jobs",
@@ -48,6 +72,14 @@ export const mqSourceJobs = pgTable(
     index("idx_mq_source_jobs_source_type").on(table.sourceType),
     index("idx_mq_source_jobs_status").on(table.status),
     index("idx_mq_source_jobs_submitted_by").on(table.submittedBy),
+    check(
+      "ck_mq_source_jobs_source_type",
+      sql`${table.sourceType} in (${sqlStringList(SOURCE_TYPES)})`,
+    ),
+    check(
+      "ck_mq_source_jobs_status",
+      sql`${table.status} in (${sqlStringList(SOURCE_JOB_STATUSES)})`,
+    ),
   ],
 );
 
@@ -148,6 +180,8 @@ export const mqKvKeyPrefixDict = pgTable(
   (table) => [
     index("idx_mq_prefix_chain").on(table.chainCode),
     uniqueIndex("uq_mq_prefix_chain_family").on(table.chainCode, table.addressFamily),
+    check("ck_mq_kv_key_prefix_payload_len_positive", sql`${table.payloadLen} is null or ${table.payloadLen} > 0`),
+    check("ck_mq_kv_key_prefix_evm_chain_id_positive", sql`${table.evmChainId} is null or ${table.evmChainId} > 0`),
   ],
 );
 
@@ -171,6 +205,8 @@ export const mqKvRoleDict = pgTable(
   (table) => [
     index("idx_mq_roles_category").on(table.categoryId),
     index("idx_mq_roles_group").on(table.roleGroup),
+    check("ck_mq_kv_role_default_quality_tier_range", sql`${table.defaultQualityTier} between 0 and 7`),
+    check("ck_mq_kv_role_default_flags_non_negative", sql`${table.defaultFlags} >= 0`),
   ],
 );
 
@@ -196,6 +232,11 @@ export const mqDiscoveryJobs = pgTable(
   (table) => [
     index("idx_mq_discovery_jobs_type").on(table.discoveryType),
     index("idx_mq_discovery_jobs_status").on(table.status),
+    check("ck_mq_discovery_jobs_status", sql`${table.status} in (${sqlStringList(DISCOVERY_JOB_STATUSES)})`),
+    check(
+      "ck_mq_discovery_jobs_counts_non_negative",
+      sql`${table.candidatesCreated} >= 0 and ${table.evidenceCreated} >= 0`,
+    ),
   ],
 );
 
@@ -236,6 +277,13 @@ export const mqAddressCandidates = pgTable(
     index("idx_mq_candidates_source_job").on(table.sourceJobId),
     index("idx_mq_candidates_entity").on(table.suggestedEntityId),
     index("idx_mq_candidates_role").on(table.suggestedRoleId),
+    check("ck_mq_address_candidates_confidence_range", sql`${table.confidenceScore} between 0 and 100`),
+    check("ck_mq_address_candidates_quality_tier_range", sql`${table.qualityTier} between 0 and 7`),
+    check(
+      "ck_mq_address_candidates_status",
+      sql`${table.candidateStatus} in (${sqlStringList(CANDIDATE_STATUSES)})`,
+    ),
+    check("ck_mq_address_candidates_evidence_count_non_negative", sql`${table.evidenceCount} >= 0`),
   ],
 );
 
@@ -280,6 +328,30 @@ export const mqLabelBatches = pgTable(
     index("idx_mq_batches_status").on(table.status),
     index("idx_mq_batches_source_job").on(table.sourceJobId),
     index("idx_mq_batches_entity").on(table.entityId),
+    check(
+      "ck_mq_label_batches_confidence_default_range",
+      sql`${table.confidenceDefault} is null or ${table.confidenceDefault} between 0 and 100`,
+    ),
+    check(
+      "ck_mq_label_batches_quality_tier_default_range",
+      sql`${table.qualityTierDefault} is null or ${table.qualityTierDefault} between 0 and 7`,
+    ),
+    check(
+      "ck_mq_label_batches_status_default_range",
+      sql`${table.statusDefault} is null or ${table.statusDefault} between 0 and 9`,
+    ),
+    check(
+      "ck_mq_label_batches_counts_non_negative",
+      sql`${table.importedCount} >= 0 and ${table.acceptedCount} >= 0 and ${table.rejectedCount} >= 0 and ${table.conflictCount} >= 0`,
+    ),
+    check(
+      "ck_mq_label_batches_label_action",
+      sql`${table.labelAction} in (${sqlStringList(BATCH_LABEL_ACTIONS)})`,
+    ),
+    check(
+      "ck_mq_label_batches_status",
+      sql`${table.status} in (${sqlStringList(BATCH_STATUSES)})`,
+    ),
   ],
 );
 
@@ -337,6 +409,19 @@ export const mqAddressRegistry = pgTable(
     index("idx_mq_registry_protocol").on(table.protocolId),
     index("idx_mq_registry_role").on(table.roleId),
     index("idx_mq_registry_active").on(table.isActive),
+    check("ck_mq_address_registry_confidence_range", sql`${table.confidenceScore} between 0 and 100`),
+    check("ck_mq_address_registry_label_status_range", sql`${table.labelStatus} between 0 and 9`),
+    check("ck_mq_address_registry_quality_tier_range", sql`${table.qualityTier} between 0 and 7`),
+    check("ck_mq_address_registry_flags_non_negative", sql`${table.flags} >= 0`),
+    check(
+      "ck_mq_address_registry_block_ranges",
+      sql`(${table.validFromBlock} is null or ${table.validFromBlock} > 0)
+        and (${table.validToBlock} is null or ${table.validToBlock} > 0)
+        and (${table.firstSeenBlock} is null or ${table.firstSeenBlock} > 0)
+        and (${table.lastSeenBlock} is null or ${table.lastSeenBlock} > 0)
+        and (${table.validFromBlock} is null or ${table.validToBlock} is null or ${table.validToBlock} >= ${table.validFromBlock})
+        and (${table.firstSeenBlock} is null or ${table.lastSeenBlock} is null or ${table.lastSeenBlock} >= ${table.firstSeenBlock})`,
+    ),
   ],
 );
 
@@ -364,6 +449,11 @@ export const mqAddressEvidence = pgTable(
     index("idx_mq_evidence_registry").on(table.registryId),
     index("idx_mq_evidence_batch").on(table.batchId),
     index("idx_mq_evidence_type").on(table.evidenceType),
+    check("ck_mq_address_evidence_confidence_delta_range", sql`${table.confidenceDelta} between -100 and 100`),
+    check(
+      "ck_mq_address_evidence_trust_tier",
+      sql`${table.trustTier} in (${sqlStringList(TRUST_TIERS)})`,
+    ),
   ],
 );
 
@@ -390,6 +480,15 @@ export const mqSourceVerifications = pgTable(
     index("idx_mq_source_verifications_candidate").on(table.candidateId),
     index("idx_mq_source_verifications_scope").on(table.verificationScope),
     index("idx_mq_source_verifications_trust").on(table.sourceTrust),
+    check(
+      "ck_mq_source_verifications_scope",
+      sql`${table.verificationScope} in (${sqlStringList(SOURCE_VERIFICATION_SCOPES)})`,
+    ),
+    check(
+      "ck_mq_source_verifications_trust",
+      sql`${table.sourceTrust} in (${sqlStringList(TRUST_TIERS)})`,
+    ),
+    check("ck_mq_source_verifications_status", sql`${table.status} in (${sqlStringList(SOURCE_VERIFICATION_STATUSES)})`),
   ],
 );
 
@@ -465,7 +564,10 @@ export const mqMetricGroups = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("idx_mq_metric_groups_chain").on(table.chainCode)],
+  (table) => [
+    index("idx_mq_metric_groups_chain").on(table.chainCode),
+    check("ck_mq_metric_groups_min_confidence_range", sql`${table.minConfidence} between 0 and 100`),
+  ],
 );
 
 export const mqMetricGroupRules = pgTable(
@@ -493,7 +595,11 @@ export const mqKvBuilds = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     activatedAt: timestamp("activated_at", { withTimezone: true }),
   },
-  (table) => [index("idx_mq_kv_builds_status").on(table.status)],
+  (table) => [
+    index("idx_mq_kv_builds_status").on(table.status),
+    check("ck_mq_kv_builds_status", sql`${table.status} in (${sqlStringList(KV_ARTIFACT_STATUSES)})`),
+    check("ck_mq_kv_builds_row_count_non_negative", sql`${table.rowCount} >= 0`),
+  ],
 );
 
 export const mqMetricGroupMembershipSnapshots = pgTable(
@@ -516,6 +622,11 @@ export const mqMetricGroupMembershipSnapshots = pgTable(
     index("idx_mq_metric_member_snapshot_group").on(table.metricGroupId),
     index("idx_mq_metric_member_snapshot_build").on(table.kvBuildId),
     index("idx_mq_metric_member_snapshot_status").on(table.status),
+    check(
+      "ck_mq_metric_group_membership_snapshots_status",
+      sql`${table.status} in (${sqlStringList(KV_ARTIFACT_STATUSES)})`,
+    ),
+    check("ck_mq_metric_group_membership_snapshots_member_count_non_negative", sql`${table.memberCount} >= 0`),
   ],
 );
 
@@ -540,6 +651,8 @@ export const mqMetricGroupMembers = pgTable(
     index("idx_mq_metric_group_members_group").on(table.metricGroupId),
     index("idx_mq_metric_group_members_registry").on(table.registryId),
     index("idx_mq_metric_group_members_address").on(table.chainCode, table.normalizedAddress),
+    check("ck_mq_metric_group_members_confidence_range", sql`${table.confidenceScore} between 0 and 100`),
+    check("ck_mq_metric_group_members_flags_non_negative", sql`${table.flags} >= 0`),
   ],
 );
 
@@ -565,6 +678,11 @@ export const mqKvIndexManifests = pgTable(
     index("idx_mq_kv_index_manifest_index").on(table.indexName),
     index("idx_mq_kv_index_manifest_status").on(table.status),
     index("idx_mq_kv_index_manifest_batch").on(table.lastCommittedBatchId),
+    check(
+      "ck_mq_kv_index_manifest_status",
+      sql`${table.status} in (${sqlStringList(KV_ARTIFACT_STATUSES)})`,
+    ),
+    check("ck_mq_kv_index_manifest_row_count_non_negative", sql`${table.rowCount} >= 0`),
   ],
 );
 
@@ -585,6 +703,7 @@ export const mqKvIndexShards = pgTable(
     uniqueIndex("uq_mq_kv_index_shards_manifest_shard").on(table.manifestId, table.shardId),
     index("idx_mq_kv_index_shards_manifest").on(table.manifestId),
     index("idx_mq_kv_index_shards_key").on(table.shardKey),
+    check("ck_mq_kv_index_shards_row_count_non_negative", sql`${table.rowCount} >= 0`),
   ],
 );
 

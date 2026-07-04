@@ -36,6 +36,7 @@ export type CandidateSourceVerificationInput = {
 
 export type CandidateSourceVerificationContext = {
   sheetNames: string[];
+  sourceUrls: string[];
   sheetVerificationRequired: boolean;
   hasVerifiedSourceJob: boolean;
   hasVerifiedSourceDocument: boolean;
@@ -61,6 +62,15 @@ function cleanString(value: unknown) {
 }
 
 function addSheetName(values: Set<string>, value: unknown) {
+  const clean = cleanString(value);
+  if (clean) values.add(clean);
+}
+
+function addSourceUrl(values: Set<string>, value: unknown) {
+  if (Array.isArray(value)) {
+    for (const item of value) addSourceUrl(values, item);
+    return;
+  }
   const clean = cleanString(value);
   if (clean) values.add(clean);
 }
@@ -91,15 +101,45 @@ function collectSheetNames(value: unknown, values = new Set<string>()) {
   return values;
 }
 
+function collectSourceUrls(value: unknown, values = new Set<string>()) {
+  if (!value || typeof value !== "object") return values;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (typeof item === "object") {
+        collectSourceUrls(item, values);
+      }
+    }
+    return values;
+  }
+
+  for (const [key, item] of Object.entries(value)) {
+    if (["sourceUrl", "source_url", "url", "source", "href"].includes(key)) {
+      addSourceUrl(values, item);
+    }
+    if (key === "source_evidence" || key === "sourceEvidence" || key === "rawReference" || key === "metadata") {
+      collectSourceUrls(item, values);
+    }
+  }
+
+  return values;
+}
+
 export function extractCandidateSourceSheetNames(metadata: JsonRecord | null | undefined) {
   return Array.from(collectSheetNames(metadata).values()).sort((left, right) => left.localeCompare(right));
+}
+
+export function extractCandidateSourceUrls(metadata: JsonRecord | null | undefined) {
+  return Array.from(collectSourceUrls(metadata).values()).sort((left, right) => left.localeCompare(right));
 }
 
 export function buildCandidateSourceVerificationContext(
   input: CandidateSourceVerificationInput,
 ): CandidateSourceVerificationContext {
   const sheetNames = extractCandidateSourceSheetNames(input.candidate.metadata);
+  const sourceUrls = extractCandidateSourceUrls(input.candidate.metadata);
   const matchingSheets = new Set(sheetNames.map((sheet) => sheet.toLowerCase()));
+  const matchingSourceUrls = new Set(sourceUrls);
   const verified = input.verifications.filter((verification) => verification.status === "verified");
 
   const hasVerifiedCandidate = verified.some((verification) => verification.candidateId === input.candidate.id);
@@ -112,7 +152,10 @@ export function buildCandidateSourceVerificationContext(
     return verification.verificationScope === "source_sheet" && Boolean(sheet && matchingSheets.has(sheet));
   });
   const hasVerifiedSourceUrl = verified.some(
-    (verification) => verification.verificationScope === "source_url" && verification.sourceJobId === input.candidate.sourceJobId,
+    (verification) =>
+      verification.verificationScope === "source_url" &&
+      verification.sourceJobId === input.candidate.sourceJobId &&
+      Boolean(verification.sourceUrl && matchingSourceUrls.has(verification.sourceUrl)),
   );
   const hasVerifiedSourceJob = verified.some(
     (verification) => verification.verificationScope === "source_job" && verification.sourceJobId === input.candidate.sourceJobId,
@@ -124,12 +167,16 @@ export function buildCandidateSourceVerificationContext(
       const sheet = verification.sourceSheet?.trim().toLowerCase();
       return Boolean(sheet && matchingSheets.has(sheet));
     }
+    if (verification.verificationScope === "source_url") {
+      return Boolean(verification.sourceJobId === input.candidate.sourceJobId && verification.sourceUrl && matchingSourceUrls.has(verification.sourceUrl));
+    }
     return verification.sourceJobId === input.candidate.sourceJobId;
   }).length;
 
   if (hasVerifiedCandidate) {
     return {
       sheetNames,
+      sourceUrls,
       sheetVerificationRequired: sheetNames.length > 0,
       hasVerifiedSourceJob,
       hasVerifiedSourceDocument,
@@ -145,6 +192,7 @@ export function buildCandidateSourceVerificationContext(
   if (sheetNames.length > 0) {
     return {
       sheetNames,
+      sourceUrls,
       sheetVerificationRequired: true,
       hasVerifiedSourceJob,
       hasVerifiedSourceDocument,
@@ -162,6 +210,7 @@ export function buildCandidateSourceVerificationContext(
   if (hasVerifiedSourceDocument) {
     return {
       sheetNames,
+      sourceUrls,
       sheetVerificationRequired: false,
       hasVerifiedSourceJob,
       hasVerifiedSourceDocument,
@@ -177,6 +226,7 @@ export function buildCandidateSourceVerificationContext(
   if (hasVerifiedSourceJob) {
     return {
       sheetNames,
+      sourceUrls,
       sheetVerificationRequired: false,
       hasVerifiedSourceJob,
       hasVerifiedSourceDocument,
@@ -192,6 +242,7 @@ export function buildCandidateSourceVerificationContext(
   if (hasVerifiedSourceUrl) {
     return {
       sheetNames,
+      sourceUrls,
       sheetVerificationRequired: false,
       hasVerifiedSourceJob,
       hasVerifiedSourceDocument,
@@ -200,12 +251,13 @@ export function buildCandidateSourceVerificationContext(
       hasVerifiedSourceUrl,
       matchingVerifiedCount,
       status: "source_url_verified",
-      message: "Source-URL verification covers this candidate's source job.",
+      message: "Source-URL verification matches this candidate's source URL.",
     };
   }
 
   return {
     sheetNames,
+    sourceUrls,
     sheetVerificationRequired: false,
     hasVerifiedSourceJob,
     hasVerifiedSourceDocument,

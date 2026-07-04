@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { QUALITY_TIER_MAX } from "@/lib/mqchain/constants";
 import { FlagBadges } from "./flag-badges";
 import { StatusBadge } from "./status-badge";
 
@@ -211,7 +212,7 @@ export function RegistryDetailForms({
                     </div>
                     <div className="grid gap-2">
                       <Label>Quality</Label>
-                      <Input name="qualityTier" type="number" min="0" max="5" defaultValue={registry.qualityTier} />
+                      <Input name="qualityTier" type="number" min="0" max={QUALITY_TIER_MAX} defaultValue={registry.qualityTier} />
                       <FieldError error={fieldError("qualityTier")} />
                     </div>
                     <div className="grid gap-2">

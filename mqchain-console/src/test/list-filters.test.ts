@@ -24,6 +24,7 @@ describe("operator list filters", () => {
       q: " 0xabc ",
       chain: "",
       minConfidence: "70",
+      qualityTier: "7",
       page: "2",
       pageSize: "100",
       sort: "confidence",
@@ -33,10 +34,18 @@ describe("operator list filters", () => {
     expect(filters.q).toBe("0xabc");
     expect(filters.chain).toBeUndefined();
     expect(filters.minConfidence).toBe(70);
+    expect(filters.qualityTier).toBe(7);
     expect(filters.page).toBe(2);
     expect(filters.pageSize).toBe(100);
     expect(filters.sort).toBe("confidence");
     expect(filters.conflicts).toBe("true");
+  });
+
+  it("rejects quality-tier filters outside the contract range", () => {
+    expect(() => parseCandidateListFilters({ qualityTier: "8" })).toThrow();
+    expect(() => parseRegistryListFilters({ qualityTier: "-1" })).toThrow();
+    expect(() => parseReviewQueueListFilters({ qualityTier: "8" })).toThrow();
+    expect(() => parseRoleDictionaryListFilters({ maxQuality: "8" })).toThrow();
   });
 
   it("clamps invalid page sizes through validation", () => {
@@ -398,7 +407,7 @@ describe("operator list filters", () => {
       metricUsage: " cex_flow ",
       boundary: " external ",
       minQuality: "1",
-      maxQuality: "4",
+      maxQuality: "7",
       active: "all",
       sort: "quality",
       page: "2",
@@ -411,7 +420,7 @@ describe("operator list filters", () => {
     expect(filters.metricUsage).toBe("cex_flow");
     expect(filters.boundary).toBe("external");
     expect(filters.minQuality).toBe(1);
-    expect(filters.maxQuality).toBe(4);
+    expect(filters.maxQuality).toBe(7);
     expect(filters.active).toBe("all");
     expect(filters.sort).toBe("quality");
     expect(filters.page).toBe(2);

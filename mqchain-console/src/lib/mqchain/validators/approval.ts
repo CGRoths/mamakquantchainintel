@@ -1,13 +1,15 @@
 import { z } from "zod";
 
+import { LABEL_STATUS, LABEL_STATUS_MAX, LABEL_STATUS_MIN, QUALITY_TIER_MAX, QUALITY_TIER_MIN } from "../constants";
+
 export const approvalEditSchema = z.object({
   candidateId: z.coerce.number().int().positive(),
   entityId: z.coerce.number().int().positive(),
   protocolId: z.coerce.number().int().positive().optional().or(z.literal("")),
   roleId: z.coerce.number().int().positive(),
   confidenceScore: z.coerce.number().int().min(0).max(100),
-  qualityTier: z.coerce.number().int().min(0).max(5),
-  labelStatus: z.coerce.number().int().min(0).default(1),
+  qualityTier: z.coerce.number().int().min(QUALITY_TIER_MIN).max(QUALITY_TIER_MAX),
+  labelStatus: z.coerce.number().int().min(LABEL_STATUS_MIN).max(LABEL_STATUS_MAX).default(LABEL_STATUS.activeCurrent),
   flags: z.coerce.number().int().min(0).default(0),
   metricEligible: z.enum(["true", "false"]).default("false"),
   validFromBlock: z.coerce.number().int().positive().optional().or(z.literal("")),

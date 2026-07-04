@@ -1,5 +1,5 @@
 import { hash } from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { getDb } from "../src/db/client";
 import {
@@ -57,13 +57,21 @@ async function main() {
   await db
     .insert(mqEntities)
     .values(
-      seedEntities.map(([entityCode, entityName, entityType]) => ({
+      seedEntities.map(([entityCode, entityName, entityType, categoryId]) => ({
         entityCode,
         entityName,
         entityType,
+        categoryId: categoryId ?? null,
       })),
     )
     .onConflictDoNothing();
+
+  for (const [entityCode, , , categoryId] of seedEntities) {
+    await db
+      .update(mqEntities)
+      .set({ categoryId, updatedAt: new Date() })
+      .where(and(eq(mqEntities.entityCode, entityCode), isNull(mqEntities.categoryId)));
+  }
 
   const entities = await db.select().from(mqEntities);
   const entityIdByCode = new Map(entities.map((entity) => [entity.entityCode, entity.id]));
@@ -113,7 +121,15 @@ async function main() {
 
     const [group] = await db.select().from(mqMetricGroups).where(eq(mqMetricGroups.metricGroupCode, metricGroup.metricGroupCode)).limit(1);
     if (group) {
-      await db.insert(mqMetricGroupRules).values({ metricGroupId: group.id, ruleJson: metricGroup.ruleJson }).onConflictDoNothing();
+      const [existingRule] = await db
+        .select({ id: mqMetricGroupRules.id })
+        .from(mqMetricGroupRules)
+        .where(eq(mqMetricGroupRules.metricGroupId, group.id))
+        .limit(1);
+
+      if (!existingRule) {
+        await db.insert(mqMetricGroupRules).values({ metricGroupId: group.id, ruleJson: metricGroup.ruleJson });
+      }
     }
   }
 

@@ -21,11 +21,12 @@ import {
 import { assertPermission } from "@/lib/auth/permissions";
 import { normalizeAddress } from "../address/normalize";
 import { buildCandidateSourceVerificationContext } from "../candidate-detail";
-import { PARSER_VERSION } from "../constants";
+import { PARSER_VERSION, QUALITY_TIER_MAX, QUALITY_TIER_MIN } from "../constants";
 import { extractAddressRowsFromText, extractDeploymentRowsFromText, parseJsonEvidenceRows, stripHtmlToText } from "../intake-extraction";
 import { parseCandidateListFilters, type CandidateListFilters } from "../list-filters";
 import { buildSourceJobIntakeAuditPayload, buildSourceJobScopeSummary, type SourceJobScopeInput } from "../source-job";
 import { fetchSourceText } from "../source-url";
+import { defaultEvidenceTrustTierForSource, normalizeEvidenceTrustTier } from "../trust";
 import type { CsvIntakeRow } from "../types";
 import {
   aiCleanedCsvIntakeSchema,
@@ -389,7 +390,7 @@ async function createCandidatesFromRows(
       });
 
       const confidenceScore = Math.max(0, Math.min(100, Number(row.confidence ?? 50) || 50));
-      const qualityTier = Math.max(0, Math.min(5, Number(row.quality_tier ?? 1) || 1));
+      const qualityTier = Math.max(QUALITY_TIER_MIN, Math.min(QUALITY_TIER_MAX, Number(row.quality_tier ?? 1) || 1));
       const candidateStatus = existing.length ? "duplicate" : "pending_review";
       if (existing.length) {
         duplicates += 1;
@@ -447,7 +448,7 @@ async function createCandidatesFromRows(
         evidenceType: row.evidence_type || evidenceTypeForSource(source.sourceType),
         sourceUrl: row.source_url || source.sourceUrl,
         evidenceHash: hashJson(evidencePayload),
-        trustTier: row.trust_tier || (["official_url", "github"].includes(source.sourceType) ? "official" : "weak"),
+        trustTier: normalizeEvidenceTrustTier(row.trust_tier, defaultEvidenceTrustTierForSource(source.sourceType)),
         confidenceDelta: 0,
         summary: row.notes || `Imported from ${source.sourceName}`,
         payload: evidencePayload,

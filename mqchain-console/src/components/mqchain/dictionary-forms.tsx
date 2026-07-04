@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { QUALITY_TIER_MAX } from "@/lib/mqchain/constants";
 
 type DictionaryAction = (previousState: DictionaryMutationState, formData: FormData) => Promise<DictionaryMutationState>;
 
@@ -412,7 +413,7 @@ export function CreateRoleForm({ categories }: { categories: CategoryOption[] })
           </div>
           <div className="grid gap-2">
             <Label>Quality</Label>
-            <Input name="defaultQualityTier" type="number" min="0" max="5" defaultValue="1" />
+            <Input name="defaultQualityTier" type="number" min="0" max={QUALITY_TIER_MAX} defaultValue="1" />
             <FieldError error={fieldError("defaultQualityTier")} />
           </div>
           <div className="grid gap-2">
@@ -730,7 +731,7 @@ export function UpdateRoleForm({ role, categories }: { role: RoleFormRow; catego
           </div>
           <div className="grid gap-2">
             <Label>Quality</Label>
-            <Input name="defaultQualityTier" type="number" min="0" max="5" defaultValue={role.defaultQualityTier} />
+            <Input name="defaultQualityTier" type="number" min="0" max={QUALITY_TIER_MAX} defaultValue={role.defaultQualityTier} />
             <FieldError error={fieldError("defaultQualityTier")} />
           </div>
           <div className="grid gap-2">

@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { QUALITY_TIER_MAX } from "@/lib/mqchain/constants";
 import { buildReviewReadiness } from "@/lib/mqchain/review";
 import { getReviewWorkspace } from "@/lib/mqchain/services/review-service";
 
@@ -60,7 +61,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
               <Input name="discoveryType" placeholder="Discovery type" defaultValue={params.discoveryType ?? ""} />
               <Input name="minConfidence" type="number" min="0" max="100" placeholder="Min confidence" defaultValue={params.minConfidence ?? ""} />
               <Input name="maxConfidence" type="number" min="0" max="100" placeholder="Max confidence" defaultValue={params.maxConfidence ?? ""} />
-              <Input name="qualityTier" type="number" min="0" max="5" placeholder="Quality tier" defaultValue={params.qualityTier ?? ""} />
+              <Input name="qualityTier" type="number" min="0" max={QUALITY_TIER_MAX} placeholder="Quality tier" defaultValue={params.qualityTier ?? ""} />
               <select
                 name="sort"
                 defaultValue={params.sort ?? "confidence"}
