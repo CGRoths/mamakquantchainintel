@@ -17,6 +17,12 @@ import {
 } from "../src/db/schema";
 import { extractKvIndexManifestRecords } from "../src/lib/mqchain/kv-manifest";
 import {
+  buildKvRegistrySourceContract,
+  isCommittedKvRegistryLabel,
+  isKvCurrentLabelSource,
+  isKvTimelineLabelSource,
+} from "../src/lib/mqchain/kv-compiler";
+import {
   buildKvKey,
   encodeCurrentLabelKey,
   encodeCurrentLabelValue,
@@ -90,8 +96,9 @@ async function main() {
       })),
   }));
 
+  const sourceContract = buildKvRegistrySourceContract(rows.map((row) => row.registry));
   const compilableRows = rows
-    .filter((row) => row.registry.prefixCode !== null && row.registry.payloadHex !== null)
+    .filter((row) => isCommittedKvRegistryLabel(row.registry))
     .map((row) => {
       const value: MqKvAddressValue = {
         entityId: row.registry.entityId!,
@@ -126,7 +133,7 @@ async function main() {
     });
 
   const currentEntries = compilableRows
-    .filter((entry) => entry.row.registry.isActive)
+    .filter((entry) => isKvCurrentLabelSource(entry.row.registry))
     .map((entry) => ({
       key: entry.key,
       keyHex: hex(encodeCurrentLabelKey({
@@ -140,6 +147,7 @@ async function main() {
     .sort((left, right) => left.key.localeCompare(right.key));
 
   const timelineEntries = compilableRows
+    .filter((entry) => isKvTimelineLabelSource(entry.row.registry))
     .map((entry) => ({
       key: `${entry.key}:${entry.row.registry.validFromBlock ?? 0}`,
       keyHex: hex(encodeTimelineKey({
@@ -155,7 +163,7 @@ async function main() {
 
   const metricGroupEntries = compilableRows
     .flatMap((entry) => {
-      if (!entry.row.registry.isActive) {
+      if (!isKvCurrentLabelSource(entry.row.registry)) {
         return [];
       }
 
@@ -213,7 +221,8 @@ async function main() {
     dictionaryVersion,
     rowCount: totalKeys,
     generatedAt: new Date().toISOString(),
-    source: "postgres:mq_address_registry",
+    source: "postgres:mq_address_registry:approved_batch_committed",
+    sourceContract,
     artifactType: "jsonl-kv-preview",
     schemas: MQ_KV_SCHEMA,
     indexes: {

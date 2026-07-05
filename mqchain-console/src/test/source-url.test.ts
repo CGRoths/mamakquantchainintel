@@ -23,7 +23,14 @@ describe("source URL guardrails", () => {
     expect(() => assertFetchableSourceUrl("https://user:pass@example.com/file.csv")).toThrow("embedded credentials");
     expect(() => assertFetchableSourceUrl("http://localhost:3000/admin")).toThrow("private network");
     expect(() => assertFetchableSourceUrl("http://192.168.1.10/admin")).toThrow("private network");
+    expect(() => assertFetchableSourceUrl("http://100.64.0.10/admin")).toThrow("private network");
+    expect(() => assertFetchableSourceUrl("http://198.18.0.1/admin")).toThrow("private network");
+    expect(() => assertFetchableSourceUrl("http://224.0.0.1/admin")).toThrow("private network");
     expect(() => assertFetchableSourceUrl("http://169.254.169.254/latest/meta-data")).toThrow("private network");
+    expect(() => assertFetchableSourceUrl("http://[fc00::1]/admin")).toThrow("private network");
+    expect(() => assertFetchableSourceUrl("http://[fd12::1]/admin")).toThrow("private network");
+    expect(() => assertFetchableSourceUrl("http://[fe80::1]/admin")).toThrow("private network");
+    expect(() => assertFetchableSourceUrl("http://[::ffff:127.0.0.1]/admin")).toThrow("private network");
   });
 
   it("follows only bounded validated redirects", async () => {

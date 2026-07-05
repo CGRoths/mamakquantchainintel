@@ -1,4 +1,5 @@
 export const CSV_UPLOAD_MAX_BYTES = 1_000_000;
+const CSV_SIGNATURE_SCAN_BYTES = 4096;
 
 type CsvUploadFile = {
   name?: string;
@@ -57,6 +58,22 @@ export function assertCsvTextSize(text: string, label = "CSV input") {
   return sizeBytes;
 }
 
+export function assertCsvTextSignature(text: string, label = "CSV input") {
+  const sample = text.slice(0, CSV_SIGNATURE_SCAN_BYTES);
+
+  if (sample.startsWith("PK\u0003\u0004") || sample.startsWith("PK\u0005\u0006") || sample.startsWith("PK\u0007\u0008")) {
+    throw new Error(`${label} appears to be a ZIP/XLSX file, not CSV text.`);
+  }
+
+  if (sample.startsWith("%PDF-")) {
+    throw new Error(`${label} appears to be a PDF file, not CSV text.`);
+  }
+
+  if (sample.includes("\u0000")) {
+    throw new Error(`${label} appears to contain binary data, not CSV text.`);
+  }
+}
+
 export async function csvInputFromUpload(file: unknown): Promise<CsvInputPayload | null> {
   if (!isCsvUploadFile(file)) {
     return null;
@@ -65,6 +82,7 @@ export async function csvInputFromUpload(file: unknown): Promise<CsvInputPayload
   assertCsvFileMetadata(file);
   const text = await file.text();
   const sizeBytes = assertCsvTextSize(text, "CSV upload");
+  assertCsvTextSignature(text, "CSV upload");
   if (!text.trim()) {
     throw new Error("CSV upload does not contain any rows.");
   }
@@ -91,6 +109,7 @@ export async function csvInputFromFormData(formData: FormData, textKey: string, 
   const pasted = formData.get(textKey);
   if (typeof pasted === "string" && pasted.trim()) {
     const sizeBytes = assertCsvTextSize(pasted);
+    assertCsvTextSignature(pasted);
     return {
       text: pasted,
       inputMode: "pasted_text",

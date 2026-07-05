@@ -27,6 +27,7 @@ import {
   buildSourceVerificationDecisionPayload,
   buildSourceJobVerificationRollup,
 } from "../source-job";
+import { candidateSourceSheetMatches, candidateSourceUrlMatches } from "../candidate-detail";
 import { sourceJobArchiveSchema, sourceVerificationSchema } from "../validators/source-job";
 
 function sourceJobOrderBy(sort: SourceJobListFilters["sort"]) {
@@ -177,6 +178,35 @@ function parseVerificationEvidence(value: string | undefined) {
   }
 }
 
+function assertCandidateVerificationScopeMatches(
+  candidate: typeof mqAddressCandidates.$inferSelect | null,
+  verification: {
+    verificationScope: string;
+    sourceSheet?: string;
+    sourceUrl?: string;
+  },
+) {
+  if (!candidate) return;
+
+  if (verification.verificationScope === "source_sheet") {
+    const sheetMatch = candidateSourceSheetMatches(candidate.metadata, verification.sourceSheet);
+    if (sheetMatch.matchRequired && !sheetMatch.matches) {
+      throw new Error(
+        `Source sheet verification does not match candidate provenance. Expected one of: ${sheetMatch.knownValues.join(", ")}.`,
+      );
+    }
+  }
+
+  if (verification.verificationScope === "source_url") {
+    const urlMatch = candidateSourceUrlMatches(candidate.metadata, verification.sourceUrl);
+    if (urlMatch.matchRequired && !urlMatch.matches) {
+      throw new Error(
+        `Source URL verification does not match candidate provenance. Expected one of: ${urlMatch.knownValues.join(", ")}.`,
+      );
+    }
+  }
+}
+
 export async function recordSourceVerification(input: unknown) {
   const actor = await assertPermission("source:verify");
   const parsed = sourceVerificationSchema.parse(input);
@@ -184,6 +214,7 @@ export async function recordSourceVerification(input: unknown) {
 
   return db.transaction(async (tx) => {
     const [sourceJob] = await tx.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, parsed.sourceJobId)).limit(1);
+    let candidateForScope: typeof mqAddressCandidates.$inferSelect | null = null;
     if (!sourceJob) {
       throw new Error("Source job not found.");
     }
@@ -208,6 +239,7 @@ export async function recordSourceVerification(input: unknown) {
       if (!candidate) {
         throw new Error("Candidate does not belong to this source job.");
       }
+      candidateForScope = candidate;
     }
 
     if (parsed.verificationScope === "source_document" && !parsed.sourceDocumentId) {
@@ -219,6 +251,7 @@ export async function recordSourceVerification(input: unknown) {
     if (parsed.verificationScope === "source_url" && !parsed.sourceUrl) {
       throw new Error("Source URL verification requires a source URL.");
     }
+    assertCandidateVerificationScopeMatches(candidateForScope, parsed);
 
     const verificationEvidence = parseVerificationEvidence(parsed.verificationEvidenceJson);
     const evidenceKeys = Object.keys(verificationEvidence).sort((left, right) => left.localeCompare(right));

@@ -7,6 +7,8 @@ import {
   DICTIONARY_VERSION_HISTORY_API_CONTRACT,
 } from "@/lib/mqchain/dictionary-api";
 import { dictionaryVersionListFilterSchema } from "@/lib/mqchain/list-filters";
+import { buildDictionaryVersionPayload } from "@/lib/mqchain/services/dictionary-service";
+import { hashJson } from "@/lib/mqchain/services/service-utils";
 import { dictionarySnapshotScopeSchema } from "@/lib/mqchain/validators/dictionary";
 
 const updatedAt = new Date("2026-07-04T02:00:00.000Z");
@@ -294,6 +296,40 @@ describe("dictionary snapshot API payloads", () => {
       },
     });
     expect(JSON.stringify(payload)).not.toContain("large internal diff");
+  });
+
+  it("includes every editable dictionary family field in the version hash payload", () => {
+    const payload = buildDictionaryVersionPayload(dictionaries as never);
+
+    expect(payload.categories).toEqual(expect.arrayContaining([expect.objectContaining({ code: "cex", description: "Centralized exchange labels" })]));
+    expect(payload.entities).toEqual(expect.arrayContaining([expect.objectContaining({ code: "binance", websiteUrl: "https://binance.com", description: null })]));
+    expect(payload.protocols).toEqual(expect.arrayContaining([expect.objectContaining({ code: "binance_cex", description: null })]));
+    expect(payload.prefixes).toEqual(expect.arrayContaining([expect.objectContaining({ chainCode: "ethereum", chainName: "Ethereum", evmChainId: 1, description: null })]));
+    expect(payload.roles).toEqual(expect.arrayContaining([expect.objectContaining({ code: "cex_hot_wallet", name: "CEX Hot Wallet", qualityTier: 3, description: null })]));
+    expect(payload.metricGroups).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "btc_cex_flow_boundary", name: "BTC CEX Flow Boundary", description: "BTC exchange boundary universe" }),
+      ]),
+    );
+    expect(payload.metricGroupRules).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 50, ruleJson: { include: { roleCodes: ["cex_hot_wallet"] } } })]),
+    );
+
+    const baseHash = hashJson(payload);
+    const changed = {
+      ...dictionaries,
+      roles: dictionaries.roles.map((role) =>
+        role.roleCode === "cex_hot_wallet" ? { ...role, defaultQualityTier: 6 } : role,
+      ),
+      prefixes: dictionaries.prefixes.map((prefix) =>
+        prefix.chainCode === "ethereum" ? { ...prefix, evmChainId: 11155111 } : prefix,
+      ),
+      metricGroups: dictionaries.metricGroups.map((group) =>
+        group.metricGroupCode === "btc_cex_flow_boundary" ? { ...group, metricGroupName: "BTC CEX Flow Universe" } : group,
+      ),
+    };
+
+    expect(hashJson(buildDictionaryVersionPayload(changed as never))).not.toBe(baseHash);
   });
 
   it("validates dictionary version history filters", () => {

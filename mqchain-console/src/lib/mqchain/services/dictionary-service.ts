@@ -503,6 +503,83 @@ function versionHash(payload: unknown) {
   return hashJson(payload);
 }
 
+type DictionarySnapshotForVersion = Awaited<ReturnType<typeof listDictionaries>>;
+
+export function buildDictionaryVersionPayload(dictionaries: DictionarySnapshotForVersion) {
+  return {
+    categories: dictionaries.categories.map((item) => ({
+      id: item.categoryId,
+      code: item.categoryCode,
+      name: item.categoryName,
+      parent: item.parentCategoryId,
+      domain: item.domainCode,
+      metricDomain: item.metricDomain,
+      description: item.description,
+      active: item.isActive,
+    })),
+    entities: dictionaries.entities.map((item) => ({
+      id: item.id,
+      code: item.entityCode,
+      name: item.entityName,
+      type: item.entityType,
+      categoryId: item.categoryId,
+      websiteUrl: item.websiteUrl,
+      description: item.description,
+      active: item.isActive,
+    })),
+    protocols: dictionaries.protocols.map((item) => ({
+      id: item.id,
+      entityId: item.entityId,
+      code: item.protocolCode,
+      name: item.protocolName,
+      type: item.protocolType,
+      chains: item.chainScope,
+      description: item.description,
+      active: item.isActive,
+    })),
+    prefixes: dictionaries.prefixes.map((item) => ({
+      prefixCode: item.prefixCode,
+      chainCode: item.chainCode,
+      chainName: item.chainName,
+      family: item.chainFamily,
+      addressFamily: item.addressFamily,
+      codec: item.codec,
+      payloadLen: item.payloadLen,
+      evmChainId: item.evmChainId,
+      description: item.description,
+      active: item.isActive,
+    })),
+    roles: dictionaries.roles.map((item) => ({
+      roleId: item.roleId,
+      code: item.roleCode,
+      name: item.roleName,
+      categoryId: item.categoryId,
+      group: item.roleGroup,
+      metricUsage: item.metricUsageDefault,
+      boundary: item.boundaryClass,
+      qualityTier: item.defaultQualityTier,
+      flags: item.defaultFlags,
+      description: item.description,
+      active: item.isActive,
+    })),
+    metricGroups: dictionaries.metricGroups.map((item) => ({
+      id: item.id,
+      code: item.metricGroupCode,
+      name: item.metricGroupName,
+      chainCode: item.chainCode,
+      minConfidence: item.minConfidence,
+      requireMetricEligible: item.requireMetricEligible,
+      description: item.description,
+      active: item.isActive,
+    })),
+    metricGroupRules: dictionaries.metricGroupRules.map((item) => ({
+      id: item.id,
+      metricGroupId: item.metricGroupId,
+      ruleJson: item.ruleJson,
+    })),
+  };
+}
+
 function parseList(value?: string) {
   return value
     ?.split(",")
@@ -513,66 +590,7 @@ function parseList(value?: string) {
 export async function recordDictionaryVersion(actorId?: string | null, reason = "dictionary_changed") {
   const db = getDb();
   const dictionaries = await listDictionaries();
-  const payload = {
-    categories: dictionaries.categories.map((item) => ({
-      id: item.categoryId,
-      code: item.categoryCode,
-      name: item.categoryName,
-      parent: item.parentCategoryId,
-      domain: item.domainCode,
-      metricDomain: item.metricDomain,
-      active: item.isActive,
-    })),
-    entities: dictionaries.entities.map((item) => ({
-      id: item.id,
-      code: item.entityCode,
-      name: item.entityName,
-      type: item.entityType,
-      categoryId: item.categoryId,
-      active: item.isActive,
-    })),
-    protocols: dictionaries.protocols.map((item) => ({
-      id: item.id,
-      entityId: item.entityId,
-      code: item.protocolCode,
-      name: item.protocolName,
-      type: item.protocolType,
-      chains: item.chainScope,
-      active: item.isActive,
-    })),
-    prefixes: dictionaries.prefixes.map((item) => ({
-      prefixCode: item.prefixCode,
-      chainCode: item.chainCode,
-      family: item.chainFamily,
-      addressFamily: item.addressFamily,
-      codec: item.codec,
-      payloadLen: item.payloadLen,
-      active: item.isActive,
-    })),
-    roles: dictionaries.roles.map((item) => ({
-      roleId: item.roleId,
-      code: item.roleCode,
-      categoryId: item.categoryId,
-      group: item.roleGroup,
-      metricUsage: item.metricUsageDefault,
-      boundary: item.boundaryClass,
-      flags: item.defaultFlags,
-      active: item.isActive,
-    })),
-    metricGroups: dictionaries.metricGroups.map((item) => ({
-      id: item.id,
-      code: item.metricGroupCode,
-      chainCode: item.chainCode,
-      minConfidence: item.minConfidence,
-      requireMetricEligible: item.requireMetricEligible,
-      active: item.isActive,
-    })),
-    metricGroupRules: dictionaries.metricGroupRules.map((item) => ({
-      id: item.id,
-      metricGroupId: item.metricGroupId,
-      ruleJson: item.ruleJson,
-    })),
-  };
+  const payload = buildDictionaryVersionPayload(dictionaries);
   const hash = versionHash(payload);
 
   await db

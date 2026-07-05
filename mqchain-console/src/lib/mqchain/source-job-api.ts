@@ -38,6 +38,8 @@ export const SOURCE_JOB_INTAKE_API_CONTRACT = {
   sourceOfTruth: "postgres_source_archive",
   servingBackend: "postgres",
   mutationAllowed: true,
+  stagingOnly: true,
+  canonicalWriteBoundary: "approval_batch_commit",
   writes: "source_job_candidate_staging_rows",
   candidateWriteAllowed: true,
   approvalWriteAllowed: false,
@@ -340,6 +342,7 @@ export function buildSourceJobIntakeApiResponse(input: SourceJobIntakeApiInput) 
       candidatesRemainStagedUntilApproval: true,
       registryRowsRequireBatchCommit: true,
       kvBuildsRequireApprovedRegistryRows: true,
+      canonicalRegistryAndKvWritesBlocked: true,
       rawRequestPayloadExcludedFromResponse: true,
     },
     nextActions: {

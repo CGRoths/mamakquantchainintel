@@ -225,6 +225,10 @@ function sourceReference(metadata: JsonRecord) {
     sourceInputType: metadataString(metadata, "sourceInputType"),
     contractName: metadataString(metadata, "contractName"),
     roleSource: metadataString(metadata, "roleSource"),
+    sourceRoleLabel: metadataString(metadata, "source_role_label"),
+    sourceRoleLabels: Array.isArray(metadata.source_role_labels)
+      ? metadata.source_role_labels.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      : [],
     rawReference: metadataString(metadata, "rawReference"),
     notes: metadataString(metadata, "notes"),
     metricEligibleHint: metadataString(metadata, "metricEligible"),
@@ -359,6 +363,8 @@ export function buildCandidateExportCsv(input: CandidateExportApiInput) {
     "source_input_type",
     "contract_name",
     "role_source",
+    "source_role_label",
+    "source_role_labels",
     "raw_reference",
     "notes",
     "metric_eligible_hint",
@@ -404,6 +410,8 @@ export function buildCandidateExportCsv(input: CandidateExportApiInput) {
       serialized.sourceReference.sourceInputType,
       serialized.sourceReference.contractName,
       serialized.sourceReference.roleSource,
+      serialized.sourceReference.sourceRoleLabel,
+      serialized.sourceReference.sourceRoleLabels.join("|"),
       serialized.sourceReference.rawReference,
       serialized.sourceReference.notes,
       serialized.sourceReference.metricEligibleHint,

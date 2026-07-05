@@ -32,6 +32,8 @@ export type CsvIntakeRow = {
   source_input_type?: string;
   contract_name?: string;
   role_source?: string;
+  source_role_label?: string;
+  source_role_labels?: string[];
   raw_reference?: Record<string, unknown>;
 };
 

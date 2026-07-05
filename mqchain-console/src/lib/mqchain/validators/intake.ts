@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { QUALITY_TIER_MAX, QUALITY_TIER_MIN, SOURCE_TYPES } from "../constants";
-import { CSV_UPLOAD_MAX_BYTES } from "../csv-upload";
+import { assertCsvTextSignature, CSV_UPLOAD_MAX_BYTES } from "../csv-upload";
 
 export const SOURCE_JOB_INTAKE_API_MAX_BODY_BYTES = CSV_UPLOAD_MAX_BYTES + 32 * 1024;
 
@@ -11,6 +11,16 @@ const boundedCsvText = z
   .min(1, "CSV input is required")
   .refine((value) => Buffer.byteLength(value) <= CSV_UPLOAD_MAX_BYTES, {
     message: `CSV input exceeds ${CSV_UPLOAD_MAX_BYTES} bytes.`,
+  })
+  .refine((value) => {
+    try {
+      assertCsvTextSignature(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }, {
+    message: "CSV input must be plain CSV text, not a binary, ZIP/XLSX, or PDF file.",
   });
 
 export const manualIntakeSchema = z.object({

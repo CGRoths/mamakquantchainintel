@@ -62,6 +62,10 @@ function compactRecord(record: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined && value !== null && value !== ""));
 }
 
+function singleStringArray(value: string | undefined) {
+  return value ? [value] : undefined;
+}
+
 function githubFileContextFromMarker(line: string): GithubFileContext | null {
   if (!line.startsWith("MQCHAIN_GITHUB_FILE ")) return null;
   const record: Record<string, string> = {};
@@ -104,6 +108,8 @@ function rowFromAddress(address: string, defaults: IntakeDefaults, extra?: Parti
     source_input_type: extra?.source_input_type,
     contract_name: extra?.contract_name,
     role_source: extra?.role_source,
+    source_role_label: extra?.source_role_label,
+    source_role_labels: extra?.source_role_labels,
     raw_reference: extra?.raw_reference,
   };
 }
@@ -119,18 +125,47 @@ function candidateTokens(text: string, chainCode?: string) {
   ];
 }
 
-export function stripHtmlToText(input: string) {
+function decodeHtmlEntities(input: string) {
   return input
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
+    .replace(/&#39;/gi, "'");
+}
+
+function stripInlineHtml(input: string) {
+  return decodeHtmlEntities(input)
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function stripHtmlToText(input: string) {
+  const tableRowsPreserved = input
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi, (_row, rowHtml: string) => {
+      const cells = Array.from(rowHtml.matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi), (match) => stripInlineHtml(match[1])).filter(Boolean);
+      return cells.length ? `\n| ${cells.join(" | ")} |\n` : " ";
+    });
+
+  return decodeHtmlEntities(tableRowsPreserved)
+    .replace(/<tr\b[^>]*>/gi, "\n| ")
+    .replace(/<\/tr>/gi, " |\n")
+    .replace(/<\/(?:td|th)>\s*<t[dh]\b[^>]*>/gi, " | ")
+    .replace(/<\/(?:td|th)>/gi, " ")
+    .replace(/<t[dh]\b[^>]*>/gi, " ")
+    .replace(/<\/(?:table|thead|tbody|tfoot)>/gi, "\n")
+    .replace(/<(?:table|thead|tbody|tfoot)\b[^>]*>/gi, "\n")
+    .replace(/<\/(?:p|div|section|article|li|ul|ol|br|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[ \t\f\v]+/g, " ")
+    .replace(/ *\n+ */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -278,6 +313,8 @@ function addDeploymentRow(
   const sourceInputType = extra?.source_input_type ?? options.sourceInputType ?? sourceInputTypeFor(options.sourceType, context, options.sourceUrl);
   const evidenceType = extra?.evidence_type ?? options.evidenceType ?? evidenceTypeForDeployment(options.sourceType);
   const roleSource = extra?.role_source ?? contractName;
+  const sourceRoleLabel = extra?.source_role_label ?? roleSource;
+  const sourceRoleLabels = extra?.source_role_labels ?? singleStringArray(sourceRoleLabel);
   const rawReference = compactRecord({
     source_url: options.sourceUrl,
     source_input_type: sourceInputType,
@@ -286,6 +323,8 @@ function addDeploymentRow(
     raw_line: context.slice(0, 1000),
     contract_name: contractName,
     role_source: roleSource,
+    source_role_label: sourceRoleLabel,
+    source_role_labels: sourceRoleLabels,
     github_owner: fileContext?.github_owner,
     github_repo: fileContext?.github_repo,
     github_ref: fileContext?.github_ref,
@@ -307,6 +346,8 @@ function addDeploymentRow(
     source_input_type: sourceInputType,
     contract_name: contractName,
     role_source: roleSource,
+    source_role_label: sourceRoleLabel,
+    source_role_labels: sourceRoleLabels,
     raw_reference: rawReference,
   }));
 }
@@ -403,6 +444,10 @@ function rowFromJsonItem(item: unknown, defaults: IntakeDefaults): CsvIntakeRow[
       metric_eligible: record.metric_eligible as CsvIntakeRow["metric_eligible"],
       contract_name: maybeString(record.contract_name) ?? maybeString(record.contractName),
       role_source: maybeString(record.role_source) ?? maybeString(record.source_role_label),
+      source_role_label: maybeString(record.source_role_label) ?? maybeString(record.role_source),
+      source_role_labels: Array.isArray(record.source_role_labels)
+        ? record.source_role_labels.map(maybeString).filter((value): value is string => Boolean(value))
+        : undefined,
       evidence_type: maybeString(record.evidence_type),
       trust_tier: maybeString(record.trust_tier),
       source_input_type: maybeString(record.source_input_type),
@@ -410,6 +455,10 @@ function rowFromJsonItem(item: unknown, defaults: IntakeDefaults): CsvIntakeRow[
         raw_row: record,
         contract_name: maybeString(record.contract_name) ?? maybeString(record.contractName),
         role_source: maybeString(record.role_source) ?? maybeString(record.source_role_label),
+        source_role_label: maybeString(record.source_role_label) ?? maybeString(record.role_source),
+        source_role_labels: Array.isArray(record.source_role_labels)
+          ? record.source_role_labels.map(maybeString).filter((value): value is string => Boolean(value))
+          : undefined,
         source_url: maybeString(record.source_url) ?? maybeString(record.sourceUrl) ?? defaults.sourceUrl,
       }),
     }),
@@ -432,10 +481,13 @@ function extractJsonDeploymentRows(value: unknown, defaults: IntakeDefaults, pat
       ...row,
       contract_name: row.contract_name ?? contractName,
       role_source: row.role_source ?? contractName,
+      source_role_label: row.source_role_label ?? row.role_source ?? contractName,
+      source_role_labels: row.source_role_labels ?? singleStringArray(row.source_role_label ?? row.role_source ?? contractName),
       raw_reference: {
         ...(row.raw_reference ?? {}),
         json_path: path.join("."),
         contract_name: row.contract_name ?? contractName,
+        source_role_label: row.source_role_label ?? row.role_source ?? contractName,
       },
     }));
   }

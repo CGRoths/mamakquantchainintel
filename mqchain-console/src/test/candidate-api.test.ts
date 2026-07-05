@@ -39,6 +39,8 @@ const candidateRow = {
       sourceInputType: "github",
       contractName: "PoolProxy",
       roleSource: "constant",
+      source_role_label: "PoolProxy",
+      source_role_labels: ["PoolProxy", "pool_proxy"],
       rawReference: "deployments/mainnet.json:12",
       notes: "requires reviewer check, proxy",
       metricEligible: "false",
@@ -107,6 +109,8 @@ describe("candidate export API payloads", () => {
             sourceInputType: "github",
             contractName: "PoolProxy",
             roleSource: "constant",
+            sourceRoleLabel: "PoolProxy",
+            sourceRoleLabels: ["PoolProxy", "pool_proxy"],
             rawReference: "deployments/mainnet.json:12",
             notes: "requires reviewer check, proxy",
             metricEligibleHint: "false",
@@ -137,8 +141,8 @@ describe("candidate export API payloads", () => {
     });
 
     expect(csv.split("\n")).toEqual([
-      "candidate_id,source_job_id,source_document_id,source_type,chain_code,normalized_address,raw_address,address_family,prefix_code,payload_hex,entity_hint,suggested_entity_id,entity_name,protocol_hint,suggested_protocol_id,protocol_name,role_hint,suggested_role_id,role_code,confidence_score,quality_tier,candidate_status,evidence_count,discovered_by,discovery_job_id,duplicate_of_candidate_id,first_seen_block,last_seen_block,source_verification_status,source_verification_message,source_verification_matching_count,source_verification_sheet_required,source_verification_sheets,source_input_type,contract_name,role_source,raw_reference,notes,metric_eligible_hint,created_at,updated_at",
-      '31,12,13,github,ethereum,0x1111111111111111111111111111111111111111,0x1111111111111111111111111111111111111111,evm_20,60,1111111111111111111111111111111111111111,Aave,7,Aave,Aave V3,8,Aave V3,pool,1007,protocol_pool,84,3,pending_review,2,github,9,,19000000,,source_sheet_verified,Sheet-scoped source verification matches this candidate.,2,true,Ethereum,github,PoolProxy,constant,deployments/mainnet.json:12,"requires reviewer check, proxy",false,2026-07-04T02:00:00.000Z,2026-07-04T03:00:00.000Z',
+      "candidate_id,source_job_id,source_document_id,source_type,chain_code,normalized_address,raw_address,address_family,prefix_code,payload_hex,entity_hint,suggested_entity_id,entity_name,protocol_hint,suggested_protocol_id,protocol_name,role_hint,suggested_role_id,role_code,confidence_score,quality_tier,candidate_status,evidence_count,discovered_by,discovery_job_id,duplicate_of_candidate_id,first_seen_block,last_seen_block,source_verification_status,source_verification_message,source_verification_matching_count,source_verification_sheet_required,source_verification_sheets,source_input_type,contract_name,role_source,source_role_label,source_role_labels,raw_reference,notes,metric_eligible_hint,created_at,updated_at",
+      '31,12,13,github,ethereum,0x1111111111111111111111111111111111111111,0x1111111111111111111111111111111111111111,evm_20,60,1111111111111111111111111111111111111111,Aave,7,Aave,Aave V3,8,Aave V3,pool,1007,protocol_pool,84,3,pending_review,2,github,9,,19000000,,source_sheet_verified,Sheet-scoped source verification matches this candidate.,2,true,Ethereum,github,PoolProxy,constant,PoolProxy,PoolProxy|pool_proxy,deployments/mainnet.json:12,"requires reviewer check, proxy",false,2026-07-04T02:00:00.000Z,2026-07-04T03:00:00.000Z',
     ]);
   });
 

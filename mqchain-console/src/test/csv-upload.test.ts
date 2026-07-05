@@ -30,6 +30,18 @@ describe("CSV upload guardrails", () => {
     await expect(csvTextFromUpload(fileLike({ name: "labels.exe", type: "text/csv", text: "address" }))).rejects.toThrow(".csv or .txt");
   });
 
+  it("rejects renamed spreadsheet, PDF, or binary payloads even with CSV metadata", async () => {
+    await expect(csvTextFromUpload(fileLike({ name: "labels.csv", type: "text/csv", text: "PK\u0003\u0004fake xlsx bytes" }))).rejects.toThrow(
+      "ZIP/XLSX",
+    );
+    await expect(csvTextFromUpload(fileLike({ name: "labels.csv", type: "text/csv", text: "%PDF-1.7 fake pdf bytes" }))).rejects.toThrow(
+      "PDF",
+    );
+    await expect(csvTextFromUpload(fileLike({ name: "labels.csv", type: "text/csv", text: "address,chain\n\u0000,ethereum" }))).rejects.toThrow(
+      "binary data",
+    );
+  });
+
   it("falls back to pasted CSV text when no file is supplied", async () => {
     const formData = new FormData();
     formData.set("csvText", "address,chain\n0x1,ethereum");

@@ -33,6 +33,8 @@ describe("source job provenance API payloads", () => {
     expect(payload).toMatchObject({
       ...SOURCE_JOB_INTAKE_API_CONTRACT,
       mutationAllowed: true,
+      stagingOnly: true,
+      canonicalWriteBoundary: "approval_batch_commit",
       candidateWriteAllowed: true,
       approvalWriteAllowed: false,
       registryWriteAllowed: false,
@@ -61,6 +63,7 @@ describe("source job provenance API payloads", () => {
         intakeCreatesStagedCandidatesOnly: true,
         intakeDoesNotApproveCandidates: true,
         registryRowsRequireBatchCommit: true,
+        canonicalRegistryAndKvWritesBlocked: true,
         rawRequestPayloadExcludedFromResponse: true,
       },
       nextActions: {

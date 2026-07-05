@@ -4,7 +4,12 @@ export const DISCOVERY_COMPLETION_API_CONTRACT = {
   apiVersion: "mqchain-discovery-completion-api-v1",
   sourceOfTruth: "postgres_control_plane",
   mutationAllowed: true,
+  stagingOnly: true,
+  canonicalWriteBoundary: "approval_batch_commit",
   writes: "source_job_source_document_candidates_evidence",
+  sourceJobWriteAllowed: true,
+  candidateWriteAllowed: true,
+  evidenceWriteAllowed: true,
   approvalAllowed: false,
   registryWriteAllowed: false,
   batchWriteAllowed: false,
@@ -326,6 +331,7 @@ export function buildDiscoveryCompletionApiResponse(input: DiscoveryCompletionAp
       candidatesRequireReview: true,
       batchCommitIsRegistryBoundary: true,
       externalScannerCannotWriteRegistryOrKv: true,
+      canonicalRegistryAndKvWritesBlocked: true,
     },
   };
 }

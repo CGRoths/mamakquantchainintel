@@ -281,6 +281,10 @@ describe("discovery result helpers", () => {
     expect(payload).toMatchObject({
       ...DISCOVERY_COMPLETION_API_CONTRACT,
       mutationAllowed: true,
+      stagingOnly: true,
+      canonicalWriteBoundary: "approval_batch_commit",
+      candidateWriteAllowed: true,
+      evidenceWriteAllowed: true,
       registryWriteAllowed: false,
       kvWriteAllowed: false,
       stagedArtifacts: {
@@ -305,6 +309,7 @@ describe("discovery result helpers", () => {
         candidatesRequireReview: true,
         batchCommitIsRegistryBoundary: true,
         externalScannerCannotWriteRegistryOrKv: true,
+        canonicalRegistryAndKvWritesBlocked: true,
       },
     });
   });

@@ -25,6 +25,24 @@ describe("intake validators", () => {
     ).toThrow();
   });
 
+  it("rejects binary-looking CSV text at the service validation boundary", () => {
+    expect(() =>
+      csvIntakeSchema.parse({
+        sourceType: "csv_upload",
+        sourceName: "Renamed workbook",
+        csvText: "PK\u0003\u0004fake xlsx bytes",
+      }),
+    ).toThrow("plain CSV text");
+
+    expect(() =>
+      csvIntakeSchema.parse({
+        sourceType: "csv_upload",
+        sourceName: "Renamed PDF",
+        csvText: "%PDF-1.7 fake pdf bytes",
+      }),
+    ).toThrow("plain CSV text");
+  });
+
   it("validates the source-job intake API request envelope", () => {
     expect(
       sourceJobIntakeApiRequestSchema.parse({

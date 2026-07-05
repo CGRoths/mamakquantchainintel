@@ -31,6 +31,7 @@ describe("intake extraction helpers", () => {
             contractAddress: "0x0000000000000000000000000000000000000001",
             network: "ethereum",
             source_role_label: "protocol_factory",
+            source_role_labels: ["protocol_factory", "root_factory"],
             confidence_score: 91,
             summary: "Official deployment table",
           },
@@ -44,9 +45,15 @@ describe("intake extraction helpers", () => {
         address: "0x0000000000000000000000000000000000000001",
         chain: "ethereum",
         role: "protocol_factory",
+        source_role_label: "protocol_factory",
+        source_role_labels: ["protocol_factory", "root_factory"],
         confidence: 91,
         notes: "Official deployment table",
         source_name: "Official docs",
+        raw_reference: expect.objectContaining({
+          source_role_label: "protocol_factory",
+          source_role_labels: ["protocol_factory", "root_factory"],
+        }),
       }),
     ]);
   });
@@ -69,12 +76,15 @@ describe("intake extraction helpers", () => {
         entity: "aave",
         protocol: "aave_v3",
         role: "protocol_registry",
+        source_role_label: "PoolAddressesProvider",
+        source_role_labels: ["PoolAddressesProvider"],
         evidence_type: "github_deployment",
         trust_tier: "official",
         source_input_type: "github_solidity_address_book",
         contract_name: "PoolAddressesProvider",
         raw_reference: expect.objectContaining({
           contract_name: "PoolAddressesProvider",
+          source_role_label: "PoolAddressesProvider",
           line_number: 2,
         }),
       }),
@@ -94,6 +104,58 @@ describe("intake extraction helpers", () => {
       contract_name: "Vault",
       evidence_type: "official_page",
     });
+  });
+
+  it("preserves hidden HTML table row context for official deployment pages", () => {
+    const html = `
+      <section role="tabpanel" hidden>
+        <table>
+          <thead>
+            <tr><th>Network</th><th>Contract</th><th>Address</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Arbitrum</td>
+              <td>Pool Addresses Provider</td>
+              <td><a href="https://arbiscan.io/address/0x0000000000000000000000000000000000000005">0x0000000000000000000000000000000000000005</a></td>
+            </tr>
+            <tr>
+              <td>Optimism</td>
+              <td>Rewards Controller</td>
+              <td>0x0000000000000000000000000000000000000006</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    `;
+
+    const stripped = stripHtmlToText(html);
+    const rows = extractDeploymentRowsFromText(html, {
+      sourceType: "official_url",
+      sourceUrl: "https://docs.example.test/deployments",
+    });
+
+    expect(stripped).toContain("| Arbitrum | Pool Addresses Provider | 0x0000000000000000000000000000000000000005 |");
+    expect(rows).toEqual([
+      expect.objectContaining({
+        address: "0x0000000000000000000000000000000000000005",
+        chain: "arbitrum",
+        role: "protocol_registry",
+        source_input_type: "docs_html_deployment_table",
+        contract_name: "Pool Addresses Provider",
+        raw_reference: expect.objectContaining({
+          source_input_type: "docs_html_deployment_table",
+          contract_name: "Pool Addresses Provider",
+        }),
+      }),
+      expect.objectContaining({
+        address: "0x0000000000000000000000000000000000000006",
+        chain: "optimism",
+        role: "protocol_reward_distributor",
+        source_input_type: "docs_html_deployment_table",
+        contract_name: "Rewards Controller",
+      }),
+    ]);
   });
 
   it("preserves nested JSON deployment paths as raw references", () => {

@@ -88,7 +88,7 @@ export function buildReviewReadiness(candidate: ReviewReadinessInput) {
   if (!candidate.suggestedEntityId) blockers.push("missing_entity");
   if (!candidate.suggestedRoleId) blockers.push("missing_role");
   if ((candidate.evidenceCount ?? 0) < 1) blockers.push("missing_evidence");
-  if (candidate.sourceVerificationStatus && !isCandidateSourceVerificationSatisfied(candidate.sourceVerificationStatus)) {
+  if (!isCandidateSourceVerificationSatisfied(candidate.sourceVerificationStatus)) {
     blockers.push("missing_source_verification");
   }
 

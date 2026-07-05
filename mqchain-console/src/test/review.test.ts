@@ -85,6 +85,21 @@ describe("review grouping", () => {
     });
   });
 
+  it("treats absent source verification context as not ready for approval", () => {
+    expect(
+      buildReviewReadiness({
+        chainCode: "btc",
+        normalizedAddress: "bc1qexample",
+        suggestedEntityId: 1,
+        suggestedRoleId: 1001,
+        evidenceCount: 1,
+      }),
+    ).toEqual({
+      canQuickApprove: false,
+      blockers: ["missing_source_verification"],
+    });
+  });
+
   it("separates hard approval blockers from fields that can be fixed in the edit form", () => {
     expect(buildEditedApprovalReadiness(["missing_entity", "missing_role"])).toEqual({
       canApproveWithEdits: true,

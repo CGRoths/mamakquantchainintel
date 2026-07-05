@@ -36,12 +36,30 @@ function isPrivateIpv4(hostname: string) {
 
   const [a, b] = parts;
   return (
+    a === 0 ||
     a === 10 ||
     a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
     (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168) ||
-    a === 0
+    (a === 198 && (b === 18 || b === 19)) ||
+    a >= 224
+  );
+}
+
+function isPrivateIpv6(hostname: string) {
+  const normalized = hostname.toLowerCase();
+  const first = normalized.split(":").find((part) => part.length > 0) ?? "";
+
+  return (
+    normalized === "::" ||
+    normalized === "::1" ||
+    normalized === "0:0:0:0:0:0:0:1" ||
+    normalized.startsWith("::ffff:") ||
+    first.startsWith("fc") ||
+    first.startsWith("fd") ||
+    /^fe[89ab]/.test(first)
   );
 }
 
@@ -49,10 +67,9 @@ function isBlockedHostname(hostname: string) {
   return (
     hostname === "localhost" ||
     hostname.endsWith(".localhost") ||
-    hostname === "::1" ||
-    hostname === "0:0:0:0:0:0:0:1" ||
     hostname === "metadata.google.internal" ||
-    isPrivateIpv4(hostname)
+    isPrivateIpv4(hostname) ||
+    isPrivateIpv6(hostname)
   );
 }
 

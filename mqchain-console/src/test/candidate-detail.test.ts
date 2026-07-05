@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildCandidateSourceVerificationContext,
   buildCandidateTraceWarnings,
+  candidateSourceSheetMatches,
+  candidateSourceUrlMatches,
   extractCandidateSourceSheetNames,
   extractCandidateSourceUrls,
   isCandidateSourceVerificationSatisfied,
@@ -68,6 +70,40 @@ describe("candidate detail trace warnings", () => {
         },
       }),
     ).toEqual(["https://docs.example.org/deployments", "https://docs.example.org/deployments#router"]);
+  });
+
+  it("matches operator verification targets against explicit candidate provenance", () => {
+    const metadata = {
+      sourceSheet: "Ethereum",
+      sourceUrl: "https://docs.example.org/deployments#router",
+      rawReference: {
+        source_evidence: {
+          sheet_profiles: [{ sheet_name: "Mainnet" }],
+          source_url: "https://docs.example.org/deployments#pool",
+        },
+      },
+    };
+
+    expect(candidateSourceSheetMatches(metadata, "ethereum")).toEqual({
+      knownValues: ["Ethereum", "Mainnet"],
+      matchRequired: true,
+      matches: true,
+    });
+    expect(candidateSourceSheetMatches(metadata, "Polygon")).toEqual({
+      knownValues: ["Ethereum", "Mainnet"],
+      matchRequired: true,
+      matches: false,
+    });
+    expect(candidateSourceUrlMatches(metadata, "https://docs.example.org/deployments#pool")).toEqual({
+      knownValues: ["https://docs.example.org/deployments#pool", "https://docs.example.org/deployments#router"],
+      matchRequired: true,
+      matches: true,
+    });
+    expect(candidateSourceUrlMatches(metadata, "https://docs.example.org/deployments#treasury")).toEqual({
+      knownValues: ["https://docs.example.org/deployments#pool", "https://docs.example.org/deployments#router"],
+      matchRequired: true,
+      matches: false,
+    });
   });
 
   it("does not let source-job verification satisfy sheet-scoped candidates", () => {

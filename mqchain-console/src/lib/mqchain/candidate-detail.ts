@@ -133,6 +133,28 @@ export function extractCandidateSourceUrls(metadata: JsonRecord | null | undefin
   return Array.from(collectSourceUrls(metadata).values()).sort((left, right) => left.localeCompare(right));
 }
 
+export function candidateSourceSheetMatches(metadata: JsonRecord | null | undefined, sourceSheet: string | null | undefined) {
+  const sheetNames = extractCandidateSourceSheetNames(metadata);
+  const requestedSheet = sourceSheet?.trim().toLowerCase();
+
+  return {
+    knownValues: sheetNames,
+    matchRequired: sheetNames.length > 0,
+    matches: !requestedSheet || sheetNames.length === 0 || sheetNames.some((sheet) => sheet.toLowerCase() === requestedSheet),
+  };
+}
+
+export function candidateSourceUrlMatches(metadata: JsonRecord | null | undefined, sourceUrl: string | null | undefined) {
+  const sourceUrls = extractCandidateSourceUrls(metadata);
+  const requestedUrl = sourceUrl?.trim();
+
+  return {
+    knownValues: sourceUrls,
+    matchRequired: sourceUrls.length > 0,
+    matches: !requestedUrl || sourceUrls.length === 0 || sourceUrls.includes(requestedUrl),
+  };
+}
+
 export function buildCandidateSourceVerificationContext(
   input: CandidateSourceVerificationInput,
 ): CandidateSourceVerificationContext {

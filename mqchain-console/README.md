@@ -132,7 +132,7 @@ Audit log at `/mqchain/audit-log` merges approval events and system audit rows i
 
 ## KV Compiler Handoff
 
-`npm run kv:compile` reads active approved registry rows from PostgreSQL, emits a deterministic JSONL key/value preview under `build/mqchain-kv/<buildHash>/`, writes a manifest, and records the build in `mq_kv_builds`. Batch commits also queue a pending KV handoff manifest with the committed registry IDs and current dictionary version, giving the external compiler an auditable source batch and dictionary snapshot.
+`npm run kv:compile` reads batch-committed registry rows from PostgreSQL, emits a deterministic JSONL key/value preview under `build/mqchain-kv/<buildHash>/`, writes a manifest, and records the build in `mq_kv_builds`. Current-serving labels are limited to active current/sanctioned-current rows, timeline labels include committed historical serving statuses, and pending/conflict/do-not-use rows are excluded from compiled artifacts. Batch commits also queue a pending KV handoff manifest with the committed registry IDs and current dictionary version, giving the external compiler an auditable source batch and dictionary snapshot.
 Set `MQCHAIN_KV_ARTIFACT_ROOT` to change the default compiler output root, or pass `--out` for a one-off path.
 
 ```bash

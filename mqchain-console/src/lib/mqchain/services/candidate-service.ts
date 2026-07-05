@@ -429,6 +429,9 @@ async function createCandidatesFromRows(
             sourceInputType: row.source_input_type,
             contractName: row.contract_name,
             roleSource: row.role_source,
+            source_role_label: row.source_role_label ?? row.role_source ?? row.role,
+            source_role_labels:
+              row.source_role_labels ?? (row.source_role_label ?? row.role_source ?? row.role ? [row.source_role_label ?? row.role_source ?? row.role] : undefined),
             rawReference: row.raw_reference,
           },
         })
@@ -439,6 +442,9 @@ async function createCandidatesFromRows(
         normalized,
         sourceName: source.sourceName,
         notes: row.notes,
+        source_role_label: row.source_role_label ?? row.role_source ?? row.role,
+        source_role_labels:
+          row.source_role_labels ?? (row.source_role_label ?? row.role_source ?? row.role ? [row.source_role_label ?? row.role_source ?? row.role] : undefined),
         rawReference: row.raw_reference,
       };
 
