@@ -9,10 +9,10 @@ function optionalText() {
   );
 }
 
-function optionalInt() {
+function optionalConfidence() {
   return z.preprocess(
     (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-    z.coerce.number().int().optional(),
+    z.coerce.number().int().min(0).max(100).optional(),
   );
 }
 
@@ -45,7 +45,7 @@ export const createMetricGroupSchema = z
     excludeCategories: optionalText(),
     includeEntities: optionalText(),
     excludeEntities: optionalText(),
-    ruleMinConfidence: optionalInt(),
+    ruleMinConfidence: optionalConfidence(),
     ruleRequireMetricEligible: checkbox(true),
   })
   .superRefine((value, ctx) => {
@@ -75,7 +75,7 @@ export const createMetricGroupRuleSchema = z
     excludeCategories: optionalText(),
     includeEntities: optionalText(),
     excludeEntities: optionalText(),
-    ruleMinConfidence: optionalInt(),
+    ruleMinConfidence: optionalConfidence(),
     ruleRequireMetricEligible: checkbox(true),
   })
   .superRefine((value, ctx) => {

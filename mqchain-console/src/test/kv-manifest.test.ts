@@ -115,6 +115,27 @@ describe("KV build manifest validation", () => {
     expect(preflight.blockers).toEqual([]);
   });
 
+  it("reports active serving artifacts as healthy but not re-activatable", () => {
+    const preflight = buildKvManifestActivationPreflight({
+      status: "active",
+      buildHash: "hash-123",
+      dictionaryVersion: "dict-123",
+      rowCount: 1,
+      storageUri: "D:/mqchain-artifacts/kv/hash-123",
+      manifest: {
+        artifactType: "jsonl-kv-preview",
+        rowCount: 1,
+      },
+    });
+
+    expect(preflight.canActivate).toBe(false);
+    expect(preflight.blockers).toEqual([]);
+    expect(preflight.checks.find((check) => check.key === "status")).toMatchObject({
+      status: "pass",
+      detail: "Manifest is the active serving artifact.",
+    });
+  });
+
   it("passes activation preflight when multi-index row counts agree", () => {
     const preflight = buildKvManifestActivationPreflight({
       status: "compiled",

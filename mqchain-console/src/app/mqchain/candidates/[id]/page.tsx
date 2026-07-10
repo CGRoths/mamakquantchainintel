@@ -7,6 +7,7 @@ import { FlagBadges } from "@/components/mqchain/flag-badges";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { buildCandidateSourceVerificationContext, buildCandidateTraceWarnings } from "@/lib/mqchain/candidate-detail";
 import { FLAG_BITS, hasFlag } from "@/lib/mqchain/flags";
 import { buildEditedApprovalReadiness, buildReviewReadiness, REVIEW_READINESS_BLOCKER_LABELS } from "@/lib/mqchain/review";
@@ -16,7 +17,7 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
   const { id } = await params;
 
   try {
-    const detail = await getCandidateDetail(Number(id));
+    const [detail, currentUser] = await Promise.all([getCandidateDetail(Number(id)), getCurrentUser()]);
     if (!detail) {
       notFound();
     }
@@ -363,6 +364,8 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
               </CardContent>
             </Card>
             <CandidateReviewForms
+              canAddEvidence={roleCan(currentUser?.role, "candidate:evidence")}
+              canReview={roleCan(currentUser?.role, "candidate:review")}
               candidate={{
                 id: candidate.id,
                 suggestedEntityId: candidate.suggestedEntityId,

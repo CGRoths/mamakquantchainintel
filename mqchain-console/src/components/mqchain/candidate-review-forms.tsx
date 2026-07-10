@@ -40,6 +40,8 @@ type CandidateFormShellProps = {
 };
 
 type CandidateReviewFormsProps = {
+  canAddEvidence: boolean;
+  canReview: boolean;
   candidate: {
     id: number;
     suggestedEntityId: number | null;
@@ -130,6 +132,8 @@ function CandidateFormShell({
 }
 
 export function CandidateReviewForms({
+  canAddEvidence,
+  canReview,
   candidate,
   dictionaries,
   registryMatches,
@@ -141,7 +145,7 @@ export function CandidateReviewForms({
 
   return (
     <div className="grid gap-4">
-      <Card className="rounded-lg">
+      {canAddEvidence ? <Card className="rounded-lg">
         <CardHeader><CardTitle>Add evidence</CardTitle></CardHeader>
         <CardContent>
           <CandidateFormShell
@@ -183,8 +187,8 @@ export function CandidateReviewForms({
             )}
           </CandidateFormShell>
         </CardContent>
-      </Card>
-      <Card className="rounded-lg">
+      </Card> : null}
+      {canReview ? <Card className="rounded-lg">
         <CardHeader><CardTitle>Approve with edits</CardTitle></CardHeader>
         <CardContent>
           {approvalReadiness.blockers.length ? (
@@ -280,8 +284,8 @@ export function CandidateReviewForms({
             )}
           </CandidateFormShell>
         </CardContent>
-      </Card>
-      <Card className="rounded-lg">
+      </Card> : null}
+      {canReview ? <Card className="rounded-lg">
         <CardHeader><CardTitle>Review actions</CardTitle></CardHeader>
         <CardContent>
           <div className="grid gap-3">
@@ -404,8 +408,8 @@ export function CandidateReviewForms({
             </CandidateFormShell>
           </div>
         </CardContent>
-      </Card>
-      <Card className="rounded-lg">
+      </Card> : null}
+      {canReview ? <Card className="rounded-lg">
         <CardHeader><CardTitle>Reject</CardTitle></CardHeader>
         <CardContent>
           <CandidateFormShell
@@ -424,7 +428,7 @@ export function CandidateReviewForms({
             )}
           </CandidateFormShell>
         </CardContent>
-      </Card>
+      </Card> : null}
     </div>
   );
 }

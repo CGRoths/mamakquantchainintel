@@ -4,6 +4,7 @@ import { ZodError, z } from "zod";
 import { assertPermission } from "@/lib/auth/permissions";
 import { readBoundedJsonBody, RequestBodyTooLargeError } from "@/lib/mqchain/api-json";
 import { buildDiscoveryCompletionApiResponse } from "@/lib/mqchain/discovery-api";
+import { DiscoveryJobNotCompletableError } from "@/lib/mqchain/discovery-lifecycle";
 import { completeDiscoveryJob } from "@/lib/mqchain/services/discovery-service";
 import { DISCOVERY_RESULTS_API_MAX_BODY_BYTES, discoveryResultsApiRequestSchema } from "@/lib/mqchain/validators/discovery";
 
@@ -59,6 +60,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (error instanceof RequestBodyTooLargeError) {
       return errorResponse(error.message, 413);
+    }
+
+    if (error instanceof DiscoveryJobNotCompletableError) {
+      return errorResponse(error.message, 409);
     }
 
     return errorResponse(error instanceof Error ? error.message : "Discovery completion request failed.", 500);

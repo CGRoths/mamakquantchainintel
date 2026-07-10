@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { listDiscoveryJobs } from "@/lib/mqchain/services/discovery-service";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
@@ -24,22 +25,25 @@ export default async function DiscoveryJobsPage({ searchParams }: { searchParams
   const params = await searchParams;
 
   try {
-    const result = await listDiscoveryJobs(params);
+    const [result, currentUser] = await Promise.all([listDiscoveryJobs(params), getCurrentUser()]);
+    const canCreateDiscovery = roleCan(currentUser?.role, "discovery:create");
     return (
       <>
         <div>
           <h1 className="text-2xl font-semibold">Discovery jobs</h1>
           <p className="text-sm text-muted-foreground">Discovery creates candidates and evidence only. It never commits labels.</p>
         </div>
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle>Create discovery job</CardTitle>
-            <CardDescription>Factory, registry, proxy, pool, vault, tx graph, or LLM evidence reviewer worker handoffs.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DiscoveryJobForm action={createDiscoveryJobResultAction} />
-          </CardContent>
-        </Card>
+        {canCreateDiscovery ? (
+          <Card className="rounded-lg">
+            <CardHeader>
+              <CardTitle>Create discovery job</CardTitle>
+              <CardDescription>Factory, registry, proxy, pool, vault, tx graph, or LLM evidence reviewer worker handoffs.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DiscoveryJobForm action={createDiscoveryJobResultAction} />
+            </CardContent>
+          </Card>
+        ) : null}
         <Card className="rounded-lg">
           <CardHeader><CardTitle>Filters</CardTitle></CardHeader>
           <CardContent>

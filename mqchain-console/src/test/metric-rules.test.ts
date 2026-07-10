@@ -52,6 +52,30 @@ describe("metric group rules", () => {
     ).toBe(false);
   });
 
+  it("excludes low-confidence rows from the default metric policy even when flagged eligible", () => {
+    const flags = setFlag(0, FLAG_BITS.metricEligible);
+    const parsed = createMetricGroupSchema.parse({
+      metricGroupCode: "btc_cex_flow_boundary",
+      metricGroupName: "BTC CEX Flow Boundary",
+      includeRoles: "cex_hot_wallet",
+    });
+
+    expect(parsed.minConfidence).toBe(70);
+    expect(parsed.requireMetricEligible).toBe(true);
+    expect(
+      matchesMetricGroupRule(
+        {
+          roleCode: "cex_hot_wallet",
+          categoryCode: "cex_hot_cold",
+          entityCode: "binance",
+          confidenceScore: 69,
+          flags,
+        },
+        buildMetricGroupRule(parsed),
+      ),
+    ).toBe(false);
+  });
+
   it("builds metric group rules from operator input", () => {
     const input = createMetricGroupSchema.parse({
       metricGroupCode: "btc_cex_flow_boundary",
@@ -85,6 +109,25 @@ describe("metric group rules", () => {
         includeRoles: "",
       }),
     ).toThrow("At least one include");
+  });
+
+  it("rejects out-of-range confidence overrides stored in metric rule JSON", () => {
+    expect(() =>
+      createMetricGroupSchema.parse({
+        metricGroupCode: "bad_group_confidence",
+        metricGroupName: "Bad Group Confidence",
+        includeRoles: "cex_hot_wallet",
+        ruleMinConfidence: "101",
+      }),
+    ).toThrow();
+
+    expect(() =>
+      createMetricGroupRuleSchema.parse({
+        metricGroupId: "7",
+        includeRoles: "cex_hot_wallet",
+        ruleMinConfidence: "-1",
+      }),
+    ).toThrow();
   });
 
   it("builds appended metric group rules from operator input", () => {

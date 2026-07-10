@@ -31,6 +31,7 @@ MQCHAIN_KV_ARTIFACT_ROOT=build/mqchain-kv
 ```
 
 Change them in `.env.local` before running `npm run db:seed`.
+Database migration, seed, and KV compiler commands load `.env.local` explicitly; configured passwords are never printed by the seed command.
 `MQCHAIN_RESOLVER_BACKEND=postgres` is the supported console backend today; `rocksdb` is reserved for the external compiled resolver path.
 
 ## Commands

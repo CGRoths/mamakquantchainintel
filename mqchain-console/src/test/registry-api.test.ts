@@ -32,6 +32,10 @@ const registryRow = {
     isActive: true,
     primarySourceJobId: 11,
     approvedBatchId: 12,
+    metadata: {
+      source_role_label: "cold wallet",
+      source_role_labels: ["cold wallet", "Proof of Reserves"],
+    },
     updatedAt: new Date("2026-07-04T02:00:00.000Z"),
   },
   entityCode: "binance",
@@ -75,6 +79,8 @@ describe("registry export API payloads", () => {
           metricEligible: true,
           validFromBlock: 800000,
           approvedBatchId: 12,
+          sourceRoleLabel: "cold wallet",
+          sourceRoleLabels: ["cold wallet", "Proof of Reserves"],
         },
       ],
       policy: {
@@ -98,8 +104,8 @@ describe("registry export API payloads", () => {
     });
 
     expect(csv.split("\n")).toEqual([
-      "registry_id,chain_code,normalized_address,raw_address,prefix_code,payload_hex,entity_id,entity_code,entity_name,protocol_id,protocol_code,protocol_name,role_id,role_code,category_code,confidence_score,quality_tier,label_status,flags,metric_usage,metric_eligible,is_active,valid_from_block,valid_to_block,first_seen_block,last_seen_block,primary_source_job_id,approved_batch_id,updated_at",
-      '42,btc,bc1qcanonical,bc1qcanonical,18,001122,7,binance,"Binance, Global",,,,1002,cex_cold_wallet,cex_hot_cold,95,3,1,1,cex_flow,true,true,800000,,790000,,11,12,2026-07-04T02:00:00.000Z',
+      "registry_id,chain_code,normalized_address,raw_address,prefix_code,payload_hex,entity_id,entity_code,entity_name,protocol_id,protocol_code,protocol_name,role_id,role_code,category_code,confidence_score,quality_tier,label_status,flags,metric_usage,metric_eligible,is_active,valid_from_block,valid_to_block,first_seen_block,last_seen_block,primary_source_job_id,approved_batch_id,source_role_label,source_role_labels,updated_at",
+      '42,btc,bc1qcanonical,bc1qcanonical,18,001122,7,binance,"Binance, Global",,,,1002,cex_cold_wallet,cex_hot_cold,95,3,1,1,cex_flow,true,true,800000,,790000,,11,12,cold wallet,"[""cold wallet"",""Proof of Reserves""]",2026-07-04T02:00:00.000Z',
     ]);
   });
 

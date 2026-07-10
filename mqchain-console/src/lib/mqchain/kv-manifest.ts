@@ -348,12 +348,18 @@ export function buildPendingBatchKvManifest(input: PendingBatchKvManifestInput) 
 export function buildKvManifestActivationPreflight(build: KvBuildActivationCandidate): KvManifestActivationPreflight {
   const manifest = isRecord(build.manifest) ? build.manifest : null;
   const checks: KvManifestPreflightCheck[] = [];
+  const isCompiled = build.status === "compiled";
+  const isActive = build.status === "active";
 
   checks.push({
     key: "status",
     label: "Compiled status",
-    status: build.status === "compiled" ? "pass" : "fail",
-    detail: build.status === "compiled" ? "Manifest is compiled and ready for activation." : "Only compiled manifests can become active.",
+    status: isCompiled || isActive ? "pass" : "fail",
+    detail: isCompiled
+      ? "Manifest is compiled and ready for activation."
+      : isActive
+        ? "Manifest is the active serving artifact."
+        : "Only compiled manifests can become active.",
   });
 
   checks.push({
@@ -457,5 +463,5 @@ export function buildKvManifestActivationPreflight(build: KvBuildActivationCandi
   }
 
   const blockers = checks.filter((check) => check.status === "fail").map((check) => `${check.label}: ${check.detail}`);
-  return { canActivate: blockers.length === 0, checks, blockers };
+  return { canActivate: isCompiled && blockers.length === 0, checks, blockers };
 }

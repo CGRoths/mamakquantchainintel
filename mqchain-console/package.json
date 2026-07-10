@@ -9,9 +9,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx scripts/seed.ts",
-    "kv:compile": "tsx scripts/compile-kv.ts",
+    "db:migrate": "node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs migrate",
+    "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "kv:compile": "tsx --env-file=.env.local scripts/compile-kv.ts",
     "test": "vitest run"
   },
   "dependencies": {

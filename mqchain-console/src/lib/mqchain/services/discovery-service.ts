@@ -17,6 +17,7 @@ import { assertPermission } from "@/lib/auth/permissions";
 import { normalizeAddress } from "../address/normalize";
 import { attachDiscoveryRunnerTask, defaultRoleForProtocolRootType, parseDiscoveryConfigJson, discoveryTemplateSummary } from "../discovery-config";
 import { buildDiscoveryJobDetailRollup } from "../discovery-detail";
+import { assertDiscoveryJobCompletable } from "../discovery-lifecycle";
 import { getDiscoveryTemplate } from "../discovery-templates";
 import {
   buildDiscoveryJobCompletedAuditPayload,
@@ -332,6 +333,7 @@ export async function completeDiscoveryJob(input: unknown) {
     if (!job) {
       throw new Error("Discovery job not found.");
     }
+    assertDiscoveryJobCompletable(job.status);
 
     const runnerTask = job.config?.runner_task ?? null;
 

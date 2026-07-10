@@ -1,4 +1,5 @@
 import { FLAG_BITS, hasFlag } from "./flags";
+import { registrySourceRoleReference } from "./registry-provenance";
 
 export const REGISTRY_EXPORT_API_CONTRACT = {
   apiVersion: "mqchain-registry-export-api-v1",
@@ -52,6 +53,7 @@ export type RegistryExportRowInput = {
     isActive: boolean;
     primarySourceJobId: number | null;
     approvedBatchId: number | null;
+    metadata?: JsonRecord;
     updatedAt: Date;
   };
   entityCode: string | null;
@@ -227,6 +229,8 @@ function metadataKeys(value: JsonRecord | null | undefined) {
 }
 
 export function serializeRegistryExportRow(row: RegistryExportRowInput) {
+  const sourceRoleReference = registrySourceRoleReference(row.registry.metadata);
+
   return {
     registryId: row.registry.id,
     chainCode: row.registry.chainCode,
@@ -268,6 +272,8 @@ export function serializeRegistryExportRow(row: RegistryExportRowInput) {
     lastSeenBlock: row.registry.lastSeenBlock,
     primarySourceJobId: row.registry.primarySourceJobId,
     approvedBatchId: row.registry.approvedBatchId,
+    sourceRoleLabel: sourceRoleReference.source_role_label,
+    sourceRoleLabels: sourceRoleReference.source_role_labels,
     updatedAt: isoDate(row.registry.updatedAt),
   };
 }
@@ -323,6 +329,8 @@ export function buildRegistryExportCsv(input: RegistryExportApiInput) {
     "last_seen_block",
     "primary_source_job_id",
     "approved_batch_id",
+    "source_role_label",
+    "source_role_labels",
     "updated_at",
   ];
   const rows = input.rows.map((row) => {
@@ -356,6 +364,8 @@ export function buildRegistryExportCsv(input: RegistryExportApiInput) {
       serialized.lastSeenBlock,
       serialized.primarySourceJobId,
       serialized.approvedBatchId,
+      serialized.sourceRoleLabel,
+      JSON.stringify(serialized.sourceRoleLabels),
       serialized.updatedAt,
     ];
   });

@@ -27,6 +27,7 @@ import {
   buildBatchRegistryRollup,
 } from "../batch-detail";
 import { assertBatchCandidatesStillApproved, assertSelectedCandidatesApproved, type BatchCandidateReadinessRow } from "../batch-readiness";
+import { buildBatchSourceProvenance } from "../batch-source";
 import { buildCandidateSourceVerificationContext } from "../candidate-detail";
 import { LABEL_STATUS } from "../constants";
 import { markHistoricalOnlyFlags } from "../flags";
@@ -37,6 +38,7 @@ import {
   findRegistryCommitConflict,
   type RegistryCommitTarget,
 } from "../registry-conflicts";
+import { buildRegistryCommitMetadata } from "../registry-provenance";
 import { batchIdSchema, batchLifecycleSchema, createBatchSchema } from "../validators/batch";
 import { recordDictionaryVersion } from "./dictionary-service";
 import { hashJson, optionalNumber } from "./service-utils";
@@ -294,6 +296,14 @@ export async function createBatchFromCandidates(input: unknown) {
     const batchHash = hashJson(candidates.map((candidate) => [candidate.id, candidate.normalizedAddress, candidate.chainCode]));
     const first = candidates[0];
     const firstDraft = getApprovalDraft(first);
+    const [sourceJob] = first.sourceJobId
+      ? await tx.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, first.sourceJobId)).limit(1)
+      : [null];
+    const source = buildBatchSourceProvenance({
+      requestedName: parsed.sourceName,
+      fallbackName: `Candidate batch ${new Date().toISOString()}`,
+      sourceJob,
+    });
 
     const [batch] = await tx
       .insert(mqLabelBatches)
@@ -303,8 +313,9 @@ export async function createBatchFromCandidates(input: unknown) {
         entityId: optionalNumber(firstDraft.entityId) ?? first.suggestedEntityId,
         protocolId: optionalNumber(firstDraft.protocolId) ?? first.suggestedProtocolId,
         roleId: optionalNumber(firstDraft.roleId) ?? first.suggestedRoleId,
-        sourceType: parsed.sourceName || "candidate_review",
-        sourceName: parsed.sourceName || `Candidate batch ${new Date().toISOString()}`,
+        sourceType: source.sourceType,
+        sourceUrl: source.sourceUrl,
+        sourceName: source.sourceName,
         confidenceDefault: optionalNumber(firstDraft.confidenceScore) ?? first.confidenceScore,
         qualityTierDefault: optionalNumber(firstDraft.qualityTier) ?? first.qualityTier,
         flagsDefault: optionalNumber(firstDraft.flags),
@@ -609,13 +620,14 @@ export async function commitBatch(input: unknown) {
           primarySourceJobId: candidate.sourceJobId,
           approvedBatchId: batch.id,
           notes: typeof draft.notes === "string" ? draft.notes : null,
-          metadata: {
+          metadata: buildRegistryCommitMetadata({
+            candidateMetadata: candidate.metadata,
             candidateId: candidate.id,
             committedBy: actor.email,
             labelAction: typeof draft.labelAction === "string" ? draft.labelAction : "create",
             supersedesRegistryId: supersedesRegistryId ?? null,
             historicalOnly,
-          },
+          }),
         })
         .returning();
 
