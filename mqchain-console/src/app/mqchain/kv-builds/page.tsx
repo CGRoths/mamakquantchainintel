@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { listKvBuilds } from "@/lib/mqchain/services/kv-manifest-service";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
@@ -23,7 +24,8 @@ export default async function KvBuildsPage({ searchParams }: { searchParams: Pro
   const params = await searchParams;
 
   try {
-    const result = await listKvBuilds(params);
+    const [result, currentUser] = await Promise.all([listKvBuilds(params), getCurrentUser()]);
+    const canCommit = roleCan(currentUser?.role, "batch:commit");
     return (
       <>
         <div><h1 className="text-2xl font-semibold">KV build manifests</h1><p className="text-sm text-muted-foreground">RocksDB compilation is external; the console tracks manifests and batch handoffs.</p></div>
@@ -39,15 +41,17 @@ export default async function KvBuildsPage({ searchParams }: { searchParams: Pro
             </Button>
           </CardContent>
         </Card>
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle>Register external build</CardTitle>
-            <CardDescription>Record a worker-produced JSONL/RocksDB artifact without compiling inside Vercel.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CreateKvBuildManifestForm />
-          </CardContent>
-        </Card>
+        {canCommit ? (
+          <Card className="rounded-lg">
+            <CardHeader>
+              <CardTitle>Register external build</CardTitle>
+              <CardDescription>Record a worker-produced JSONL/RocksDB artifact without compiling inside Vercel.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CreateKvBuildManifestForm />
+            </CardContent>
+          </Card>
+        ) : null}
         <Card className="rounded-lg">
           <CardHeader><CardTitle>Filters</CardTitle></CardHeader>
           <CardContent>

@@ -27,7 +27,6 @@ type IntakeAction = (previousState: IntakeActionState, formData: FormData) => Pr
 type IntakeActionFormProps = {
   action: IntakeAction;
   children: (helpers: { fieldError: (name: string) => string | undefined }) => ReactNode;
-  encType?: "multipart/form-data";
   failureTitle: string;
   pendingLabel: string;
   submitLabel: string;
@@ -43,7 +42,7 @@ function FieldError({ error }: { error?: string }) {
   return <p className="text-xs text-destructive">{error}</p>;
 }
 
-function IntakeActionForm({ action, children, encType, failureTitle, pendingLabel, submitLabel }: IntakeActionFormProps) {
+function IntakeActionForm({ action, children, failureTitle, pendingLabel, submitLabel }: IntakeActionFormProps) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(action, initialState);
 
@@ -58,7 +57,7 @@ function IntakeActionForm({ action, children, encType, failureTitle, pendingLabe
   }
 
   return (
-    <form action={formAction} encType={encType} className="grid gap-4">
+    <form action={formAction} className="grid gap-4">
       {state?.ok === false ? (
         <Alert variant="destructive">
           <AlertCircle />
@@ -201,7 +200,6 @@ export function CsvIntakeForm() {
   return (
     <IntakeActionForm
       action={createCsvIntakeResultAction}
-      encType="multipart/form-data"
       failureTitle="CSV intake failed"
       pendingLabel="Importing..."
       submitLabel="Import CSV"
@@ -450,7 +448,6 @@ export function AiCleanedCsvIntakeForm() {
   return (
     <IntakeActionForm
       action={createAiCleanedCsvIntakeResultAction}
-      encType="multipart/form-data"
       failureTitle="AI-cleaned CSV intake failed"
       pendingLabel="Importing..."
       submitLabel="Import AI-cleaned CSV"

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { QUALITY_TIER_MAX } from "@/lib/mqchain/constants";
 import { listCandidates } from "@/lib/mqchain/services/candidate-service";
 import { listBatches } from "@/lib/mqchain/services/batch-service";
@@ -52,7 +53,12 @@ export default async function BatchesPage({ searchParams }: { searchParams: Prom
   const params = await searchParams;
 
   try {
-    const [result, approvedResult] = await Promise.all([listBatches(params), listCandidates(approvedCandidateFilters(params))]);
+    const [result, approvedResult, currentUser] = await Promise.all([
+      listBatches(params),
+      listCandidates(approvedCandidateFilters(params)),
+      getCurrentUser(),
+    ]);
+    const canReview = roleCan(currentUser?.role, "candidate:review");
     const approvedCandidates = approvedResult.rows.map(({ candidate, entityName, roleCode, sourceType, sourceVerificationContext }) => ({
       id: candidate.id,
       normalizedAddress: candidate.normalizedAddress,
@@ -73,6 +79,7 @@ export default async function BatchesPage({ searchParams }: { searchParams: Prom
           <h1 className="text-2xl font-semibold">Label batches</h1>
           <p className="text-sm text-muted-foreground">Batch approval and commit units for auditable registry writes.</p>
         </div>
+        {canReview ? (
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>Create batch</CardTitle>
@@ -135,6 +142,7 @@ export default async function BatchesPage({ searchParams }: { searchParams: Prom
             <CreateBatchForm approvedCandidates={approvedCandidates} />
           </CardContent>
         </Card>
+        ) : null}
         <Card className="rounded-lg">
           <CardHeader><CardTitle>Filters</CardTitle></CardHeader>
           <CardContent>

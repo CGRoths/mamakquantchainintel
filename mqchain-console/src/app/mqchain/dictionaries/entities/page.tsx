@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { listDictionaries, listEntities } from "@/lib/mqchain/services/dictionary-service";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
@@ -22,15 +23,18 @@ export default async function EntitiesPage({ searchParams }: { searchParams: Pro
   const params = await searchParams;
 
   try {
-    const [result, { categories }] = await Promise.all([listEntities(params), listDictionaries()]);
+    const [result, { categories }, currentUser] = await Promise.all([listEntities(params), listDictionaries(), getCurrentUser()]);
+    const canEdit = roleCan(currentUser?.role, "dictionary:edit");
     return (
       <>
-        <Card className="rounded-lg">
-          <CardHeader><CardTitle>Create entity</CardTitle></CardHeader>
-          <CardContent>
-            <CreateEntityForm categories={categories} />
-          </CardContent>
-        </Card>
+        {canEdit ? (
+          <Card className="rounded-lg">
+            <CardHeader><CardTitle>Create entity</CardTitle></CardHeader>
+            <CardContent>
+              <CreateEntityForm categories={categories} />
+            </CardContent>
+          </Card>
+        ) : null}
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>Filters</CardTitle>
@@ -113,18 +117,20 @@ export default async function EntitiesPage({ searchParams }: { searchParams: Pro
                     <TableCell>{entity.entityType}</TableCell>
                     <TableCell>{category?.categoryCode ?? entity.categoryId ?? "-"}</TableCell>
                     <TableCell>{String(entity.isActive)}</TableCell>
-                    <TableCell className="text-right"><DeactivateEntityForm id={entity.id} disabled={!entity.isActive} /></TableCell>
+                    <TableCell className="text-right">{canEdit ? <DeactivateEntityForm id={entity.id} disabled={!entity.isActive} /> : null}</TableCell>
                   </TableRow>
-                  <TableRow>
-                    <TableCell colSpan={6}>
-                      <details className="rounded-md border p-3">
-                        <summary className="cursor-pointer text-sm text-muted-foreground">Edit entity metadata</summary>
-                        <div className="pt-3">
-                          <UpdateEntityForm entity={entity} categories={categories} />
-                        </div>
-                      </details>
-                    </TableCell>
-                  </TableRow>
+                  {canEdit ? (
+                    <TableRow>
+                      <TableCell colSpan={6}>
+                        <details className="rounded-md border p-3">
+                          <summary className="cursor-pointer text-sm text-muted-foreground">Edit entity metadata</summary>
+                          <div className="pt-3">
+                            <UpdateEntityForm entity={entity} categories={categories} />
+                          </div>
+                        </details>
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
                 </Fragment>
               ))}
               {!result.rows.length ? (

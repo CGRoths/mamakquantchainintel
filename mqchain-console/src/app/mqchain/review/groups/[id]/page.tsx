@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { buildReviewReadiness } from "@/lib/mqchain/review";
 import { getReviewGroupDetail } from "@/lib/mqchain/services/review-service";
 
@@ -15,7 +16,9 @@ export default async function ReviewGroupDetailPage({ params }: { params: Promis
   const returnTo = `/mqchain/review/groups/${id}`;
 
   try {
-    const detail = await getReviewGroupDetail(id);
+    const [detail, currentUser] = await Promise.all([getReviewGroupDetail(id), getCurrentUser()]);
+    const canReview = roleCan(currentUser?.role, "candidate:review");
+    const canAddEvidence = roleCan(currentUser?.role, "candidate:evidence");
     const rollupCards = [
       { title: "Statuses", rows: detail.rollups.statuses },
       { title: "Sources", rows: detail.rollups.sources },
@@ -95,46 +98,60 @@ export default async function ReviewGroupDetailPage({ params }: { params: Promis
                       <TableCell className="font-mono">{candidate.confidenceScore} / Q{candidate.qualityTier}</TableCell>
                       <TableCell><StatusBadge status={candidate.candidateStatus} /></TableCell>
                       <TableCell>
-                        <div className="flex justify-end gap-2">
-                          <ReviewQuickActionForm
-                            action={reviewQuickActions.approve}
-                            candidateId={candidate.id}
-                            disabled={!readiness.canQuickApprove}
-                            reason="Approved as suggested from review group."
-                            returnTo={returnTo}
-                            variant="default"
-                          >
-                            Approve
-                          </ReviewQuickActionForm>
-                          <ReviewQuickActionForm action={reviewQuickActions.reject} candidateId={candidate.id} reason="Rejected from review group." returnTo={returnTo}>
-                            Reject
-                          </ReviewQuickActionForm>
-                          <ReviewQuickActionForm
-                            action={reviewQuickActions.evidence}
-                            candidateId={candidate.id}
-                            reason="Needs more evidence from review group."
-                            returnTo={returnTo}
-                          >
-                            Evidence
-                          </ReviewQuickActionForm>
-                          <ReviewQuickActionForm
-                            action={reviewQuickActions.conflict}
-                            candidateId={candidate.id}
-                            reason="Conflict marked from review group."
-                            returnTo={returnTo}
-                          >
-                            Conflict
-                          </ReviewQuickActionForm>
-                          <ReviewQuickActionForm
-                            action={reviewQuickActions.metricOff}
-                            candidateId={candidate.id}
-                            reason="Metric-ineligible from review group."
-                            returnTo={returnTo}
-                            variant="ghost"
-                          >
-                            Metric off
-                          </ReviewQuickActionForm>
-                        </div>
+                        {canReview || canAddEvidence ? (
+                          <div className="flex justify-end gap-2">
+                            {canReview ? (
+                              <>
+                                <ReviewQuickActionForm
+                                  action={reviewQuickActions.approve}
+                                  candidateId={candidate.id}
+                                  disabled={!readiness.canQuickApprove}
+                                  reason="Approved as suggested from review group."
+                                  returnTo={returnTo}
+                                  variant="default"
+                                >
+                                  Approve
+                                </ReviewQuickActionForm>
+                                <ReviewQuickActionForm action={reviewQuickActions.reject} candidateId={candidate.id} reason="Rejected from review group." returnTo={returnTo}>
+                                  Reject
+                                </ReviewQuickActionForm>
+                              </>
+                            ) : null}
+                            {canAddEvidence ? (
+                              <ReviewQuickActionForm
+                                action={reviewQuickActions.evidence}
+                                candidateId={candidate.id}
+                                reason="Needs more evidence from review group."
+                                returnTo={returnTo}
+                              >
+                                Evidence
+                              </ReviewQuickActionForm>
+                            ) : null}
+                            {canReview ? (
+                              <>
+                                <ReviewQuickActionForm
+                                  action={reviewQuickActions.conflict}
+                                  candidateId={candidate.id}
+                                  reason="Conflict marked from review group."
+                                  returnTo={returnTo}
+                                >
+                                  Conflict
+                                </ReviewQuickActionForm>
+                                <ReviewQuickActionForm
+                                  action={reviewQuickActions.metricOff}
+                                  candidateId={candidate.id}
+                                  reason="Metric-ineligible from review group."
+                                  returnTo={returnTo}
+                                  variant="ghost"
+                                >
+                                  Metric off
+                                </ReviewQuickActionForm>
+                              </>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">View only</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -146,6 +163,7 @@ export default async function ReviewGroupDetailPage({ params }: { params: Promis
             </Table>
           </CardContent>
         </Card>
+        {canReview ? (
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>Create batch from approved group rows</CardTitle>
@@ -192,6 +210,7 @@ export default async function ReviewGroupDetailPage({ params }: { params: Promis
             </ReviewBatchSelectionForm>
           </CardContent>
         </Card>
+        ) : null}
       </>
     );
   } catch (error) {

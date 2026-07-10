@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { listCategories } from "@/lib/mqchain/services/dictionary-service";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
@@ -22,15 +23,18 @@ export default async function CategoriesPage({ searchParams }: { searchParams: P
   const params = await searchParams;
 
   try {
-    const result = await listCategories(params);
+    const [result, currentUser] = await Promise.all([listCategories(params), getCurrentUser()]);
+    const canEdit = roleCan(currentUser?.role, "dictionary:edit");
     return (
       <>
-        <Card className="rounded-lg">
-          <CardHeader><CardTitle>Create category</CardTitle></CardHeader>
-          <CardContent>
-            <CreateCategoryForm />
-          </CardContent>
-        </Card>
+        {canEdit ? (
+          <Card className="rounded-lg">
+            <CardHeader><CardTitle>Create category</CardTitle></CardHeader>
+            <CardContent>
+              <CreateCategoryForm />
+            </CardContent>
+          </Card>
+        ) : null}
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>Filters</CardTitle>
@@ -108,17 +112,19 @@ export default async function CategoriesPage({ searchParams }: { searchParams: P
             <Table><TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Domain</TableHead><TableHead>Active</TableHead><TableHead /></TableRow></TableHeader><TableBody>
               {result.rows.map((category) => (
                 <Fragment key={category.categoryId}>
-                  <TableRow><TableCell className="font-mono">{category.categoryId}</TableCell><TableCell className="font-mono">{category.categoryCode}</TableCell><TableCell>{category.categoryName}</TableCell><TableCell>{category.domainCode}</TableCell><TableCell>{String(category.isActive)}</TableCell><TableCell className="text-right"><DeactivateCategoryForm id={category.categoryId} disabled={!category.isActive} /></TableCell></TableRow>
-                  <TableRow>
-                    <TableCell colSpan={6}>
-                      <details className="rounded-md border p-3">
-                        <summary className="cursor-pointer text-sm text-muted-foreground">Edit category metadata</summary>
-                        <div className="pt-3">
-                          <UpdateCategoryForm category={category} />
-                        </div>
-                      </details>
-                    </TableCell>
-                  </TableRow>
+                  <TableRow><TableCell className="font-mono">{category.categoryId}</TableCell><TableCell className="font-mono">{category.categoryCode}</TableCell><TableCell>{category.categoryName}</TableCell><TableCell>{category.domainCode}</TableCell><TableCell>{String(category.isActive)}</TableCell><TableCell className="text-right">{canEdit ? <DeactivateCategoryForm id={category.categoryId} disabled={!category.isActive} /> : null}</TableCell></TableRow>
+                  {canEdit ? (
+                    <TableRow>
+                      <TableCell colSpan={6}>
+                        <details className="rounded-md border p-3">
+                          <summary className="cursor-pointer text-sm text-muted-foreground">Edit category metadata</summary>
+                          <div className="pt-3">
+                            <UpdateCategoryForm category={category} />
+                          </div>
+                        </details>
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
                 </Fragment>
               ))}
               {!result.rows.length ? (

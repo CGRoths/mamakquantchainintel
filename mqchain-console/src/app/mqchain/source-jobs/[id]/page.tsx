@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import type { DistributionRow } from "@/lib/mqchain/batch-detail";
 import { getSourceJob } from "@/lib/mqchain/services/source-job-service";
 import { buildSourceJobOperationalSummary } from "@/lib/mqchain/source-job";
@@ -73,11 +74,13 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
   const { id } = await params;
 
   try {
-    const detail = await getSourceJob(Number(id));
+    const [detail, currentUser] = await Promise.all([getSourceJob(Number(id)), getCurrentUser()]);
     if (!detail) {
       notFound();
     }
 
+    const canArchive = roleCan(currentUser?.role, "intake:create");
+    const canVerifySource = roleCan(currentUser?.role, "source:verify");
     const summary = detail.sourceJob.metadata as Record<string, unknown>;
     const operationalSummary = buildSourceJobOperationalSummary({
       status: detail.sourceJob.status,
@@ -201,22 +204,26 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
             </CardContent>
           </Card>
         </section>
-        <Card className="rounded-lg">
-          <CardHeader><CardTitle>Archive source job</CardTitle></CardHeader>
-          <CardContent>
-            <ArchiveSourceJobForm
-              archiveStorageUri={detail.sourceJob.archiveStorageUri}
-              disabled={archived}
-              sourceJobId={detail.sourceJob.id}
-            />
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg">
-          <CardHeader><CardTitle>Record source verification</CardTitle></CardHeader>
-          <CardContent>
-            <SourceVerificationForm defaultSourceUrl={detail.sourceJob.sourceUrl} sourceJobId={detail.sourceJob.id} />
-          </CardContent>
-        </Card>
+        {canArchive ? (
+          <Card className="rounded-lg">
+            <CardHeader><CardTitle>Archive source job</CardTitle></CardHeader>
+            <CardContent>
+              <ArchiveSourceJobForm
+                archiveStorageUri={detail.sourceJob.archiveStorageUri}
+                disabled={archived}
+                sourceJobId={detail.sourceJob.id}
+              />
+            </CardContent>
+          </Card>
+        ) : null}
+        {canVerifySource ? (
+          <Card className="rounded-lg">
+            <CardHeader><CardTitle>Record source verification</CardTitle></CardHeader>
+            <CardContent>
+              <SourceVerificationForm defaultSourceUrl={detail.sourceJob.sourceUrl} sourceJobId={detail.sourceJob.id} />
+            </CardContent>
+          </Card>
+        ) : null}
         <section className="grid gap-4 xl:grid-cols-3">
           <Card className="rounded-lg"><CardHeader><CardTitle>Chains</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.candidateRollup.chainDistribution} emptyLabel="No chains." /></CardContent></Card>
           <Card className="rounded-lg"><CardHeader><CardTitle>Confidence</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.candidateRollup.confidenceDistribution} emptyLabel="No confidence data." /></CardContent></Card>

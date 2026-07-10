@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { metricGroupRuleSections } from "@/lib/mqchain/metric-rules";
 import { listMetricGroups, previewMetricGroupMembers } from "@/lib/mqchain/services/metric-group-service";
 import type { MetricGroupRule } from "@/lib/mqchain/types";
@@ -85,7 +86,9 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
   const params = await searchParams;
 
   try {
-    const result = await listMetricGroups(params);
+    const [result, currentUser] = await Promise.all([listMetricGroups(params), getCurrentUser()]);
+    const canEdit = roleCan(currentUser?.role, "dictionary:edit");
+    const canCommit = roleCan(currentUser?.role, "batch:commit");
     const focusedRegistryId = params.registry ? Number(params.registry) : null;
     const preview = params.preview ? await previewMetricGroupMembers(Number(params.preview), focusedRegistryId) : null;
 
@@ -95,15 +98,17 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
           <h1 className="text-2xl font-semibold">Metric groups</h1>
           <p className="text-sm text-muted-foreground">Countable universes for CEX flow, reserve, protocol graph, and future metrics.</p>
         </div>
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle>Create metric group</CardTitle>
-            <CardDescription>Define the countable universe that resolver and metrics code can test against.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CreateMetricGroupForm />
-          </CardContent>
-        </Card>
+        {canEdit ? (
+          <Card className="rounded-lg">
+            <CardHeader>
+              <CardTitle>Create metric group</CardTitle>
+              <CardDescription>Define the countable universe that resolver and metrics code can test against.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CreateMetricGroupForm />
+            </CardContent>
+          </Card>
+        ) : null}
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>Filters</CardTitle>
@@ -211,7 +216,7 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
                       <Button asChild size="sm" variant="outline">
                         <Link href={metricGroupHref(params, { preview: String(group.id) })}>Preview</Link>
                       </Button>
-                      <DeactivateMetricGroupForm id={group.id} disabled={!group.isActive} />
+                      {canEdit ? <DeactivateMetricGroupForm id={group.id} disabled={!group.isActive} /> : null}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -226,7 +231,7 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
             </Table>
           </CardContent>
         </Card>
-        {result.rows.length ? (
+        {canEdit && result.rows.length ? (
           <Card className="rounded-lg">
             <CardHeader>
               <CardTitle>Add metric group rule</CardTitle>
@@ -269,10 +274,12 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
                         Export CSV
                       </Link>
                     </Button>
-                    <CreateMetricGroupKvManifestForm
-                      rowCount={preview.kvManifest.rowCount}
-                      manifestJson={JSON.stringify(preview.kvManifest)}
-                    />
+                    {canCommit ? (
+                      <CreateMetricGroupKvManifestForm
+                        rowCount={preview.kvManifest.rowCount}
+                        manifestJson={JSON.stringify(preview.kvManifest)}
+                      />
+                    ) : null}
                   </div>
                 </div>
               </div>

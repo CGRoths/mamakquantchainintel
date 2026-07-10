@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { listKeyPrefixes } from "@/lib/mqchain/services/dictionary-service";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
@@ -22,15 +23,18 @@ export default async function KeyPrefixesPage({ searchParams }: { searchParams: 
   const params = await searchParams;
 
   try {
-    const result = await listKeyPrefixes(params);
+    const [result, currentUser] = await Promise.all([listKeyPrefixes(params), getCurrentUser()]);
+    const canEdit = roleCan(currentUser?.role, "dictionary:edit");
     return (
       <>
-        <Card className="rounded-lg">
-          <CardHeader><CardTitle>Create key prefix</CardTitle></CardHeader>
-          <CardContent>
-            <CreateKeyPrefixForm />
-          </CardContent>
-        </Card>
+        {canEdit ? (
+          <Card className="rounded-lg">
+            <CardHeader><CardTitle>Create key prefix</CardTitle></CardHeader>
+            <CardContent>
+              <CreateKeyPrefixForm />
+            </CardContent>
+          </Card>
+        ) : null}
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>Filters</CardTitle>
@@ -114,17 +118,19 @@ export default async function KeyPrefixesPage({ searchParams }: { searchParams: 
             <Table><TableHeader><TableRow><TableHead>Prefix</TableHead><TableHead>Chain</TableHead><TableHead>Family</TableHead><TableHead>Codec</TableHead><TableHead>Length</TableHead><TableHead>Active</TableHead><TableHead /></TableRow></TableHeader><TableBody>
               {result.rows.map((prefix) => (
                 <Fragment key={prefix.prefixCode}>
-                  <TableRow><TableCell className="font-mono">0x{prefix.prefixCode.toString(16).padStart(4, "0")}</TableCell><TableCell>{prefix.chainCode}</TableCell><TableCell>{prefix.addressFamily}</TableCell><TableCell>{prefix.codec}</TableCell><TableCell className="font-mono">{prefix.payloadLen ?? "var"}</TableCell><TableCell>{String(prefix.isActive)}</TableCell><TableCell className="text-right"><DeactivateKeyPrefixForm id={prefix.prefixCode} disabled={!prefix.isActive} /></TableCell></TableRow>
-                  <TableRow>
-                    <TableCell colSpan={7}>
-                      <details className="rounded-md border p-3">
-                        <summary className="cursor-pointer text-sm text-muted-foreground">Edit key prefix metadata</summary>
-                        <div className="pt-3">
-                          <UpdateKeyPrefixForm prefix={prefix} />
-                        </div>
-                      </details>
-                    </TableCell>
-                  </TableRow>
+                  <TableRow><TableCell className="font-mono">0x{prefix.prefixCode.toString(16).padStart(4, "0")}</TableCell><TableCell>{prefix.chainCode}</TableCell><TableCell>{prefix.addressFamily}</TableCell><TableCell>{prefix.codec}</TableCell><TableCell className="font-mono">{prefix.payloadLen ?? "var"}</TableCell><TableCell>{String(prefix.isActive)}</TableCell><TableCell className="text-right">{canEdit ? <DeactivateKeyPrefixForm id={prefix.prefixCode} disabled={!prefix.isActive} /> : null}</TableCell></TableRow>
+                  {canEdit ? (
+                    <TableRow>
+                      <TableCell colSpan={7}>
+                        <details className="rounded-md border p-3">
+                          <summary className="cursor-pointer text-sm text-muted-foreground">Edit key prefix metadata</summary>
+                          <div className="pt-3">
+                            <UpdateKeyPrefixForm prefix={prefix} />
+                          </div>
+                        </details>
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
                 </Fragment>
               ))}
               {!result.rows.length ? (

@@ -59,8 +59,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!(await assertAuthenticated())) {
-    return errorResponse("Authentication required.", 401);
+  try {
+    await assertPermission("batch:commit");
+  } catch {
+    return errorResponse("Batch commit permission required.", 403);
   }
 
   try {

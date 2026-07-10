@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { QUALITY_TIER_MAX } from "@/lib/mqchain/constants";
 import { listDictionaries, listRoles } from "@/lib/mqchain/services/dictionary-service";
 
@@ -24,15 +25,18 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
   const params = await searchParams;
 
   try {
-    const [result, { categories }] = await Promise.all([listRoles(params), listDictionaries()]);
+    const [result, { categories }, currentUser] = await Promise.all([listRoles(params), listDictionaries(), getCurrentUser()]);
+    const canEdit = roleCan(currentUser?.role, "dictionary:edit");
     return (
       <>
-        <Card className="rounded-lg">
-          <CardHeader><CardTitle>Create role</CardTitle></CardHeader>
-          <CardContent>
-            <CreateRoleForm categories={categories} />
-          </CardContent>
-        </Card>
+        {canEdit ? (
+          <Card className="rounded-lg">
+            <CardHeader><CardTitle>Create role</CardTitle></CardHeader>
+            <CardContent>
+              <CreateRoleForm categories={categories} />
+            </CardContent>
+          </Card>
+        ) : null}
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>Filters</CardTitle>
@@ -115,17 +119,19 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
             <Table><TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Code</TableHead><TableHead>Category</TableHead><TableHead>Group</TableHead><TableHead>Metric usage</TableHead><TableHead>Quality</TableHead><TableHead>Flags</TableHead><TableHead>Active</TableHead><TableHead /></TableRow></TableHeader><TableBody>
               {result.rows.map(({ role, category }) => (
                 <Fragment key={role.roleId}>
-                  <TableRow><TableCell className="font-mono">{role.roleId}</TableCell><TableCell className="font-mono">{role.roleCode}</TableCell><TableCell>{category?.categoryCode ?? role.categoryId ?? "-"}</TableCell><TableCell>{role.roleGroup}</TableCell><TableCell>{role.metricUsageDefault}</TableCell><TableCell>{role.defaultQualityTier}</TableCell><TableCell className="min-w-56"><FlagBadges flags={role.defaultFlags} compact /></TableCell><TableCell>{String(role.isActive)}</TableCell><TableCell className="text-right"><DeactivateRoleForm id={role.roleId} disabled={!role.isActive} /></TableCell></TableRow>
-                  <TableRow>
-                    <TableCell colSpan={9}>
-                      <details className="rounded-md border p-3">
-                        <summary className="cursor-pointer text-sm text-muted-foreground">Edit role metadata</summary>
-                        <div className="pt-3">
-                          <UpdateRoleForm role={role} categories={categories} />
-                        </div>
-                      </details>
-                    </TableCell>
-                  </TableRow>
+                  <TableRow><TableCell className="font-mono">{role.roleId}</TableCell><TableCell className="font-mono">{role.roleCode}</TableCell><TableCell>{category?.categoryCode ?? role.categoryId ?? "-"}</TableCell><TableCell>{role.roleGroup}</TableCell><TableCell>{role.metricUsageDefault}</TableCell><TableCell>{role.defaultQualityTier}</TableCell><TableCell className="min-w-56"><FlagBadges flags={role.defaultFlags} compact /></TableCell><TableCell>{String(role.isActive)}</TableCell><TableCell className="text-right">{canEdit ? <DeactivateRoleForm id={role.roleId} disabled={!role.isActive} /> : null}</TableCell></TableRow>
+                  {canEdit ? (
+                    <TableRow>
+                      <TableCell colSpan={9}>
+                        <details className="rounded-md border p-3">
+                          <summary className="cursor-pointer text-sm text-muted-foreground">Edit role metadata</summary>
+                          <div className="pt-3">
+                            <UpdateRoleForm role={role} categories={categories} />
+                          </div>
+                        </details>
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
                 </Fragment>
               ))}
               {!result.rows.length ? (

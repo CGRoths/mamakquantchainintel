@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { QUALITY_TIER_MAX } from "@/lib/mqchain/constants";
 import { buildReviewReadiness } from "@/lib/mqchain/review";
 import { getReviewWorkspace } from "@/lib/mqchain/services/review-service";
@@ -28,7 +29,9 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   const params = await searchParams;
 
   try {
-    const workspace = await getReviewWorkspace(params);
+    const [workspace, currentUser] = await Promise.all([getReviewWorkspace(params), getCurrentUser()]);
+    const canReview = roleCan(currentUser?.role, "candidate:review");
+    const canAddEvidence = roleCan(currentUser?.role, "candidate:evidence");
 
     return (
       <>
@@ -184,29 +187,43 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
                         </TableCell>
                         <TableCell className="font-mono">{candidate.confidenceScore} / Q{candidate.qualityTier}</TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap justify-end gap-2">
-                            <ReviewQuickActionForm
-                              action={reviewQuickActions.approve}
-                              candidateId={candidate.id}
-                              disabled={!readiness.canQuickApprove}
-                              reason="Approved as suggested from review queue."
-                              variant="default"
-                            >
-                              Approve
-                            </ReviewQuickActionForm>
-                            <ReviewQuickActionForm action={reviewQuickActions.reject} candidateId={candidate.id} reason="Rejected from review queue.">
-                              Reject
-                            </ReviewQuickActionForm>
-                            <ReviewQuickActionForm action={reviewQuickActions.evidence} candidateId={candidate.id}>
-                              Evidence
-                            </ReviewQuickActionForm>
-                            <ReviewQuickActionForm action={reviewQuickActions.conflict} candidateId={candidate.id}>
-                              Conflict
-                            </ReviewQuickActionForm>
-                            <ReviewQuickActionForm action={reviewQuickActions.metricOff} candidateId={candidate.id} variant="ghost">
-                              Metric off
-                            </ReviewQuickActionForm>
-                          </div>
+                          {canReview || canAddEvidence ? (
+                            <div className="flex flex-wrap justify-end gap-2">
+                              {canReview ? (
+                                <>
+                                  <ReviewQuickActionForm
+                                    action={reviewQuickActions.approve}
+                                    candidateId={candidate.id}
+                                    disabled={!readiness.canQuickApprove}
+                                    reason="Approved as suggested from review queue."
+                                    variant="default"
+                                  >
+                                    Approve
+                                  </ReviewQuickActionForm>
+                                  <ReviewQuickActionForm action={reviewQuickActions.reject} candidateId={candidate.id} reason="Rejected from review queue.">
+                                    Reject
+                                  </ReviewQuickActionForm>
+                                </>
+                              ) : null}
+                              {canAddEvidence ? (
+                                <ReviewQuickActionForm action={reviewQuickActions.evidence} candidateId={candidate.id}>
+                                  Evidence
+                                </ReviewQuickActionForm>
+                              ) : null}
+                              {canReview ? (
+                                <>
+                                  <ReviewQuickActionForm action={reviewQuickActions.conflict} candidateId={candidate.id}>
+                                    Conflict
+                                  </ReviewQuickActionForm>
+                                  <ReviewQuickActionForm action={reviewQuickActions.metricOff} candidateId={candidate.id} variant="ghost">
+                                    Metric off
+                                  </ReviewQuickActionForm>
+                                </>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">View only</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -219,6 +236,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
             </CardContent>
           </Card>
         </section>
+        {canReview ? (
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Boxes className="h-4 w-4 text-primary" />Batch select</CardTitle>
@@ -284,6 +302,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
             </ReviewBatchSelectionForm>
           </CardContent>
         </Card>
+        ) : null}
       </>
     );
   } catch (error) {

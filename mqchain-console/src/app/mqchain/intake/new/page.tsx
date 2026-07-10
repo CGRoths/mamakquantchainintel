@@ -9,14 +9,27 @@ import {
   UrlIntakeForm,
 } from "@/components/mqchain/intake-forms";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 
-export default function NewIntakePage() {
+export default async function NewIntakePage() {
+  const currentUser = await getCurrentUser();
+  const canCreateIntake = roleCan(currentUser?.role, "intake:create");
+
   return (
     <>
       <div>
         <h1 className="text-2xl font-semibold">New intake</h1>
         <p className="text-sm text-muted-foreground">Create a source job, normalize addresses, stage candidates, and attach evidence.</p>
       </div>
+      {!canCreateIntake ? (
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle>Read-only access</CardTitle>
+            <CardDescription>Your role cannot create intake source jobs. Ask an analyst, admin, or owner to submit new sources.</CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
+      {canCreateIntake ? (
       <section className="grid gap-4 xl:grid-cols-2">
         <Card className="rounded-lg">
           <CardHeader>
@@ -73,6 +86,7 @@ export default function NewIntakePage() {
           </CardContent>
         </Card>
       </section>
+      ) : null}
     </>
   );
 }

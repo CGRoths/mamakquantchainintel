@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { listDictionaries, listProtocols } from "@/lib/mqchain/services/dictionary-service";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
@@ -22,15 +23,18 @@ export default async function ProtocolsPage({ searchParams }: { searchParams: Pr
   const params = await searchParams;
 
   try {
-    const [result, { entities }] = await Promise.all([listProtocols(params), listDictionaries()]);
+    const [result, { entities }, currentUser] = await Promise.all([listProtocols(params), listDictionaries(), getCurrentUser()]);
+    const canEdit = roleCan(currentUser?.role, "dictionary:edit");
     return (
       <>
-        <Card className="rounded-lg">
-          <CardHeader><CardTitle>Create protocol</CardTitle></CardHeader>
-          <CardContent>
-            <CreateProtocolForm entities={entities} />
-          </CardContent>
-        </Card>
+        {canEdit ? (
+          <Card className="rounded-lg">
+            <CardHeader><CardTitle>Create protocol</CardTitle></CardHeader>
+            <CardContent>
+              <CreateProtocolForm entities={entities} />
+            </CardContent>
+          </Card>
+        ) : null}
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>Filters</CardTitle>
@@ -109,17 +113,19 @@ export default async function ProtocolsPage({ searchParams }: { searchParams: Pr
             <Table><TableHeader><TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Owner</TableHead><TableHead>Type</TableHead><TableHead>Chains</TableHead><TableHead>Active</TableHead><TableHead /></TableRow></TableHeader><TableBody>
               {result.rows.map(({ protocol, entity }) => (
                 <Fragment key={protocol.id}>
-                  <TableRow><TableCell className="font-mono">{protocol.protocolCode}</TableCell><TableCell>{protocol.protocolName}</TableCell><TableCell>{entity?.entityCode ?? protocol.entityId ?? "-"}</TableCell><TableCell>{protocol.protocolType}</TableCell><TableCell>{protocol.chainScope?.join(", ")}</TableCell><TableCell>{String(protocol.isActive)}</TableCell><TableCell className="text-right"><DeactivateProtocolForm id={protocol.id} disabled={!protocol.isActive} /></TableCell></TableRow>
-                  <TableRow>
-                    <TableCell colSpan={7}>
-                      <details className="rounded-md border p-3">
-                        <summary className="cursor-pointer text-sm text-muted-foreground">Edit protocol metadata</summary>
-                        <div className="pt-3">
-                          <UpdateProtocolForm protocol={protocol} entities={entities} />
-                        </div>
-                      </details>
-                    </TableCell>
-                  </TableRow>
+                  <TableRow><TableCell className="font-mono">{protocol.protocolCode}</TableCell><TableCell>{protocol.protocolName}</TableCell><TableCell>{entity?.entityCode ?? protocol.entityId ?? "-"}</TableCell><TableCell>{protocol.protocolType}</TableCell><TableCell>{protocol.chainScope?.join(", ")}</TableCell><TableCell>{String(protocol.isActive)}</TableCell><TableCell className="text-right">{canEdit ? <DeactivateProtocolForm id={protocol.id} disabled={!protocol.isActive} /> : null}</TableCell></TableRow>
+                  {canEdit ? (
+                    <TableRow>
+                      <TableCell colSpan={7}>
+                        <details className="rounded-md border p-3">
+                          <summary className="cursor-pointer text-sm text-muted-foreground">Edit protocol metadata</summary>
+                          <div className="pt-3">
+                            <UpdateProtocolForm protocol={protocol} entities={entities} />
+                          </div>
+                        </details>
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
                 </Fragment>
               ))}
               {!result.rows.length ? (

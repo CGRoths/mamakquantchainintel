@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { batchLifecyclePermissions } from "@/lib/mqchain/batch-detail";
 import { isCandidateSourceVerificationSatisfied } from "@/lib/mqchain/candidate-detail";
 import { getBatchDetail } from "@/lib/mqchain/services/batch-service";
@@ -49,12 +50,20 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
   const { id } = await params;
 
   try {
-    const detail = await getBatchDetail(Number(id));
+    const [detail, currentUser] = await Promise.all([getBatchDetail(Number(id)), getCurrentUser()]);
     if (!detail) {
       notFound();
     }
 
-    const lifecycle = batchLifecyclePermissions(detail.batch.status);
+    const canReview = roleCan(currentUser?.role, "candidate:review");
+    const canCommitBatch = roleCan(currentUser?.role, "batch:commit");
+    const statusLifecycle = batchLifecyclePermissions(detail.batch.status);
+    const lifecycle = {
+      canApprove: statusLifecycle.canApprove && canReview,
+      canCommit: statusLifecycle.canCommit && canCommitBatch,
+      canFail: statusLifecycle.canFail && canReview,
+      canSupersede: statusLifecycle.canSupersede && canReview,
+    };
     const readinessByCandidateId = new Map(detail.candidateReadiness.map((row) => [row.id, row]));
 
     return (

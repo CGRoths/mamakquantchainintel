@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import {
   buildKvManifestActivationPreflight,
   summarizeKvManifestIndexes,
@@ -16,8 +17,9 @@ import { getKvBuildDetail } from "@/lib/mqchain/services/kv-manifest-service";
 export default async function KvBuildDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const detail = await getKvBuildDetail(Number(id));
+    const [detail, currentUser] = await Promise.all([getKvBuildDetail(Number(id)), getCurrentUser()]);
     if (!detail) notFound();
+    const canCommit = roleCan(currentUser?.role, "batch:commit");
     const { build, indexManifests, indexShards, membershipSnapshots, membershipRows } = detail;
     const preflight = buildKvManifestActivationPreflight(build);
     const indexSummary = summarizeKvManifestIndexes(build.manifest);
@@ -36,7 +38,11 @@ export default async function KvBuildDetailPage({ params }: { params: Promise<{ 
           <CardHeader><CardTitle>Activation</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>Activation marks this manifest as the serving artifact for downstream MQCHAIN workers. The binary build itself remains external to Vercel.</p>
-            <ActivateKvBuildManifestForm buildId={build.id} canActivate={preflight.canActivate} />
+            {canCommit ? (
+              <ActivateKvBuildManifestForm buildId={build.id} canActivate={preflight.canActivate} />
+            ) : (
+              <p className="rounded-md border bg-muted/40 p-3">Activation requires batch commit permission. This view is read-only for your role.</p>
+            )}
           </CardContent>
         </Card>
         <Card className="rounded-lg">
