@@ -1,0 +1,21 @@
+metric_group_id,metric_group_code,metric_group_name,namespace_id,min_confidence,require_metric_eligible,is_active,source_id,verified_at,notes
+1,btc_cex_flow_boundary,BTC CEX Flow Boundary,1,70,true,true,1,2026-07-14,Legacy ID preserved
+2,btc_cex_reserve_boundary,BTC CEX Reserve Boundary,1,75,true,true,1,2026-07-14,Legacy ID preserved
+3,btc_cex_core_hot_cold,BTC CEX Core Hot and Cold,1,75,true,true,1,2026-07-14,Legacy ID preserved
+4,btc_cex_deposit_candidates,BTC CEX Deposit Candidates,1,70,false,true,1,2026-07-14,Legacy ID preserved
+5,eth_cex_native_flow_boundary,ETH CEX Native Flow Boundary,4,75,true,true,1,2026-07-14,Legacy ID preserved
+6,eth_cex_erc20_flow_boundary,ETH CEX ERC20 Flow Boundary,4,75,true,true,1,2026-07-14,Legacy ID preserved
+7,stablecoin_cex_flow_boundary,Stablecoin CEX Flow Boundary,,75,true,true,1,2026-07-14,Legacy ID preserved
+8,defi_protocol_asset_container,DeFi Protocol Asset Container,,70,false,true,1,2026-07-14,Legacy ID preserved
+9,bridge_flow_boundary,Bridge Flow Boundary,,75,true,true,1,2026-07-14,Legacy ID preserved
+10,btc_cex_flow_core,BTC CEX Flow Core,1,80,true,true,1,2026-07-14,
+11,btc_cex_flow_expanded,BTC CEX Flow Expanded,1,70,true,true,1,2026-07-14,
+12,eth_cex_native_flow_core,ETH CEX Native Flow Core,4,80,true,true,1,2026-07-14,
+13,eth_cex_native_flow_expanded,ETH CEX Native Flow Expanded,4,70,true,true,1,2026-07-14,
+14,eth_cex_erc20_flow_core,ETH CEX ERC20 Flow Core,4,80,true,true,1,2026-07-14,
+15,eth_cex_erc20_flow_expanded,ETH CEX ERC20 Flow Expanded,4,70,true,true,1,2026-07-14,
+16,eth_cex_reserve_boundary,ETH CEX Reserve Boundary,4,75,true,true,1,2026-07-14,
+17,bridge_asset_container,Bridge Asset Container,,75,true,true,1,2026-07-14,
+18,protocol_treasury_boundary,Protocol Treasury Boundary,,75,true,true,1,2026-07-14,
+19,sanctioned_entity_flow_boundary,Sanctioned Entity Flow Boundary,,85,true,true,1,2026-07-14,
+20,validator_staking_boundary,Validator Staking Boundary,,75,true,true,1,2026-07-14,

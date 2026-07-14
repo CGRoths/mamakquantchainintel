@@ -1,0 +1,18 @@
+range_id,dictionary_kind,range_code,start_id,end_id,next_id,owner_domain,status,source_id,notes
+1,category,legacy_categories,100,999,921,mqchain,active,1,Observed legacy IDs reserved
+2,category,u1_categories,10000,19999,10000,mqchain,active,1,U1 taxonomy additions
+3,entity,legacy_entities,1,9999,32,mqchain,active,1,Observed live IDs 1 through 31 preserved
+4,protocol,legacy_protocols,1,9999,14,mqchain,active,1,Observed live IDs 1 through 13 preserved
+5,role,legacy_roles,1000,6999,6051,mqchain,active,1,Observed legacy role IDs preserved including protocol-specific rows
+6,role,u1_roles,7000,9999,7240,mqchain,active,1,New primary functional roles
+7,network,u1_networks,1,9999,49,mqchain,active,1,
+8,address_codec,u1_codecs,1,65535,96,mqchain,active,1,uint16 contract
+9,address_namespace,u1_namespaces,1,4294967295,47,mqchain,active,1,uint32 contract
+10,tag,u1_tags,1,4294967295,1,mqchain,active,1,
+11,tagset,u1_tagsets,1,4294967295,1,mqchain,active,1,
+12,component,u1_components,1,4294967295,1,mqchain,active,1,
+13,metric_group,u1_metric_groups,1,4294967295,21,mqchain,active,1,Existing nine database IDs preserved after reconciliation
+14,asset,u1_assets,1,4294967295,1,mqasset,active,1,
+15,token_standard,u1_token_standards,1,65535,1,mqasset,active,1,uint16 contract
+16,token_contract,u1_token_contracts,1,4294967295,4,mqasset,active,1,Append-only verified token contract mappings
+17,deployment,u1_protocol_deployments,1,4294967295,2,mqchain,active,1,Append-only protocol deployment identities

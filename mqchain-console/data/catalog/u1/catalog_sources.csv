@@ -1,0 +1,13 @@
+source_id,source_code,source_name,source_type,url,retrieved_at,status,notes
+1,approved_u1_spec,MAMAKQUANTCHAIN Universal Address Intelligence Spec U1,internal_approved_spec,,2026-07-14,active,Approved architecture and taxonomy contract
+2,caip_registry,Chain Agnostic Improvement Proposals registry,standards_registry,https://namespaces.chainagnostic.org/,2026-07-14,active,Network namespace identifiers
+3,slip44_registry,SLIP-0044 registered coin types,standards_registry,https://github.com/satoshilabs/slips/blob/master/slip-0044.md,2026-07-14,active,Coin type identifiers
+4,eip155,EIP-155 Simple replay attack protection,official_standard,https://eips.ethereum.org/EIPS/eip-155,2026-07-14,active,EVM chain ID semantics
+5,bitcoin_bips,Bitcoin BIPs,official_standard,https://github.com/bitcoin/bips,2026-07-14,active,Bitcoin address formats and witness encodings
+6,solana_docs,Solana documentation,official_docs,https://solana.com/docs,2026-07-14,active,Solana public key format
+7,tron_docs,TRON developer documentation,official_docs,https://developers.tron.network/docs/account,2026-07-14,active,TRON account format
+8,cosmos_sdk_docs,Cosmos SDK documentation,official_docs,https://docs.cosmos.network/,2026-07-14,active,Cosmos Bech32 account model
+9,chain_official_docs,Official chain documentation collection,official_docs,,2026-07-14,active,Per-row URL belongs in external identifiers or notes when verified
+10,tether_supported_protocols,Tether Supported Protocols,issuer_official_docs,https://tether.to/en/supported-protocols/,2026-07-14,active,Official USDt contract addresses by network
+11,circle_usdc_contracts,Circle USDC Contract Addresses,issuer_official_docs,https://developers.circle.com/stablecoins/usdc-contract-addresses,2026-07-14,active,Official USDC mainnet and testnet addresses
+12,aave_address_book_ethereum,Aave Address Book Ethereum,protocol_official_repository,https://github.com/aave-dao/aave-address-book/blob/7e444a1e73b538fd0b9e093e5156401d6fccca7d/src/AaveV3Ethereum.sol,2026-07-14,active,Pinned official Aave V3 Ethereum address-book source

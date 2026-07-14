@@ -6,14 +6,14 @@ const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvw
 const BECH32_ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 const BECH32_CONST = 1;
 const BECH32M_CONST = 0x2bc830a3;
-const EVM_CHAIN_PREFIX: Record<string, number> = {
-  ethereum: 0x0101,
-  eth: 0x0101,
-  polygon: 0x0102,
-  base: 0x0103,
-  arbitrum: 0x0104,
-  optimism: 0x0105,
-  bsc: 0x0106,
+const EVM_CHAIN: Record<string, { prefixCode: number; namespaceId: number }> = {
+  ethereum: { prefixCode: 0x0101, namespaceId: 4 },
+  eth: { prefixCode: 0x0101, namespaceId: 4 },
+  polygon: { prefixCode: 0x0102, namespaceId: 5 },
+  base: { prefixCode: 0x0103, namespaceId: 6 },
+  arbitrum: { prefixCode: 0x0104, namespaceId: 7 },
+  optimism: { prefixCode: 0x0105, namespaceId: 8 },
+  bsc: { prefixCode: 0x0106, namespaceId: 9 },
 };
 
 function sha256(buffer: Uint8Array) {
@@ -180,6 +180,8 @@ function failure(rawAddress: string, error: string): NormalizedAddress {
     rawAddress,
     normalizedAddress: rawAddress.trim(),
     prefixCode: null,
+    namespaceId: null,
+    addressCodecId: null,
     payloadHex: null,
     isValid: false,
     error,
@@ -193,8 +195,8 @@ function normalizeEvm(rawAddress: string, chainHint?: string | null): Normalized
   }
 
   const chain = normalizeChainHint(chainHint);
-  const chainCode = chain && EVM_CHAIN_PREFIX[chain] ? (chain === "eth" ? "ethereum" : chain) : "ethereum";
-  const prefixCode = EVM_CHAIN_PREFIX[chainCode] ?? 0x0101;
+  const chainCode = chain && EVM_CHAIN[chain] ? (chain === "eth" ? "ethereum" : chain) : "ethereum";
+  const identity = EVM_CHAIN[chainCode] ?? EVM_CHAIN.ethereum;
   const normalizedAddress = value.toLowerCase();
 
   return success({
@@ -202,7 +204,9 @@ function normalizeEvm(rawAddress: string, chainHint?: string | null): Normalized
     addressFamily: "evm20",
     rawAddress,
     normalizedAddress,
-    prefixCode,
+    prefixCode: identity.prefixCode,
+    namespaceId: identity.namespaceId,
+    addressCodecId: 1,
     payloadHex: normalizedAddress.slice(2),
   });
 }
@@ -222,6 +226,8 @@ function normalizeBtcBase58(rawAddress: string): NormalizedAddress | null {
       rawAddress,
       normalizedAddress: value,
       prefixCode: 0x0010,
+      namespaceId: 1,
+      addressCodecId: 10,
       payloadHex: bytesToHex(payload),
     });
   }
@@ -233,6 +239,8 @@ function normalizeBtcBase58(rawAddress: string): NormalizedAddress | null {
       rawAddress,
       normalizedAddress: value,
       prefixCode: 0x0011,
+      namespaceId: 2,
+      addressCodecId: 11,
       payloadHex: bytesToHex(payload),
     });
   }
@@ -265,10 +273,12 @@ function normalizeBtcBech32(rawAddress: string): NormalizedAddress | null {
 
   return success({
     chainCode: "btc",
-    addressFamily: "btc_bech32",
+    addressFamily: witnessVersion === 0 ? "btc_bech32" : "btc_bech32m",
     rawAddress,
     normalizedAddress: value.toLowerCase(),
     prefixCode: 0x0012,
+    namespaceId: witnessVersion === 0 ? 3 : 47,
+    addressCodecId: witnessVersion === 0 ? 12 : 13,
     payloadHex: bytesToHex(payload),
   });
 }
@@ -286,6 +296,8 @@ function normalizeSolana(rawAddress: string): NormalizedAddress | null {
     rawAddress,
     normalizedAddress: value,
     prefixCode: 0x0301,
+    namespaceId: 10,
+    addressCodecId: 20,
     payloadHex: bytesToHex(decoded),
   });
 }
@@ -303,6 +315,8 @@ function normalizeTron(rawAddress: string): NormalizedAddress | null {
     rawAddress,
     normalizedAddress: value,
     prefixCode: 0x0401,
+    namespaceId: 11,
+    addressCodecId: 21,
     payloadHex: bytesToHex(payload),
   });
 }
@@ -315,7 +329,7 @@ export function normalizeAddress(rawAddress: string, chainHint?: string | null):
     return failure(rawAddress, "empty_address");
   }
 
-  if (chain && (EVM_CHAIN_PREFIX[chain] || chain === "ethereum")) {
+  if (chain && (EVM_CHAIN[chain] || chain === "ethereum")) {
     return normalizeEvm(value, chain) ?? failure(rawAddress, "invalid_evm_address");
   }
 

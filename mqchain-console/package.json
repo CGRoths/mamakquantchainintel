@@ -12,10 +12,12 @@
     "db:migrate": "node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs migrate",
     "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
     "kv:compile": "tsx --env-file=.env.local scripts/compile-kv.ts",
+    "u1:reports": "tsx scripts/generate-u1-reports.ts",
     "test": "vitest run"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "bloom-filters": "3.0.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",

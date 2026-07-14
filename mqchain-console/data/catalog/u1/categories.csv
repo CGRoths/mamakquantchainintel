@@ -1,0 +1,45 @@
+category_id,category_code,category_name,parent_category_id,domain_code,metric_domain,is_active,source_id,verified_at,notes
+100,cex,Centralized Exchange,,exchange,cex,true,1,2026-07-14,Legacy ID preserved
+110,cex_reserve,CEX Reserve,100,exchange,cex_reserve,true,1,2026-07-14,Legacy ID preserved
+120,cex_deposit,CEX Deposit,100,exchange,cex_flow,true,1,2026-07-14,Legacy ID preserved
+130,cex_hot_cold,CEX Hot and Cold,100,exchange,cex_flow,true,1,2026-07-14,Legacy ID preserved
+200,defi,DeFi,,defi,protocol_graph,true,1,2026-07-14,Legacy ID preserved
+210,defi_dex,DEX and AMM,200,defi,protocol_graph,true,1,2026-07-14,Legacy ID preserved
+220,defi_lending,Lending,200,defi,protocol_graph,true,1,2026-07-14,Legacy ID preserved
+230,defi_yield,Yield and Vault,200,defi,protocol_graph,true,1,2026-07-14,Legacy ID preserved
+300,bridge,Bridge,,bridge,bridge_flow,true,1,2026-07-14,Legacy ID preserved
+400,custody,Custody,,custody,,true,1,2026-07-14,Legacy ID preserved
+500,issuer,Issuer,,issuer,,true,1,2026-07-14,Legacy ID preserved
+600,oracle,Oracle,,defi,,true,1,2026-07-14,Legacy ID preserved
+700,governance,Governance,,governance,,true,1,2026-07-14,Legacy ID preserved
+800,treasury,Treasury,,governance,,true,1,2026-07-14,Legacy ID preserved
+900,risk,Risk,,risk,,true,1,2026-07-14,Legacy ID preserved
+910,mixer,Mixer,900,risk,,true,1,2026-07-14,Legacy ID preserved
+920,sanction,Sanction,900,risk,,true,1,2026-07-14,Legacy ID preserved
+10000,cross_chain_messaging,Cross-chain Messaging,300,bridge,bridge_flow,true,1,2026-07-14,
+10010,wallet,Wallet,,wallet,,true,1,2026-07-14,
+10020,market_maker,Market Maker,,finance,,true,1,2026-07-14,
+10030,otc,OTC Desk,,finance,,true,1,2026-07-14,
+10040,stablecoin,Stablecoin,500,issuer,stablecoin_flow,true,1,2026-07-14,
+10050,rwa,Real-world Asset,500,issuer,rwa,true,1,2026-07-14,
+10060,derivatives,Derivatives and Perpetuals,200,defi,derivatives,true,1,2026-07-14,
+10070,l1,Layer 1,,network,,true,1,2026-07-14,
+10080,l2,Layer 2,,network,,true,1,2026-07-14,
+10090,rollup,Rollup,10080,network,,true,1,2026-07-14,
+10100,data_availability,Data Availability,,infrastructure,,true,1,2026-07-14,
+10110,sequencer,Sequencer,,infrastructure,,true,1,2026-07-14,
+10120,validator,Validator,,infrastructure,validator_staking,true,1,2026-07-14,
+10130,miner,Miner,,infrastructure,,true,1,2026-07-14,
+10140,staking,Staking,,staking,validator_staking,true,1,2026-07-14,
+10150,liquid_staking,Liquid Staking,200,staking,validator_staking,true,1,2026-07-14,
+10160,restaking,Restaking,200,staking,validator_staking,true,1,2026-07-14,
+10170,mev,MEV,,infrastructure,,true,1,2026-07-14,
+10180,account_abstraction,Account Abstraction,,infrastructure,,true,1,2026-07-14,
+10190,multisig,Multisig,400,custody,,true,1,2026-07-14,
+10200,name_service,Name Service,,infrastructure,,true,1,2026-07-14,
+10210,nft,NFT,,application,,true,1,2026-07-14,
+10220,gaming,Gaming,,application,,true,1,2026-07-14,
+10230,privacy,Privacy,,privacy,,true,1,2026-07-14,
+10240,exploit,Exploit,900,risk,,true,1,2026-07-14,
+10250,phishing_drainer,Phishing and Drainer,900,risk,,true,1,2026-07-14,
+10260,infrastructure,Infrastructure,,infrastructure,,true,1,2026-07-14,

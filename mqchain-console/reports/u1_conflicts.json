@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "MQCHAIN-U1-CONFLICT-1",
+  "dictionaryVersion": "cfe03c24e185f131967c85e4f3df70be12b75f4f33867432847321ab90f10658",
+  "summary": {
+    "detected": 1,
+    "resolved": 1,
+    "unresolved": 0,
+    "existingIdsRenumbered": 0
+  },
+  "conflicts": [
+    {
+      "conflictType": "legacy_prefix_to_multiple_u1_namespaces",
+      "legacyPrefixCode": 18,
+      "namespaceIds": [
+        3,
+        47
+      ],
+      "namespaceCodes": [
+        "bitcoin_segwit",
+        "bitcoin_segwit_bech32m"
+      ],
+      "resolution": "resolved_by_payload_aware_codec_detection",
+      "destructiveAction": false
+    }
+  ]
+}

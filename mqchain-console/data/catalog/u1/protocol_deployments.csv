@@ -1,0 +1,2 @@
+deployment_id,protocol_id,namespace_id,deployment_code,deployment_name,status,source_id,verified_at,notes
+1,1,4,aave_v3_ethereum,Aave V3 Ethereum,active,12,2026-07-14,Pinned address-book commit

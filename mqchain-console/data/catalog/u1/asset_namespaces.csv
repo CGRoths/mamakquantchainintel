@@ -1,0 +1,13 @@
+asset_namespace_id,asset_id,namespace_id,standard_id,status,source_id,verified_at,notes
+1,1,1,1,active,1,2026-07-14,Bitcoin native mapping
+2,2,4,1,active,1,2026-07-14,Ethereum native mapping
+3,7,10,1,active,1,2026-07-14,Solana native mapping
+4,8,11,1,active,1,2026-07-14,TRON native mapping
+5,9,9,1,active,1,2026-07-14,BNB Smart Chain native mapping
+6,18,27,1,active,1,2026-07-14,Sui native mapping
+7,19,28,1,active,1,2026-07-14,Aptos native mapping
+8,20,29,1,active,1,2026-07-14,TON native mapping
+9,21,38,1,active,1,2026-07-14,Cardano native mapping
+10,22,39,1,active,1,2026-07-14,Polkadot native mapping
+11,23,41,1,active,1,2026-07-14,XRP Ledger native mapping
+12,24,42,1,active,1,2026-07-14,Stellar native mapping

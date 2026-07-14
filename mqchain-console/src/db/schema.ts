@@ -4,6 +4,7 @@ import {
   bigserial,
   boolean,
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -27,6 +28,9 @@ import {
   SOURCE_VERIFICATION_SCOPES,
   SOURCE_VERIFICATION_STATUSES,
   TRUST_TIERS,
+  U1_BUILD_KINDS,
+  U1_CAPABILITY_STATUSES,
+  U1_MEMBERSHIP_STATUSES,
 } from "@/lib/mqchain/constants";
 
 function sqlStringList(values: readonly string[]) {
@@ -185,6 +189,188 @@ export const mqKvKeyPrefixDict = pgTable(
   ],
 );
 
+export const mqCatalogSources = pgTable(
+  "mq_catalog_sources",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey(),
+    sourceCode: text("source_code").notNull().unique(),
+    sourceName: text("source_name").notNull(),
+    sourceType: text("source_type").notNull(),
+    url: text("url"),
+    retrievedAt: timestamp("retrieved_at", { withTimezone: true }),
+    status: text("status").notNull().default("active"),
+    notes: text("notes"),
+    contentHash: text("content_hash"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_mq_catalog_sources_type").on(table.sourceType), index("idx_mq_catalog_sources_status").on(table.status)],
+);
+
+export const mqChainNetworks = pgTable(
+  "mq_chain_networks",
+  {
+    id: bigint("chain_network_id", { mode: "number" }).primaryKey(),
+    networkCode: text("network_code").notNull().unique(),
+    networkName: text("network_name").notNull(),
+    chainFamily: text("chain_family").notNull(),
+    environment: text("environment").notNull().default("mainnet"),
+    caip2: text("caip2").unique(),
+    evmChainId: bigint("evm_chain_id", { mode: "number" }),
+    slip44: integer("slip44"),
+    isActive: boolean("is_active").notNull().default(true),
+    sourceId: bigint("source_id", { mode: "number" }).references(() => mqCatalogSources.id),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_mq_chain_networks_family").on(table.chainFamily),
+    index("idx_mq_chain_networks_environment").on(table.environment),
+    check("ck_mq_chain_networks_id_uint32", sql`${table.id} between 1 and 4294967295`),
+    check("ck_mq_chain_networks_evm_chain_id", sql`${table.evmChainId} is null or ${table.evmChainId} > 0`),
+  ],
+);
+
+export const mqAddressCodecs = pgTable(
+  "mq_address_codecs",
+  {
+    id: integer("address_codec_id").primaryKey(),
+    codecCode: text("codec_code").notNull().unique(),
+    codecName: text("codec_name").notNull(),
+    addressFamily: text("address_family").notNull(),
+    acceptedFormats: text("accepted_formats").notNull(),
+    canonicalFormat: text("canonical_format").notNull(),
+    payloadRule: text("payload_rule").notNull(),
+    checksumBehavior: text("checksum_behavior").notNull(),
+    chainFamilyCompatibility: text("chain_family_compatibility").notNull(),
+    normalizerVersion: text("normalizer_version").notNull(),
+    testVectors: jsonb("test_vectors").$type<{ valid: string[]; invalid: string[] }>().notNull().default({ valid: [], invalid: [] }),
+    status: text("status").notNull().default("catalogued"),
+    sourceId: bigint("source_id", { mode: "number" }).references(() => mqCatalogSources.id),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_mq_address_codecs_family").on(table.addressFamily),
+    check("ck_mq_address_codecs_id_uint16", sql`${table.id} between 1 and 65535`),
+    check("ck_mq_address_codecs_status", sql`${table.status} in (${sqlStringList(U1_CAPABILITY_STATUSES)})`),
+  ],
+);
+
+export const mqAddressNamespaces = pgTable(
+  "mq_address_namespaces",
+  {
+    id: bigint("namespace_id", { mode: "number" }).primaryKey(),
+    namespaceCode: text("namespace_code").notNull().unique(),
+    namespaceName: text("namespace_name").notNull(),
+    chainNetworkId: bigint("chain_network_id", { mode: "number" }).notNull().references(() => mqChainNetworks.id),
+    addressCodecId: integer("address_codec_id").notNull().references(() => mqAddressCodecs.id),
+    legacyPrefixCode: integer("legacy_prefix_code").references(() => mqKvKeyPrefixDict.prefixCode),
+    addressHrp: text("address_hrp"),
+    networkDiscriminator: text("network_discriminator"),
+    isActive: boolean("is_active").notNull().default(true),
+    sourceId: bigint("source_id", { mode: "number" }).references(() => mqCatalogSources.id),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_mq_address_namespaces_network_codec_hrp").on(table.chainNetworkId, table.addressCodecId, table.addressHrp),
+    index("idx_mq_address_namespaces_legacy_prefix").on(table.legacyPrefixCode),
+    index("idx_mq_address_namespaces_network").on(table.chainNetworkId),
+    index("idx_mq_address_namespaces_codec").on(table.addressCodecId),
+    check("ck_mq_address_namespaces_id_uint32", sql`${table.id} between 1 and 4294967295`),
+  ],
+);
+
+export const mqChainCapabilities = pgTable(
+  "mq_chain_capabilities",
+  {
+    chainNetworkId: bigint("chain_network_id", { mode: "number" }).primaryKey().references(() => mqChainNetworks.id),
+    catalogStatus: text("catalog_status").notNull(),
+    normalizerStatus: text("normalizer_status").notNull(),
+    mqnodeParserStatus: text("mqnode_parser_status").notNull(),
+    assetResolverStatus: text("asset_resolver_status").notNull(),
+    currentLabelStatus: text("current_label_status").notNull(),
+    timelineStatus: text("timeline_status").notNull(),
+    metricStatus: text("metric_status").notNull(),
+    notes: text("notes"),
+    lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("ck_mq_chain_capabilities_catalog", sql`${table.catalogStatus} in (${sqlStringList(U1_CAPABILITY_STATUSES)})`),
+    check("ck_mq_chain_capabilities_normalizer", sql`${table.normalizerStatus} in (${sqlStringList(U1_CAPABILITY_STATUSES)})`),
+    check("ck_mq_chain_capabilities_mqnode", sql`${table.mqnodeParserStatus} in (${sqlStringList(U1_CAPABILITY_STATUSES)})`),
+    check("ck_mq_chain_capabilities_asset", sql`${table.assetResolverStatus} in (${sqlStringList(U1_CAPABILITY_STATUSES)})`),
+    check("ck_mq_chain_capabilities_current", sql`${table.currentLabelStatus} in (${sqlStringList(U1_CAPABILITY_STATUSES)})`),
+    check("ck_mq_chain_capabilities_timeline", sql`${table.timelineStatus} in (${sqlStringList(U1_CAPABILITY_STATUSES)})`),
+    check("ck_mq_chain_capabilities_metric", sql`${table.metricStatus} in (${sqlStringList(U1_CAPABILITY_STATUSES)})`),
+  ],
+);
+
+export const mqDictionaryIdRanges = pgTable(
+  "mq_dictionary_id_ranges",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey(),
+    dictionaryKind: text("dictionary_kind").notNull(),
+    rangeCode: text("range_code").notNull().unique(),
+    startId: bigint("start_id", { mode: "number" }).notNull(),
+    endId: bigint("end_id", { mode: "number" }).notNull(),
+    nextId: bigint("next_id", { mode: "number" }).notNull(),
+    ownerDomain: text("owner_domain").notNull(),
+    status: text("status").notNull().default("active"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_mq_dictionary_ranges_kind_code").on(table.dictionaryKind, table.rangeCode),
+    check("ck_mq_dictionary_ranges_bounds", sql`${table.startId} > 0 and ${table.endId} >= ${table.startId} and ${table.nextId} between ${table.startId} and ${table.endId} + 1`),
+  ],
+);
+
+export const mqExternalIdentifiers = pgTable(
+  "mq_external_identifiers",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    subjectKind: text("subject_kind").notNull(),
+    subjectId: bigint("subject_id", { mode: "number" }).notNull(),
+    identifierType: text("identifier_type").notNull(),
+    identifierValue: text("identifier_value").notNull(),
+    sourceId: bigint("source_id", { mode: "number" }).references(() => mqCatalogSources.id),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    status: text("status").notNull().default("active"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_mq_external_identifiers_subject_type_value").on(table.subjectKind, table.subjectId, table.identifierType, table.identifierValue),
+    index("idx_mq_external_identifiers_lookup").on(table.identifierType, table.identifierValue),
+  ],
+);
+
+export const mqNameAliases = pgTable(
+  "mq_name_aliases",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    subjectKind: text("subject_kind").notNull(),
+    subjectId: bigint("subject_id", { mode: "number" }).notNull(),
+    alias: text("alias").notNull(),
+    normalizedAlias: text("normalized_alias").notNull(),
+    languageCode: text("language_code"),
+    sourceId: bigint("source_id", { mode: "number" }).references(() => mqCatalogSources.id),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("uq_mq_name_alias_subject_alias").on(table.subjectKind, table.subjectId, table.normalizedAlias), index("idx_mq_name_alias_lookup").on(table.normalizedAlias)],
+);
+
 export const mqKvRoleDict = pgTable(
   "mq_kv_role_dict",
   {
@@ -208,6 +394,174 @@ export const mqKvRoleDict = pgTable(
     check("ck_mq_kv_role_default_quality_tier_range", sql`${table.defaultQualityTier} between 0 and 7`),
     check("ck_mq_kv_role_default_flags_non_negative", sql`${table.defaultFlags} >= 0`),
   ],
+);
+
+export const mqTagDict = pgTable(
+  "mq_tag_dict",
+  {
+    id: bigint("tag_id", { mode: "number" }).primaryKey(),
+    tagCode: text("tag_code").notNull().unique(),
+    tagName: text("tag_name").notNull(),
+    tagGroup: text("tag_group"),
+    isActive: boolean("is_active").notNull().default(true),
+    sourceId: bigint("source_id", { mode: "number" }).references(() => mqCatalogSources.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("ck_mq_tag_dict_id_uint32", sql`${table.id} between 1 and 4294967295`), index("idx_mq_tag_dict_group").on(table.tagGroup)],
+);
+
+export const mqTagsetDict = pgTable(
+  "mq_tagset_dict",
+  {
+    id: bigint("tagset_id", { mode: "number" }).primaryKey(),
+    tagsetCode: text("tagset_code").notNull().unique(),
+    contentHash: text("content_hash").notNull().unique(),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("ck_mq_tagset_dict_id_uint32", sql`${table.id} between 1 and 4294967295`)],
+);
+
+export const mqTagsetMembers = pgTable(
+  "mq_tagset_members",
+  {
+    tagsetId: bigint("tagset_id", { mode: "number" }).notNull().references(() => mqTagsetDict.id),
+    tagId: bigint("tag_id", { mode: "number" }).notNull().references(() => mqTagDict.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.tagsetId, table.tagId] }), index("idx_mq_tagset_members_tag").on(table.tagId)],
+);
+
+export const mqProtocolDeployments = pgTable(
+  "mq_protocol_deployments",
+  {
+    id: bigint("deployment_id", { mode: "number" }).primaryKey(),
+    protocolId: bigint("protocol_id", { mode: "number" }).notNull().references(() => mqProtocols.id),
+    namespaceId: bigint("namespace_id", { mode: "number" }).notNull().references(() => mqAddressNamespaces.id),
+    deploymentCode: text("deployment_code").notNull().unique(),
+    deploymentName: text("deployment_name").notNull(),
+    status: text("status").notNull().default("active"),
+    sourceId: bigint("source_id", { mode: "number" }).references(() => mqCatalogSources.id),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_mq_protocol_deployments_protocol").on(table.protocolId), index("idx_mq_protocol_deployments_namespace").on(table.namespaceId), check("ck_mq_protocol_deployments_id_uint32", sql`${table.id} between 1 and 4294967295`)],
+);
+
+export const mqProtocolComponents = pgTable(
+  "mq_protocol_components",
+  {
+    id: bigint("component_id", { mode: "number" }).primaryKey(),
+    protocolId: bigint("protocol_id", { mode: "number" }).notNull().references(() => mqProtocols.id),
+    deploymentId: bigint("deployment_id", { mode: "number" }).references(() => mqProtocolDeployments.id),
+    componentCode: text("component_code").notNull().unique(),
+    componentName: text("component_name").notNull(),
+    componentType: text("component_type").notNull(),
+    namespaceId: bigint("namespace_id", { mode: "number" }).notNull().references(() => mqAddressNamespaces.id),
+    addressCodecId: integer("address_codec_id").notNull().references(() => mqAddressCodecs.id),
+    normalizedPayloadHex: text("normalized_payload_hex").notNull(),
+    roleId: integer("role_id").notNull().references(() => mqKvRoleDict.roleId),
+    categoryId: integer("category_id").notNull().references(() => mqCategoryDict.categoryId),
+    confidenceScore: integer("confidence_score").notNull(),
+    qualityTier: integer("quality_tier").notNull(),
+    validFromHeight: bigint("valid_from_height", { mode: "number" }),
+    isActive: boolean("is_active").notNull().default(true),
+    sourceId: bigint("source_id", { mode: "number" }).notNull().references(() => mqCatalogSources.id),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_mq_protocol_components_u1_key").on(table.namespaceId, table.addressCodecId, table.normalizedPayloadHex),
+    index("idx_mq_protocol_components_protocol").on(table.protocolId),
+    check("ck_mq_protocol_components_id_uint32", sql`${table.id} between 1 and 4294967295`),
+    check("ck_mq_protocol_components_confidence", sql`${table.confidenceScore} between 0 and 100`),
+    check("ck_mq_protocol_components_quality", sql`${table.qualityTier} between 0 and 7`),
+    check("ck_mq_protocol_components_payload_hex", sql`${table.normalizedPayloadHex} ~ '^[0-9a-f]+$' and length(${table.normalizedPayloadHex}) % 2 = 0`),
+  ],
+);
+
+export const mqAssets = pgTable(
+  "mq_assets",
+  {
+    id: bigint("asset_id", { mode: "number" }).primaryKey(),
+    assetCode: text("asset_code").notNull().unique(),
+    assetName: text("asset_name").notNull(),
+    assetType: text("asset_type").notNull(),
+    symbol: text("symbol").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    sourceId: bigint("source_id", { mode: "number" }).references(() => mqCatalogSources.id),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("ck_mq_assets_id_uint32", sql`${table.id} between 1 and 4294967295`), index("idx_mq_assets_type").on(table.assetType)],
+);
+
+export const mqTokenStandards = pgTable(
+  "mq_token_standards",
+  {
+    id: integer("standard_id").primaryKey(),
+    standardCode: text("standard_code").notNull().unique(),
+    standardName: text("standard_name").notNull(),
+    chainFamily: text("chain_family").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    sourceId: bigint("source_id", { mode: "number" }).references(() => mqCatalogSources.id),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("ck_mq_token_standards_id_uint16", sql`${table.id} between 1 and 65535`), index("idx_mq_token_standards_family").on(table.chainFamily)],
+);
+
+export const mqTokenContracts = pgTable(
+  "mq_token_contracts",
+  {
+    id: bigint("token_contract_id", { mode: "number" }).primaryKey(),
+    assetId: bigint("asset_id", { mode: "number" }).notNull().references(() => mqAssets.id),
+    namespaceId: bigint("namespace_id", { mode: "number" }).notNull().references(() => mqAddressNamespaces.id),
+    addressCodecId: integer("address_codec_id").notNull().references(() => mqAddressCodecs.id),
+    normalizedPayloadHex: text("normalized_payload_hex").notNull(),
+    standardId: integer("standard_id").notNull().references(() => mqTokenStandards.id),
+    decimals: integer("decimals").notNull(),
+    issuerEntityId: bigint("issuer_entity_id", { mode: "number" }).references(() => mqEntities.id),
+    status: text("status").notNull().default("active"),
+    sourceId: bigint("source_id", { mode: "number" }).notNull().references(() => mqCatalogSources.id),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_mq_token_contracts_u1_key").on(table.namespaceId, table.addressCodecId, table.normalizedPayloadHex),
+    index("idx_mq_token_contracts_asset").on(table.assetId),
+    check("ck_mq_token_contracts_id_uint32", sql`${table.id} between 1 and 4294967295`),
+    check("ck_mq_token_contracts_decimals_uint8", sql`${table.decimals} between 0 and 255`),
+    check("ck_mq_token_contracts_payload_hex", sql`${table.normalizedPayloadHex} ~ '^[0-9a-f]+$' and length(${table.normalizedPayloadHex}) % 2 = 0`),
+  ],
+);
+
+export const mqAssetNamespaces = pgTable(
+  "mq_asset_namespaces",
+  {
+    id: bigint("asset_namespace_id", { mode: "number" }).primaryKey(),
+    assetId: bigint("asset_id", { mode: "number" }).notNull().references(() => mqAssets.id),
+    namespaceId: bigint("namespace_id", { mode: "number" }).notNull().references(() => mqAddressNamespaces.id),
+    standardId: integer("standard_id").notNull().references(() => mqTokenStandards.id),
+    status: text("status").notNull().default("active"),
+    sourceId: bigint("source_id", { mode: "number" }).notNull().references(() => mqCatalogSources.id),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("uq_mq_asset_namespaces_asset_namespace").on(table.assetId, table.namespaceId), check("ck_mq_asset_namespaces_id_uint32", sql`${table.id} between 1 and 4294967295`)],
 );
 
 export const mqDiscoveryJobs = pgTable(
@@ -251,6 +605,8 @@ export const mqAddressCandidates = pgTable(
     chainCode: text("chain_code"),
     addressFamily: text("address_family"),
     prefixCode: integer("prefix_code").references(() => mqKvKeyPrefixDict.prefixCode),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
+    addressCodecId: integer("address_codec_id").references(() => mqAddressCodecs.id),
     payloadHex: text("payload_hex"),
     entityHint: text("entity_hint"),
     protocolHint: text("protocol_hint"),
@@ -277,6 +633,7 @@ export const mqAddressCandidates = pgTable(
     index("idx_mq_candidates_source_job").on(table.sourceJobId),
     index("idx_mq_candidates_entity").on(table.suggestedEntityId),
     index("idx_mq_candidates_role").on(table.suggestedRoleId),
+    index("idx_mq_candidates_u1_key").on(table.namespaceId, table.addressCodecId, table.payloadHex),
     check("ck_mq_address_candidates_confidence_range", sql`${table.confidenceScore} between 0 and 100`),
     check("ck_mq_address_candidates_quality_tier_range", sql`${table.qualityTier} between 0 and 7`),
     check(
@@ -376,10 +733,15 @@ export const mqAddressRegistry = pgTable(
     rawAddress: text("raw_address"),
     chainCode: text("chain_code").notNull(),
     prefixCode: integer("prefix_code").references(() => mqKvKeyPrefixDict.prefixCode),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
+    addressCodecId: integer("address_codec_id").references(() => mqAddressCodecs.id),
     payloadHex: text("payload_hex"),
     entityId: bigint("entity_id", { mode: "number" }).references(() => mqEntities.id),
     protocolId: bigint("protocol_id", { mode: "number" }).references(() => mqProtocols.id),
+    categoryId: integer("category_id").references(() => mqCategoryDict.categoryId),
     roleId: integer("role_id").references(() => mqKvRoleDict.roleId),
+    componentId: bigint("component_id", { mode: "number" }).references(() => mqProtocolComponents.id),
+    tagsetId: bigint("tagset_id", { mode: "number" }).references(() => mqTagsetDict.id),
     confidenceScore: integer("confidence_score").notNull(),
     labelStatus: integer("label_status").notNull().default(1),
     qualityTier: integer("quality_tier").notNull(),
@@ -408,6 +770,7 @@ export const mqAddressRegistry = pgTable(
     index("idx_mq_registry_entity").on(table.entityId),
     index("idx_mq_registry_protocol").on(table.protocolId),
     index("idx_mq_registry_role").on(table.roleId),
+    index("idx_mq_registry_u1_key").on(table.namespaceId, table.addressCodecId, table.payloadHex),
     index("idx_mq_registry_active").on(table.isActive),
     check("ck_mq_address_registry_confidence_range", sql`${table.confidenceScore} between 0 and 100`),
     check("ck_mq_address_registry_label_status_range", sql`${table.labelStatus} between 0 and 9`),
@@ -423,6 +786,17 @@ export const mqAddressRegistry = pgTable(
         and (${table.firstSeenBlock} is null or ${table.lastSeenBlock} is null or ${table.lastSeenBlock} >= ${table.firstSeenBlock})`,
     ),
   ],
+);
+
+export const mqAddressTags = pgTable(
+  "mq_address_tags",
+  {
+    registryId: bigint("registry_id", { mode: "number" }).notNull().references(() => mqAddressRegistry.id),
+    tagId: bigint("tag_id", { mode: "number" }).notNull().references(() => mqTagDict.id),
+    sourceId: bigint("source_id", { mode: "number" }).references(() => mqCatalogSources.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.registryId, table.tagId] }), index("idx_mq_address_tags_tag").on(table.tagId)],
 );
 
 export const mqAddressEvidence = pgTable(
@@ -545,9 +919,13 @@ export const mqAuditLog = pgTable(
 export const mqDictionaryVersions = pgTable("mq_dictionary_versions", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   versionHash: text("version_hash").notNull().unique(),
+  catalogHash: text("catalog_hash"),
+  catalogPath: text("catalog_path"),
+  status: text("status").notNull().default("active"),
   summary: jsonb("summary").$type<Record<string, unknown>>().notNull().default({}),
   createdBy: uuid("created_by").references(() => mqUsers.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  activatedAt: timestamp("activated_at", { withTimezone: true }),
 });
 
 export const mqMetricGroups = pgTable(
@@ -557,6 +935,7 @@ export const mqMetricGroups = pgTable(
     metricGroupCode: text("metric_group_code").notNull().unique(),
     metricGroupName: text("metric_group_name").notNull(),
     chainCode: text("chain_code"),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
     minConfidence: integer("min_confidence").notNull().default(70),
     requireMetricEligible: boolean("require_metric_eligible").notNull().default(true),
     description: text("description"),
@@ -574,11 +953,23 @@ export const mqMetricGroupRules = pgTable(
   "mq_metric_group_rules",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqMetricGroups.id),
+    metricGroupId: bigint("metric_group_id", { mode: "number" }).notNull().references(() => mqMetricGroups.id),
+    ruleVersion: integer("rule_version").notNull().default(1),
     ruleJson: jsonb("rule_json").$type<Record<string, unknown>>().notNull().default({}),
+    status: text("status").notNull().default("active"),
+    sourceId: bigint("source_id", { mode: "number" }).references(() => mqCatalogSources.id),
+    contentHash: text("content_hash"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    activatedAt: timestamp("activated_at", { withTimezone: true }),
+    retiredAt: timestamp("retired_at", { withTimezone: true }),
   },
-  (table) => [index("idx_mq_metric_group_rules_group").on(table.metricGroupId)],
+  (table) => [
+    uniqueIndex("uq_mq_metric_group_rules_group_version").on(table.metricGroupId, table.ruleVersion),
+    index("idx_mq_metric_group_rules_group").on(table.metricGroupId),
+    check("ck_mq_metric_group_rules_version", sql`${table.ruleVersion} > 0`),
+    check("ck_mq_metric_group_rules_status", sql`${table.status} in ('draft', 'active', 'retired', 'disabled')`),
+  ],
 );
 
 export const mqKvBuilds = pgTable(
@@ -587,6 +978,10 @@ export const mqKvBuilds = pgTable(
     id: bigserial("id", { mode: "number" }).primaryKey(),
     buildHash: text("build_hash").notNull().unique(),
     dictionaryVersion: text("dictionary_version"),
+    buildKind: text("build_kind").notNull().default("base"),
+    baseBuildId: bigint("base_build_id", { mode: "number" }),
+    deltaParentBuildId: bigint("delta_parent_build_id", { mode: "number" }),
+    lastCommittedBatchId: bigint("last_committed_batch_id", { mode: "number" }).references(() => mqLabelBatches.id),
     status: text("status").notNull().default("pending"),
     rowCount: integer("row_count").notNull().default(0),
     storageUri: text("storage_uri"),
@@ -597,8 +992,13 @@ export const mqKvBuilds = pgTable(
   },
   (table) => [
     index("idx_mq_kv_builds_status").on(table.status),
+    uniqueIndex("uq_mq_kv_builds_one_active").on(table.status).where(sql`${table.status} = 'active'`),
+    foreignKey({ columns: [table.baseBuildId], foreignColumns: [table.id], name: "fk_mq_kv_builds_base" }),
+    foreignKey({ columns: [table.deltaParentBuildId], foreignColumns: [table.id], name: "fk_mq_kv_builds_delta_parent" }),
     check("ck_mq_kv_builds_status", sql`${table.status} in (${sqlStringList(KV_ARTIFACT_STATUSES)})`),
     check("ck_mq_kv_builds_row_count_non_negative", sql`${table.rowCount} >= 0`),
+    check("ck_mq_kv_builds_kind", sql`${table.buildKind} in (${sqlStringList(U1_BUILD_KINDS)})`),
+    check("ck_mq_kv_builds_parent_shape", sql`(${table.buildKind} = 'base' and ${table.baseBuildId} is null and ${table.deltaParentBuildId} is null) or (${table.buildKind} = 'delta' and ((${table.baseBuildId} is not null)::int + (${table.deltaParentBuildId} is not null)::int) = 1)`),
   ],
 );
 
@@ -639,6 +1039,10 @@ export const mqMetricGroupMembers = pgTable(
     registryId: bigint("registry_id", { mode: "number" }).references(() => mqAddressRegistry.id),
     chainCode: text("chain_code").notNull(),
     normalizedAddress: text("normalized_address").notNull(),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
+    addressCodecId: integer("address_codec_id").references(() => mqAddressCodecs.id),
+    payloadHex: text("payload_hex"),
+    membershipStatus: text("membership_status").notNull().default("active"),
     entityId: bigint("entity_id", { mode: "number" }).references(() => mqEntities.id),
     roleId: integer("role_id").references(() => mqKvRoleDict.roleId),
     confidenceScore: integer("confidence_score").notNull(),
@@ -651,8 +1055,10 @@ export const mqMetricGroupMembers = pgTable(
     index("idx_mq_metric_group_members_group").on(table.metricGroupId),
     index("idx_mq_metric_group_members_registry").on(table.registryId),
     index("idx_mq_metric_group_members_address").on(table.chainCode, table.normalizedAddress),
+    index("idx_mq_metric_group_members_u1_key").on(table.metricGroupId, table.namespaceId, table.addressCodecId, table.payloadHex),
     check("ck_mq_metric_group_members_confidence_range", sql`${table.confidenceScore} between 0 and 100`),
     check("ck_mq_metric_group_members_flags_non_negative", sql`${table.flags} >= 0`),
+    check("ck_mq_metric_group_members_status", sql`${table.membershipStatus} in (${sqlStringList(U1_MEMBERSHIP_STATUSES)})`),
   ],
 );
 
@@ -665,6 +1071,11 @@ export const mqKvIndexManifests = pgTable(
     dictionaryVersion: text("dictionary_version"),
     status: text("status").notNull().default("pending"),
     rowCount: integer("row_count").notNull().default(0),
+    keySchemaVersion: text("key_schema_version"),
+    valueSchemaVersion: text("value_schema_version"),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
+    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqMetricGroups.id),
+    contentHash: text("content_hash"),
     storageUri: text("storage_uri"),
     manifestHash: text("manifest_hash"),
     lastCommittedBatchId: bigint("last_committed_batch_id", { mode: "number" }).references(() => mqLabelBatches.id),
@@ -704,6 +1115,41 @@ export const mqKvIndexShards = pgTable(
     index("idx_mq_kv_index_shards_manifest").on(table.manifestId),
     index("idx_mq_kv_index_shards_key").on(table.shardKey),
     check("ck_mq_kv_index_shards_row_count_non_negative", sql`${table.rowCount} >= 0`),
+  ],
+);
+
+export const mqKvFilterManifests = pgTable(
+  "mq_kv_filter_manifest",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    buildId: bigint("build_id", { mode: "number" }).notNull().references(() => mqKvBuilds.id),
+    indexManifestId: bigint("index_manifest_id", { mode: "number" }).references(() => mqKvIndexManifests.id),
+    indexName: text("index_name").notNull(),
+    filterSchemaVersion: text("filter_schema_version").notNull(),
+    implementation: text("implementation").notNull(),
+    implementationVersion: text("implementation_version").notNull(),
+    deterministicHashSeed: text("deterministic_hash_seed").notNull(),
+    itemCount: integer("item_count").notNull(),
+    falsePositiveTargetPpm: integer("false_positive_target_ppm").notNull().default(1000),
+    observedFalsePositivePpm: integer("observed_false_positive_ppm"),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
+    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqMetricGroups.id),
+    contentHash: text("content_hash").notNull(),
+    storageUri: text("storage_uri").notNull(),
+    status: text("status").notNull().default("pending"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    activatedAt: timestamp("activated_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("uq_mq_kv_filter_manifest_build_index_scope").on(table.buildId, table.indexName, table.namespaceId, table.metricGroupId),
+    uniqueIndex("uq_mq_kv_filter_manifest_global").on(table.buildId, table.indexName).where(sql`${table.namespaceId} is null and ${table.metricGroupId} is null`),
+    uniqueIndex("uq_mq_kv_filter_manifest_namespace").on(table.buildId, table.indexName, table.namespaceId).where(sql`${table.namespaceId} is not null and ${table.metricGroupId} is null`),
+    uniqueIndex("uq_mq_kv_filter_manifest_metric").on(table.buildId, table.indexName, table.metricGroupId).where(sql`${table.metricGroupId} is not null and ${table.namespaceId} is null`),
+    index("idx_mq_kv_filter_manifest_build").on(table.buildId),
+    index("idx_mq_kv_filter_manifest_status").on(table.status),
+    check("ck_mq_kv_filter_manifest_status", sql`${table.status} in (${sqlStringList(KV_ARTIFACT_STATUSES)})`),
+    check("ck_mq_kv_filter_manifest_counts", sql`${table.itemCount} >= 0 and ${table.falsePositiveTargetPpm} between 1 and 1000000 and (${table.observedFalsePositivePpm} is null or ${table.observedFalsePositivePpm} between 0 and 1000000)`),
   ],
 );
 

@@ -1,0 +1,80 @@
+role_id,role_code,role_name,category_id,role_group,metric_usage_default,boundary_class,default_quality_tier,default_flags,is_active,source_id,verified_at,notes
+1000,cex_por_cold_wallet,CEX PoR Cold Wallet,110,cex,cex_reserve,reserve_boundary,4,261,true,1,2026-07-14,Legacy ID preserved
+1010,cex_cold_wallet,CEX Cold Wallet,130,cex,cex_reserve,reserve_boundary,3,261,true,1,2026-07-14,Legacy ID preserved
+1020,cex_hot_wallet,CEX Hot Wallet,130,cex,cex_flow,core_boundary,3,261,true,1,2026-07-14,Legacy ID preserved
+1030,cex_deposit_wallet,CEX Deposit Wallet,120,cex,cex_flow,deposit_boundary,2,5,true,1,2026-07-14,Legacy ID preserved
+1040,cex_withdrawal_wallet,CEX Withdrawal Wallet,130,cex,cex_flow,core_boundary,3,261,true,1,2026-07-14,Legacy ID preserved
+1050,cex_internal_wallet,CEX Internal Wallet,130,cex,cex_flow,internal_boundary,2,4,true,1,2026-07-14,Legacy ID preserved
+1060,cex_gas_wallet,CEX Gas Wallet,130,cex,none,internal_boundary,2,4,true,1,2026-07-14,Legacy ID preserved
+1070,cex_fee_wallet,CEX Fee Wallet,130,cex,none,internal_boundary,2,4,true,1,2026-07-14,Legacy ID preserved
+1080,cex_reserve_wallet,CEX Reserve Wallet,110,cex,cex_reserve,reserve_boundary,4,261,true,1,2026-07-14,Legacy ID preserved
+1090,cex_old_inactive_wallet,CEX Old Inactive Wallet,130,cex,none,none,1,4,true,1,2026-07-14,Legacy ID preserved
+1100,cex_candidate_wallet,CEX Candidate Wallet,100,cex,none,candidate_boundary,1,4,true,1,2026-07-14,Legacy ID preserved
+2000,protocol_factory,Protocol Factory,200,protocol,protocol_graph,protocol_boundary,3,1284,true,1,2026-07-14,Legacy ID preserved
+2010,protocol_registry,Protocol Registry,200,protocol,protocol_graph,protocol_boundary,3,1284,true,1,2026-07-14,Legacy ID preserved
+2020,protocol_router,Protocol Router,210,protocol,protocol_graph,protocol_boundary,3,1284,true,1,2026-07-14,Legacy ID preserved
+2030,protocol_pool,Protocol Pool,210,protocol,protocol_graph,asset_boundary,2,3076,true,1,2026-07-14,Legacy ID preserved
+2040,protocol_vault,Protocol Vault,230,protocol,protocol_graph,asset_boundary,2,3076,true,1,2026-07-14,Legacy ID preserved
+2050,protocol_oracle,Protocol Oracle,600,protocol,protocol_graph,data_dependency,3,1284,true,1,2026-07-14,Legacy ID preserved
+2060,protocol_treasury,Protocol Treasury,800,treasury,protocol_graph,control_boundary,3,1284,true,1,2026-07-14,Legacy ID preserved
+2070,protocol_multisig,Protocol Multisig,700,governance,protocol_graph,control_boundary,3,1284,true,1,2026-07-14,Legacy ID preserved
+2080,protocol_governance,Protocol Governance,700,governance,protocol_graph,control_boundary,3,1284,true,1,2026-07-14,Legacy ID preserved
+2090,protocol_timelock,Protocol Timelock,700,governance,protocol_graph,control_boundary,3,1284,true,1,2026-07-14,Legacy ID preserved
+2100,protocol_proxy,Protocol Proxy,200,protocol,protocol_graph,protocol_boundary,2,1028,true,1,2026-07-14,Legacy ID preserved
+2110,protocol_proxy_admin,Protocol Proxy Admin,700,governance,protocol_graph,control_boundary,3,1284,true,1,2026-07-14,Legacy ID preserved
+2120,protocol_implementation,Protocol Implementation,200,protocol,protocol_graph,protocol_boundary,2,1028,true,1,2026-07-14,Legacy ID preserved
+2130,protocol_reward_distributor,Protocol Reward Distributor,230,protocol,protocol_graph,protocol_boundary,2,1028,true,1,2026-07-14,Legacy ID preserved
+2140,protocol_incentives_controller,Protocol Incentives Controller,230,protocol,protocol_graph,protocol_boundary,2,1028,true,1,2026-07-14,Legacy ID preserved
+2150,protocol_data_provider,Protocol Data Provider,200,protocol,protocol_graph,data_dependency,2,1028,true,1,2026-07-14,Legacy ID preserved
+2160,protocol_keeper,Protocol Keeper,200,protocol,protocol_graph,data_dependency,2,1028,true,1,2026-07-14,Legacy ID preserved
+2170,protocol_bridge_adapter,Protocol Bridge Adapter,300,bridge,bridge_flow,protocol_boundary,2,1028,true,1,2026-07-14,Legacy ID preserved
+3000,aave_pool_addresses_provider,Aave Pool Addresses Provider,220,protocol,protocol_graph,protocol_boundary,3,3332,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+3010,aave_pool,Aave Pool,220,protocol,protocol_graph,asset_boundary,3,3332,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+3020,aave_pool_configurator,Aave Pool Configurator,220,protocol,protocol_graph,control_boundary,3,3332,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+3030,aave_oracle,Aave Oracle,600,protocol,protocol_graph,data_dependency,3,1284,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+3040,aave_acl_manager,Aave ACL Manager,700,governance,protocol_graph,control_boundary,3,1284,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+3050,aave_data_provider,Aave Data Provider,220,protocol,protocol_graph,data_dependency,3,1284,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+3060,aave_atoken,Aave aToken,220,protocol,protocol_graph,asset_boundary,2,1028,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+3070,aave_variable_debt_token,Aave Variable Debt Token,220,protocol,protocol_graph,asset_boundary,2,1028,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+3080,aave_stable_debt_token,Aave Stable Debt Token,220,protocol,protocol_graph,asset_boundary,2,1028,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+4000,uniswap_v2_factory,Uniswap V2 Factory,210,protocol,protocol_graph,protocol_boundary,3,1284,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+4010,uniswap_v2_pair,Uniswap V2 Pair,210,protocol,protocol_graph,asset_boundary,2,1028,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+4020,uniswap_v2_router,Uniswap V2 Router,210,protocol,protocol_graph,protocol_boundary,3,1284,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+4030,uniswap_v3_factory,Uniswap V3 Factory,210,protocol,protocol_graph,protocol_boundary,3,1284,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+4040,uniswap_v3_pool,Uniswap V3 Pool,210,protocol,protocol_graph,asset_boundary,2,3076,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+4050,uniswap_v3_position_manager,Uniswap V3 Position Manager,210,protocol,protocol_graph,asset_boundary,3,1284,true,1,2026-07-14,Legacy protocol-specific role retained for compatibility
+5000,bridge_router,Bridge Router,300,bridge,bridge_flow,protocol_boundary,3,260,true,1,2026-07-14,Legacy ID preserved
+5010,bridge_vault,Bridge Vault,300,bridge,bridge_flow,asset_boundary,3,2308,true,1,2026-07-14,Legacy ID preserved
+5020,bridge_relayer,Bridge Relayer,300,bridge,bridge_flow,protocol_boundary,2,4,true,1,2026-07-14,Legacy ID preserved
+5030,bridge_adapter,Bridge Adapter,300,bridge,bridge_flow,protocol_boundary,2,4,true,1,2026-07-14,Legacy ID preserved
+5040,bridge_messenger,Bridge Messenger,300,bridge,bridge_flow,protocol_boundary,2,4,true,1,2026-07-14,Legacy ID preserved
+6000,mixer,Mixer,910,risk,none,none,4,260,true,1,2026-07-14,Legacy ID preserved
+6010,sanctioned_wallet,Sanctioned Wallet,920,risk,none,none,4,260,true,1,2026-07-14,Legacy ID preserved
+6020,scam_wallet,Scam Wallet,900,risk,none,none,3,260,true,1,2026-07-14,Legacy ID preserved
+6030,exploit_wallet,Exploit Wallet,900,risk,none,none,3,260,true,1,2026-07-14,Legacy ID preserved
+6040,darkweb_wallet,Darkweb Wallet,900,risk,none,none,3,260,true,1,2026-07-14,Legacy ID preserved
+6050,gambling_wallet,Gambling Wallet,900,risk,none,none,2,4,true,1,2026-07-14,Legacy ID preserved
+7000,cex_market_maker_wallet,CEX Market Maker Wallet,10020,cex,cex_flow,expanded_boundary,2,0,true,1,2026-07-14,
+7010,cex_custody_wallet,CEX Custody Wallet,400,cex,cex_reserve,reserve_boundary,3,0,true,1,2026-07-14,
+7020,cex_inactive_wallet,CEX Inactive Wallet,130,cex,none,none,1,0,true,1,2026-07-14,Canonical successor to legacy cex_old_inactive_wallet
+7030,protocol_market,Protocol Market,220,protocol,protocol_graph,asset_boundary,2,0,true,1,2026-07-14,
+7040,protocol_adapter,Protocol Adapter,200,protocol,protocol_graph,protocol_boundary,2,0,true,1,2026-07-14,
+7050,protocol_interest_rate_model,Protocol Interest Rate Model,220,protocol,protocol_graph,data_dependency,2,0,true,1,2026-07-14,
+7060,bridge_executor,Bridge Executor,10000,bridge,bridge_flow,protocol_boundary,2,0,true,1,2026-07-14,
+7070,bridge_liquidity_pool,Bridge Liquidity Pool,300,bridge,bridge_flow,asset_boundary,3,0,true,1,2026-07-14,
+7080,validator,Validator,10120,infrastructure,validator_staking,staking_boundary,3,0,true,1,2026-07-14,
+7090,miner,Miner,10130,infrastructure,none,none,3,0,true,1,2026-07-14,
+7100,sequencer,Sequencer,10110,infrastructure,none,protocol_boundary,3,0,true,1,2026-07-14,
+7110,batch_poster,Batch Poster,10090,infrastructure,none,protocol_boundary,3,0,true,1,2026-07-14,
+7120,prover,Prover,10090,infrastructure,none,protocol_boundary,3,0,true,1,2026-07-14,
+7130,data_availability_contract,Data Availability Contract,10100,infrastructure,none,protocol_boundary,3,0,true,1,2026-07-14,
+7140,account_abstraction_entrypoint,Account Abstraction Entrypoint,10180,infrastructure,none,protocol_boundary,3,0,true,1,2026-07-14,
+7150,paymaster,Paymaster,10180,infrastructure,none,protocol_boundary,2,0,true,1,2026-07-14,
+7160,bundler,Bundler,10180,infrastructure,none,protocol_boundary,2,0,true,1,2026-07-14,
+7170,mev_builder,MEV Builder,10170,infrastructure,none,protocol_boundary,2,0,true,1,2026-07-14,
+7180,mev_relay,MEV Relay,10170,infrastructure,none,protocol_boundary,2,0,true,1,2026-07-14,
+7190,mixer_pool,Mixer Pool,910,risk,none,none,4,0,true,1,2026-07-14,
+7200,phishing_wallet,Phishing Wallet,10250,risk,none,none,3,0,true,1,2026-07-14,
+7210,drainer_contract,Drainer Contract,10250,risk,none,none,3,0,true,1,2026-07-14,
+7220,scam_contract,Scam Contract,900,risk,none,none,3,0,true,1,2026-07-14,
+7230,seized_wallet,Seized Wallet,900,risk,none,none,4,0,true,1,2026-07-14,

@@ -1,0 +1,32 @@
+protocol_id,protocol_code,protocol_name,entity_id,protocol_type,is_active,source_id,verified_at,notes
+1,aave_v3,Aave V3,21,lending,true,1,2026-07-14,Legacy ID preserved
+2,uniswap_v2,Uniswap V2,22,dex,true,1,2026-07-14,Legacy ID preserved
+3,uniswap_v3,Uniswap V3,22,dex,true,1,2026-07-14,Legacy ID preserved
+4,morpho_blue,Morpho Blue,23,lending,true,1,2026-07-14,Legacy ID preserved
+5,curve_stableswap,Curve Stableswap,24,dex,true,1,2026-07-14,Legacy ID preserved
+6,curve_crypto_pools,Curve Crypto Pools,24,dex,true,1,2026-07-14,Legacy ID preserved
+7,compound_v3,Compound III,25,lending,true,1,2026-07-14,Legacy ID preserved
+8,lido_staking,Lido Staking,26,liquid_staking,true,1,2026-07-14,Legacy ID preserved
+9,sky_protocol,Sky Protocol,27,rwa,true,1,2026-07-14,Legacy ID preserved
+10,chainlink_price_feeds,Chainlink Price Feeds,28,oracle,true,1,2026-07-14,Legacy ID preserved
+11,layerzero_endpoint_v2,LayerZero Endpoint V2,29,cross_chain_messaging,true,1,2026-07-14,Legacy ID preserved
+12,wormhole_token_bridge,Wormhole Token Bridge,30,bridge,true,1,2026-07-14,Legacy ID preserved
+13,stargate_v2,Stargate V2,31,bridge,true,1,2026-07-14,Legacy ID preserved
+14,eigenlayer_restaking,EigenLayer Restaking,33,restaking,true,1,2026-07-14,
+15,rocket_pool_staking,Rocket Pool Staking,34,liquid_staking,true,1,2026-07-14,
+16,balancer_v2,Balancer V2,35,dex,true,1,2026-07-14,
+17,sushiswap,SushiSwap,36,dex,true,1,2026-07-14,
+18,pancakeswap_v3,PancakeSwap V3,37,dex,true,1,2026-07-14,
+19,convex_finance,Convex Finance,38,yield,true,1,2026-07-14,
+20,pyth_network,Pyth Network,39,oracle,true,1,2026-07-14,
+21,across_protocol,Across Protocol,40,bridge,true,1,2026-07-14,
+22,safe_contracts,Safe Contracts,41,multisig,true,1,2026-07-14,
+23,frax_protocol,Frax Protocol,44,stablecoin,true,1,2026-07-14,
+24,ethena_protocol,Ethena Protocol,45,stablecoin,true,1,2026-07-14,
+25,ondo_finance,Ondo Finance,46,rwa,true,1,2026-07-14,
+26,jupiter_aggregator,Jupiter Aggregator,47,dex,true,1,2026-07-14,
+27,raydium_amm,Raydium AMM,48,dex,true,1,2026-07-14,
+28,orca_whirlpools,Orca Whirlpools,49,dex,true,1,2026-07-14,
+29,kamino_lend,Kamino Lend,50,lending,true,1,2026-07-14,
+30,marinade_staking,Marinade Staking,51,liquid_staking,true,1,2026-07-14,
+31,jito_staking,Jito Staking,52,liquid_staking,true,1,2026-07-14,

@@ -1,0 +1,53 @@
+entity_id,entity_code,entity_name,entity_type,category_id,website_url,is_active,source_id,verified_at,notes
+1,binance,Binance,cex,100,,true,1,2026-07-14,Legacy ID preserved
+2,okx,OKX,cex,100,,true,1,2026-07-14,Legacy ID preserved
+3,bybit,Bybit,cex,100,,true,1,2026-07-14,Legacy ID preserved
+4,coinbase,Coinbase,cex,100,,true,1,2026-07-14,Legacy ID preserved
+5,kraken,Kraken,cex,100,,true,1,2026-07-14,Legacy ID preserved
+6,bitfinex,Bitfinex,cex,100,,true,1,2026-07-14,Legacy ID preserved
+7,bitget,Bitget,cex,100,,true,1,2026-07-14,Legacy ID preserved
+8,kucoin,KuCoin,cex,100,,true,1,2026-07-14,Legacy ID preserved
+9,gate,Gate,cex,100,,true,1,2026-07-14,Legacy ID preserved
+10,mexc,MEXC,cex,100,,true,1,2026-07-14,Legacy ID preserved
+11,crypto_com,Crypto.com,cex,100,,true,1,2026-07-14,Legacy ID preserved
+12,gemini,Gemini,cex,100,,true,1,2026-07-14,Legacy ID preserved
+13,deribit,Deribit,cex,100,,true,1,2026-07-14,Legacy ID preserved
+14,bitstamp,Bitstamp,cex,100,,true,1,2026-07-14,Legacy ID preserved
+15,upbit,Upbit,cex,100,,true,1,2026-07-14,Legacy ID preserved
+16,bithumb,Bithumb,cex,100,,true,1,2026-07-14,Legacy ID preserved
+17,htx,HTX,cex,100,,true,1,2026-07-14,Legacy ID preserved
+18,indodax,Indodax,cex,100,,true,1,2026-07-14,Legacy ID preserved
+19,luno,Luno,cex,100,,true,1,2026-07-14,Legacy ID preserved
+20,bitmex,BitMEX,cex,100,,true,1,2026-07-14,Legacy ID preserved
+21,aave,Aave,protocol,220,,true,1,2026-07-14,Legacy ID preserved
+22,uniswap,Uniswap,protocol,210,,true,1,2026-07-14,Legacy ID preserved
+23,morpho,Morpho,protocol,220,,true,1,2026-07-14,Legacy ID preserved
+24,curve,Curve,protocol,210,,true,1,2026-07-14,Legacy ID preserved
+25,compound,Compound,protocol,220,,true,1,2026-07-14,Legacy ID preserved
+26,lido,Lido,protocol,10150,,true,1,2026-07-14,Legacy ID preserved; category mapping upgraded without ID change
+27,sky,Sky Maker,protocol,10050,,true,1,2026-07-14,Legacy ID preserved
+28,chainlink,Chainlink,protocol,600,,true,1,2026-07-14,Legacy ID preserved
+29,layerzero,LayerZero,protocol,10000,,true,1,2026-07-14,Legacy ID preserved
+30,wormhole,Wormhole,protocol,300,,true,1,2026-07-14,Legacy ID preserved
+31,stargate,Stargate,protocol,300,,true,1,2026-07-14,Legacy ID preserved
+32,hashkey,HashKey,cex,100,,true,1,2026-07-14,
+33,eigenlayer,EigenLayer,protocol,10160,,true,1,2026-07-14,
+34,rocket_pool,Rocket Pool,protocol,10150,,true,1,2026-07-14,
+35,balancer,Balancer,protocol,210,,true,1,2026-07-14,
+36,sushi,Sushi,protocol,210,,true,1,2026-07-14,
+37,pancakeswap,PancakeSwap,protocol,210,,true,1,2026-07-14,
+38,convex,Convex,protocol,230,,true,1,2026-07-14,
+39,pyth,Pyth,protocol,600,,true,1,2026-07-14,
+40,across,Across,protocol,300,,true,1,2026-07-14,
+41,safe,Safe,protocol,10190,,true,1,2026-07-14,
+42,tether,Tether,issuer,10040,,true,1,2026-07-14,
+43,circle,Circle,issuer,10040,,true,1,2026-07-14,
+44,frax,Frax,issuer,10040,,true,1,2026-07-14,
+45,ethena,Ethena,issuer,10040,,true,1,2026-07-14,
+46,ondo,Ondo,issuer,10050,,true,1,2026-07-14,
+47,jupiter,Jupiter,protocol,210,,true,1,2026-07-14,
+48,raydium,Raydium,protocol,210,,true,1,2026-07-14,
+49,orca,Orca,protocol,210,,true,1,2026-07-14,
+50,kamino,Kamino,protocol,220,,true,1,2026-07-14,
+51,marinade,Marinade,protocol,10150,,true,1,2026-07-14,
+52,jito,Jito,protocol,10150,,true,1,2026-07-14,

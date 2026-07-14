@@ -32,8 +32,10 @@ describe("normalizeAddress", () => {
 
     expect(result.isValid).toBe(true);
     expect(result.chainCode).toBe("btc");
-    expect(result.addressFamily).toBe("btc_bech32");
+    expect(result.addressFamily).toBe("btc_bech32m");
     expect(result.prefixCode).toBe(0x0012);
+    expect(result.namespaceId).toBe(47);
+    expect(result.addressCodecId).toBe(13);
     expect(result.payloadHex).toBe(
       "01751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6",
     );

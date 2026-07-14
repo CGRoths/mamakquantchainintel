@@ -1,0 +1,322 @@
+{
+  "schemaVersion": "MQCHAIN-U1-PROTOCOL-COVERAGE-1",
+  "dictionaryVersion": "cfe03c24e185f131967c85e4f3df70be12b75f4f33867432847321ab90f10658",
+  "summary": {
+    "protocols": 31,
+    "protocolsWithVerifiedRoots": 1,
+    "deployments": 1,
+    "rootComponents": 5
+  },
+  "protocols": [
+    {
+      "protocolId": 1,
+      "protocolCode": "aave_v3",
+      "protocolName": "Aave V3",
+      "deploymentCount": 1,
+      "rootComponentCount": 5,
+      "verifiedSourceCount": 1,
+      "status": "verified_root_components_seeded",
+      "missingReason": null
+    },
+    {
+      "protocolId": 2,
+      "protocolCode": "uniswap_v2",
+      "protocolName": "Uniswap V2",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 3,
+      "protocolCode": "uniswap_v3",
+      "protocolName": "Uniswap V3",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 4,
+      "protocolCode": "morpho_blue",
+      "protocolName": "Morpho Blue",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 5,
+      "protocolCode": "curve_stableswap",
+      "protocolName": "Curve Stableswap",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 6,
+      "protocolCode": "curve_crypto_pools",
+      "protocolName": "Curve Crypto Pools",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 7,
+      "protocolCode": "compound_v3",
+      "protocolName": "Compound III",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 8,
+      "protocolCode": "lido_staking",
+      "protocolName": "Lido Staking",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 9,
+      "protocolCode": "sky_protocol",
+      "protocolName": "Sky Protocol",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 10,
+      "protocolCode": "chainlink_price_feeds",
+      "protocolName": "Chainlink Price Feeds",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 11,
+      "protocolCode": "layerzero_endpoint_v2",
+      "protocolName": "LayerZero Endpoint V2",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 12,
+      "protocolCode": "wormhole_token_bridge",
+      "protocolName": "Wormhole Token Bridge",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 13,
+      "protocolCode": "stargate_v2",
+      "protocolName": "Stargate V2",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 14,
+      "protocolCode": "eigenlayer_restaking",
+      "protocolName": "EigenLayer Restaking",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 15,
+      "protocolCode": "rocket_pool_staking",
+      "protocolName": "Rocket Pool Staking",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 16,
+      "protocolCode": "balancer_v2",
+      "protocolName": "Balancer V2",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 17,
+      "protocolCode": "sushiswap",
+      "protocolName": "SushiSwap",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 18,
+      "protocolCode": "pancakeswap_v3",
+      "protocolName": "PancakeSwap V3",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 19,
+      "protocolCode": "convex_finance",
+      "protocolName": "Convex Finance",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 20,
+      "protocolCode": "pyth_network",
+      "protocolName": "Pyth Network",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 21,
+      "protocolCode": "across_protocol",
+      "protocolName": "Across Protocol",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 22,
+      "protocolCode": "safe_contracts",
+      "protocolName": "Safe Contracts",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 23,
+      "protocolCode": "frax_protocol",
+      "protocolName": "Frax Protocol",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 24,
+      "protocolCode": "ethena_protocol",
+      "protocolName": "Ethena Protocol",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 25,
+      "protocolCode": "ondo_finance",
+      "protocolName": "Ondo Finance",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 26,
+      "protocolCode": "jupiter_aggregator",
+      "protocolName": "Jupiter Aggregator",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 27,
+      "protocolCode": "raydium_amm",
+      "protocolName": "Raydium AMM",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 28,
+      "protocolCode": "orca_whirlpools",
+      "protocolName": "Orca Whirlpools",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 29,
+      "protocolCode": "kamino_lend",
+      "protocolName": "Kamino Lend",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 30,
+      "protocolCode": "marinade_staking",
+      "protocolName": "Marinade Staking",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    },
+    {
+      "protocolId": 31,
+      "protocolCode": "jito_staking",
+      "protocolName": "Jito Staking",
+      "deploymentCount": 0,
+      "rootComponentCount": 0,
+      "verifiedSourceCount": 0,
+      "status": "catalogued_only",
+      "missingReason": "official source unavailable or not yet verified for U1 ingestion"
+    }
+  ]
+}

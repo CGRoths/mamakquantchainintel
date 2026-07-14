@@ -1,0 +1,186 @@
+# MAMAKQUANTCHAIN U1 Claude Handoff
+
+## Start Here
+
+Continue in:
+
+`C:\MAMAKQUANT\mamakquantchain\mqchain-console`
+
+Read these first:
+
+1. `C:\Users\User\.codex\attachments\9559841c-fff1-44d4-9fd4-376729fc3222\pasted-text.txt` - approved U1 implementation contract.
+2. `docs/architecture/MQCHAIN_U1_PHASE0_AUDIT.md` - pre-change audit.
+3. `docs/architecture/MQCHAIN_U1_FINAL_SPEC.md` - implemented architecture and boundaries.
+4. `docs/architecture/MQCHAIN_U1_BINARY_LAYOUT.md` - exact binary layouts.
+5. `docs/runbooks/MQCHAIN_U1_BUILD_ACTIVATE_ROLLBACK.md` - operational lifecycle.
+
+The earlier `CGRoths/mqchain_ai` repository is reference material for intake/source adapters only. Do not copy its storage shortcuts into this application.
+
+## Non-Negotiable Contracts
+
+- PostgreSQL is canonical truth. KV/RocksDB is a reproducible compiled serving artifact only.
+- Intake and discovery write candidates/evidence, never canonical registry or production KV rows directly.
+- Existing entity, protocol, category, role, metric-group, and legacy prefix IDs are immutable.
+- U1 migration is additive. Do not drop, truncate, renumber, or silently rewrite legacy data.
+- Metric formulas and existing classification/scoring semantics were not changed and must remain unchanged without explicit approval.
+- MQASSET is logically separate from MQCHAIN label values.
+- MQNODE is not integrated. Capability rows deliberately report it as unsupported.
+- Cuckoo filters are negative-lookup accelerators only and may never replace the canonical index.
+- Preserve exact provenance, role-label, source-verification, approved-batch, and audit contracts.
+- Do not stage, commit, push, or switch branches unless the user explicitly requests it.
+
+## Database Safety
+
+The current `.env.local` was externally changed during this run and points to the legacy database name `mqchain`. Do not edit `.env.local`, and do not migrate or seed that legacy database.
+
+For all U1 verification, override the URL in the process:
+
+```powershell
+$configured = ((Get-Content .env.local | Select-String '^DATABASE_URL=').Line -replace '^DATABASE_URL="?','' -replace '"$','')
+$env:DATABASE_URL = $configured -replace '/mqchain$','/mqchain_console'
+```
+
+The isolated `mqchain_console` database has migrations 0006-0009 applied and the U1 catalog seeded. A failed seed attempt against legacy rolled back transactionally before any change; no legacy data was modified.
+
+## Implemented U1 Surface
+
+### Architecture and governance
+
+- Nine required architecture, migration, and runbook documents are under `docs/`.
+- `data/catalog/u1/` is the canonical, explicit-ID, source-backed catalog.
+- `src/lib/mqchain/catalog/u1.ts` validates required files, canonical hashes, duplicate IDs/codes, ranges, FKs, source references, capability claims, metric rules, namespace/codec pairs, and payload lengths.
+- Dictionary version is the SHA-256 of the complete canonical U1 catalog. Current version: `cfe03c24e185f131967c85e4f3df70be12b75f4f33867432847321ab90f10658`.
+
+### Additive database migrations
+
+- `drizzle/0006_exotic_omega_flight.sql`: U1 catalogs, namespaces/codecs, source registry, components/deployments, MQASSET, metric rules, KV build/filter metadata, compatibility views, and additive U1 columns.
+- `drizzle/0007_robust_bucky.sql`: metric rule version/provenance hardening.
+- `drizzle/0008_chilly_doctor_octopus.sql`: permits one frozen legacy prefix to map to multiple U1 namespaces without removing the legacy model.
+- `drizzle/0009_giant_ezekiel_stane.sql`: base/delta parent FKs, one-active-build constraint, filter uniqueness, and separate network/codec deactivation guards.
+
+The network and codec guards must remain separate PostgreSQL functions. A shared polymorphic trigger function fails because the two row types expose different fields.
+
+### Seeded catalog counts
+
+| Dictionary | Count |
+|---|---:|
+| Networks | 48 |
+| Address codecs | 23 |
+| Address namespaces | 47 |
+| Categories | 44 |
+| Roles | 79 |
+| Entities | 52 |
+| Protocols | 31 |
+| Metric groups/rules | 20 / 20 |
+| Assets | 24 |
+| Token standards | 20 |
+| Native asset mappings | 12 |
+| Token contracts | 3 |
+| Protocol deployments | 1 |
+| Root components | 5 |
+
+The three token mappings are Ethereum USDT, Tron USDT, and Solana USDC. Aave V3 Ethereum is the verified deployment with five roots. Never invent missing addresses; the protocol coverage report marks the other protocols as catalogued-only.
+
+### Normalization and migration
+
+- `src/lib/mqchain/address/normalize.ts` emits `namespaceId` and `addressCodecId` for EVM20, Bitcoin P2PKH/P2SH/Bech32/Bech32m, Solana, and Tron.
+- Legacy Bitcoin prefix 18 is intentionally ambiguous: witness v0 maps to namespace 3/codec 12; witness v1-v16 maps to namespace 47/codec 13.
+- `src/lib/mqchain/u1-migration.ts` performs payload-aware compatibility mapping.
+- `reports/u1_conflicts.*` records this as one detected, resolved, non-destructive conflict with zero unresolved conflicts and zero renumbered IDs.
+
+### Binary compiler and filters
+
+- `src/lib/mqchain/kv/u1.ts` implements exact MQK/MQV/MQT/MQG/MQA/MQAN U1 key/value encoders and decoders.
+- `src/lib/mqchain/kv/u1-compiler.ts` sorts binary keys, rejects duplicates, hashes binary content, verifies all filter insertions, probes absent keys, and computes deterministic build hashes.
+- `src/lib/mqchain/kv/filter.ts` wraps exact `bloom-filters@3.0.4` Cuckoo filters with fixed seed, serialization round trip, conservative load, and zero-false-negative enforcement.
+- `src/lib/mqchain/kv/layers.ts` resolves delta-before-base with tombstones.
+- `scripts/compile-kv.ts` emits U1 JSONL binary previews, manifests, Cuckoo artifacts, build validation, database manifests, and V1 compatibility files.
+- Current reproducible build hash: `37f4790746f007bf3f4e66ad9868d5d8ada27b43cfe1b9c4c78730b342b106ad`, 18 rows.
+- The older database-only dictionary hash is retained as `compatibilityDictionaryVersion`; it must not drive U1 build identity.
+
+Benchmark evidence is in `reports/u1_cuckoo_benchmark.md`: 100,000 inserted keys, zero false negatives, 2/100,000 false positives (0.00002), 8,326,768 serialized bytes, and about 141,863 lookups/second. The current five real build filters each observed zero false positives in 10,000 absent probes.
+
+### Console pages
+
+New inspection routes:
+
+- `/mqchain/dictionaries/networks`
+- `/mqchain/dictionaries/codecs`
+- `/mqchain/dictionaries/components`
+- `/mqchain/dictionaries/assets`
+- `/mqchain/dictionaries/token-standards`
+- `/mqchain/dictionaries/metric-groups`
+- `/mqchain/dictionaries/coverage`
+- `/mqchain/kv/builds`
+- `/mqchain/kv/filters`
+
+The dev server is intentionally running at `http://localhost:3010`. Browser checks authenticated through a temporary account that was removed afterward. Coverage, assets, components, and filters rendered with expected row counts, no browser console errors, and no mobile document overflow.
+
+## Reports
+
+Generated, source-reproducible reports are under `reports/`:
+
+- `u1_chain_coverage.md/json`
+- `u1_protocol_coverage.md/json`
+- `u1_conflicts.md/json`
+- `u1_build_validation.md/json`
+- `u1_cuckoo_benchmark.md`
+
+Coverage currently reports 48 catalogued networks, 4 normalizer test-ready, 5 partial, 0 MQNODE production-ready, and 0 metric production-ready. These conservative statuses are intentional.
+
+## Verification Completed 2026-07-14
+
+```text
+Vitest: 73 files passed, 382 tests passed
+TypeScript: passed
+ESLint: passed
+Next.js production build: passed
+Clean database: migrations 0000-0009, seed, compile, and count checks passed
+Determinism: two identical U1 build hashes (37f4790746...)
+Database guards: active-network deactivation and referenced-codec disable both rejected
+Browser: desktop/mobile geometry and four U1 views passed; no console errors
+```
+
+The production build has one non-fatal Turbopack NFT warning caused by the server-side catalog loader's dynamic filesystem reads. Compilation and all routes succeed. A future improvement can move catalog projection to generated static TypeScript/JSON or configure a narrowly scoped tracing include.
+
+`npm audit` reports eight moderate transitive vulnerabilities. Do not run `npm audit fix --force`; review dependency upgrades deliberately.
+
+## Rollback
+
+Use `docs/runbooks/MQCHAIN_U1_BUILD_ACTIVATE_ROLLBACK.md`.
+
+- Never delete PostgreSQL canonical registry rows to roll back a serving artifact.
+- Deactivate the bad build and reactivate the previously compatible build transactionally.
+- Keep dictionary/build compatibility checks enabled.
+- Migrations are additive; do not reverse them by dropping U1 tables from a live database.
+- The legacy prefix compatibility view/adapter remains available for migration consumers.
+
+No production-destructive operation occurred. The only destructive operations were removal of an explicitly named throwaway validation database and deletion of one temporary local browser-test account after verification.
+
+## Exact Next Recommended Job
+
+Implement the next normalization/deployment tranche without broadening readiness claims:
+
+1. Add authoritative vectors and checksum tests for the five `partial` EVM networks, promoting each capability independently only after tests pass.
+2. Seed verified protocol deployments/root components from pinned official sources, beginning with Uniswap V3 Ethereum, and regenerate protocol coverage.
+3. Add a build-activation integration test covering base plus delta, tombstone resolution, filter lookup order, dictionary compatibility, and rollback to the prior active build.
+4. Keep MQNODE unsupported and leave metric formulas untouched.
+
+## Safe Commands
+
+```powershell
+cd C:\MAMAKQUANT\mamakquantchain\mqchain-console
+git status --short
+
+$configured = ((Get-Content .env.local | Select-String '^DATABASE_URL=').Line -replace '^DATABASE_URL="?','' -replace '"$','')
+$env:DATABASE_URL = $configured -replace '/mqchain$','/mqchain_console'
+
+npm test
+npm run typecheck
+npm run lint
+npm run build
+npm run u1:reports
+npm run kv:compile -- --out <artifact-directory>
+```
+
+Run `git status --short` before editing. The worktree is intentionally dirty and includes user-owned untracked `MQCHAIN_PRODUCT_SPEC.md`; do not overwrite or remove it.

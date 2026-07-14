@@ -1,0 +1,829 @@
+{
+  "schemaVersion": "MQCHAIN-U1-COVERAGE-1",
+  "dictionaryVersion": "cfe03c24e185f131967c85e4f3df70be12b75f4f33867432847321ab90f10658",
+  "summary": {
+    "networks": 48,
+    "normalizerTestReady": 4,
+    "normalizerPartial": 5,
+    "mqnodeProductionReady": 0,
+    "metricProductionReady": 0
+  },
+  "networks": [
+    {
+      "chainNetworkId": 1,
+      "networkCode": "bitcoin_mainnet",
+      "networkName": "Bitcoin Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "test_ready",
+      "kvReady": {
+        "current": "test_ready",
+        "timeline": "test_ready"
+      },
+      "assetResolverReady": "test_ready",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "test_ready",
+      "reason": "Bitcoin codecs native asset mapping and U1 current timeline metric artifacts tested; MQNODE unsupported",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 2,
+      "networkCode": "ethereum_mainnet",
+      "networkName": "Ethereum Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "test_ready",
+      "kvReady": {
+        "current": "test_ready",
+        "timeline": "test_ready"
+      },
+      "assetResolverReady": "test_ready",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "test_ready",
+      "reason": "EVM20 Ethereum native and ERC-20 mappings plus U1 artifacts tested; MQNODE unsupported",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 3,
+      "networkCode": "polygon_pos_mainnet",
+      "networkName": "Polygon PoS Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "partial",
+      "kvReady": {
+        "current": "partial",
+        "timeline": "partial"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "partial",
+      "reason": "EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 4,
+      "networkCode": "base_mainnet",
+      "networkName": "Base Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "partial",
+      "kvReady": {
+        "current": "partial",
+        "timeline": "partial"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "partial",
+      "reason": "EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 5,
+      "networkCode": "arbitrum_one",
+      "networkName": "Arbitrum One",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "partial",
+      "kvReady": {
+        "current": "partial",
+        "timeline": "partial"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "partial",
+      "reason": "EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 6,
+      "networkCode": "op_mainnet",
+      "networkName": "OP Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "partial",
+      "kvReady": {
+        "current": "partial",
+        "timeline": "partial"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "partial",
+      "reason": "EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 7,
+      "networkCode": "bnb_smart_chain_mainnet",
+      "networkName": "BNB Smart Chain Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "partial",
+      "kvReady": {
+        "current": "partial",
+        "timeline": "partial"
+      },
+      "assetResolverReady": "test_ready",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "partial",
+      "reason": "EVM20 implementation and BNB native mapping exist but network-specific vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 8,
+      "networkCode": "solana_mainnet",
+      "networkName": "Solana Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "test_ready",
+      "kvReady": {
+        "current": "test_ready",
+        "timeline": "test_ready"
+      },
+      "assetResolverReady": "test_ready",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "test_ready",
+      "reason": "Solana public key normalizer native and USDC mappings plus U1 artifacts tested; MQNODE unsupported",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 9,
+      "networkCode": "tron_mainnet",
+      "networkName": "TRON Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "test_ready",
+      "kvReady": {
+        "current": "test_ready",
+        "timeline": "test_ready"
+      },
+      "assetResolverReady": "test_ready",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "test_ready",
+      "reason": "TRON account normalizer native and USDt mappings plus U1 artifacts tested; MQNODE unsupported",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 10,
+      "networkCode": "bitcoin_cash_mainnet",
+      "networkName": "Bitcoin Cash Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 11,
+      "networkCode": "litecoin_mainnet",
+      "networkName": "Litecoin Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 12,
+      "networkCode": "dogecoin_mainnet",
+      "networkName": "Dogecoin Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 13,
+      "networkCode": "zcash_mainnet",
+      "networkName": "Zcash Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 14,
+      "networkCode": "avalanche_c_chain",
+      "networkName": "Avalanche C-Chain",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 15,
+      "networkCode": "gnosis_mainnet",
+      "networkName": "Gnosis Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 16,
+      "networkCode": "fantom_opera",
+      "networkName": "Fantom Opera",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 17,
+      "networkCode": "cronos_mainnet",
+      "networkName": "Cronos Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 18,
+      "networkCode": "zksync_era_mainnet",
+      "networkName": "zkSync Era Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 19,
+      "networkCode": "linea_mainnet",
+      "networkName": "Linea Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 20,
+      "networkCode": "scroll_mainnet",
+      "networkName": "Scroll Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 21,
+      "networkCode": "mantle_mainnet",
+      "networkName": "Mantle Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 22,
+      "networkCode": "blast_mainnet",
+      "networkName": "Blast Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 23,
+      "networkCode": "celo_mainnet",
+      "networkName": "Celo Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 24,
+      "networkCode": "moonbeam_mainnet",
+      "networkName": "Moonbeam Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 25,
+      "networkCode": "moonriver_mainnet",
+      "networkName": "Moonriver Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 26,
+      "networkCode": "kaia_mainnet",
+      "networkName": "Kaia Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 27,
+      "networkCode": "berachain_mainnet",
+      "networkName": "Berachain Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 28,
+      "networkCode": "sonic_mainnet",
+      "networkName": "Sonic Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Network-specific normalizer vector pending",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 29,
+      "networkCode": "sui_mainnet",
+      "networkName": "Sui Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 30,
+      "networkCode": "aptos_mainnet",
+      "networkName": "Aptos Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 31,
+      "networkCode": "ton_mainnet",
+      "networkName": "TON Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 32,
+      "networkCode": "cosmos_hub_mainnet",
+      "networkName": "Cosmos Hub",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "HRP-aware normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 33,
+      "networkCode": "osmosis_mainnet",
+      "networkName": "Osmosis",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "HRP-aware normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 34,
+      "networkCode": "injective_mainnet",
+      "networkName": "Injective",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "HRP-aware normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 35,
+      "networkCode": "sei_mainnet",
+      "networkName": "Sei",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "HRP-aware normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 36,
+      "networkCode": "celestia_mainnet",
+      "networkName": "Celestia",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "HRP-aware normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 37,
+      "networkCode": "noble_mainnet",
+      "networkName": "Noble",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "HRP-aware normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 38,
+      "networkCode": "dydx_chain_mainnet",
+      "networkName": "dYdX Chain",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "HRP-aware normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 39,
+      "networkCode": "near_mainnet",
+      "networkName": "NEAR Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 40,
+      "networkCode": "cardano_mainnet",
+      "networkName": "Cardano Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 41,
+      "networkCode": "polkadot_mainnet",
+      "networkName": "Polkadot",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 42,
+      "networkCode": "kusama_mainnet",
+      "networkName": "Kusama",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 43,
+      "networkCode": "xrp_ledger_mainnet",
+      "networkName": "XRP Ledger",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 44,
+      "networkCode": "stellar_mainnet",
+      "networkName": "Stellar Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 45,
+      "networkCode": "algorand_mainnet",
+      "networkName": "Algorand Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 46,
+      "networkCode": "tezos_mainnet",
+      "networkName": "Tezos Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 47,
+      "networkCode": "hedera_mainnet",
+      "networkName": "Hedera Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    },
+    {
+      "chainNetworkId": 48,
+      "networkCode": "starknet_mainnet",
+      "networkName": "Starknet Mainnet",
+      "environment": "mainnet",
+      "catalogued": "catalogued",
+      "normalizerReady": "planned",
+      "kvReady": {
+        "current": "planned",
+        "timeline": "planned"
+      },
+      "assetResolverReady": "planned",
+      "mqnodeParserReady": "unsupported",
+      "metricReady": "unsupported",
+      "reason": "Normalizer not implemented",
+      "lastVerifiedAt": "2026-07-14"
+    }
+  ]
+}

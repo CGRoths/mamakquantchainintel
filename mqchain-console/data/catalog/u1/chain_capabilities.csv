@@ -1,0 +1,49 @@
+chain_network_id,catalog_status,normalizer_status,mqnode_parser_status,asset_resolver_status,current_label_status,timeline_status,metric_status,notes,last_verified_at
+1,catalogued,test_ready,unsupported,test_ready,test_ready,test_ready,test_ready,Bitcoin codecs native asset mapping and U1 current timeline metric artifacts tested; MQNODE unsupported,2026-07-14
+2,catalogued,test_ready,unsupported,test_ready,test_ready,test_ready,test_ready,EVM20 Ethereum native and ERC-20 mappings plus U1 artifacts tested; MQNODE unsupported,2026-07-14
+3,catalogued,partial,unsupported,planned,partial,partial,partial,EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending,2026-07-14
+4,catalogued,partial,unsupported,planned,partial,partial,partial,EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending,2026-07-14
+5,catalogued,partial,unsupported,planned,partial,partial,partial,EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending,2026-07-14
+6,catalogued,partial,unsupported,planned,partial,partial,partial,EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending,2026-07-14
+7,catalogued,partial,unsupported,test_ready,partial,partial,partial,EVM20 implementation and BNB native mapping exist but network-specific vector pending,2026-07-14
+8,catalogued,test_ready,unsupported,test_ready,test_ready,test_ready,test_ready,Solana public key normalizer native and USDC mappings plus U1 artifacts tested; MQNODE unsupported,2026-07-14
+9,catalogued,test_ready,unsupported,test_ready,test_ready,test_ready,test_ready,TRON account normalizer native and USDt mappings plus U1 artifacts tested; MQNODE unsupported,2026-07-14
+10,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+11,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+12,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+13,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+14,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+15,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+16,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+17,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+18,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+19,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+20,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+21,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+22,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+23,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+24,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+25,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+26,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+27,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+28,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
+29,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+30,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+31,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+32,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
+33,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
+34,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
+35,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
+36,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
+37,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
+38,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
+39,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+40,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+41,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+42,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+43,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+44,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+45,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+46,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+47,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+48,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14

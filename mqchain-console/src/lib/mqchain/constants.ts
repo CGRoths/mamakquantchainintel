@@ -93,6 +93,21 @@ export const KV_BUILD_REGISTRATION_STATUSES = ["pending", "compiled", "failed"] 
 
 export type KvBuildRegistrationStatus = (typeof KV_BUILD_REGISTRATION_STATUSES)[number];
 
+export const U1_CAPABILITY_STATUSES = [
+  "unsupported",
+  "catalogued",
+  "planned",
+  "partial",
+  "test_ready",
+  "production_ready",
+  "disabled",
+] as const;
+
+export type U1CapabilityStatus = (typeof U1_CAPABILITY_STATUSES)[number];
+
+export const U1_BUILD_KINDS = ["base", "delta"] as const;
+export const U1_MEMBERSHIP_STATUSES = ["active", "removed", "deprecated"] as const;
+
 export const LABEL_STATUS = {
   unknown: 0,
   activeCurrent: 1,

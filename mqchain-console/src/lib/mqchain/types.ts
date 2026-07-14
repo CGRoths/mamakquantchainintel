@@ -8,6 +8,8 @@ export type NormalizedAddress = {
   rawAddress: string;
   normalizedAddress: string;
   prefixCode: number | null;
+  namespaceId: number | null;
+  addressCodecId: number | null;
   payloadHex: string | null;
   isValid: boolean;
   error?: string;

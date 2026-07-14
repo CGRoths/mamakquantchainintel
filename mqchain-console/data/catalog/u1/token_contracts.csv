@@ -1,0 +1,4 @@
+token_contract_id,asset_id,namespace_id,address_codec_id,normalized_payload_hex,standard_id,decimals,issuer_entity_id,status,source_id,verified_at,notes
+1,3,4,1,dac17f958d2ee523a2206206994597c13d831ec7,2,6,42,active,10,2026-07-14,Ethereum USDt ERC-20
+2,3,11,21,41a614f803b6fd780986a42c78ec9c7f77e6ded13c,9,6,42,active,10,2026-07-14,TRON USDt TRC-20
+3,4,10,20,c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61,7,6,43,active,11,2026-07-14,Solana USDC SPL mint

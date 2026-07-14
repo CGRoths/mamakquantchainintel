@@ -1,0 +1,6 @@
+component_id,protocol_id,deployment_id,component_code,component_name,component_type,namespace_id,address_codec_id,normalized_payload_hex,role_id,category_id,confidence_score,quality_tier,valid_from_height,is_active,source_id,verified_at,notes
+1,1,1,aave_v3_ethereum_addresses_provider,Pool Addresses Provider,address_provider,4,1,2f39d218133afab8f2b819b1066c7e434ad94e9e,3000,220,100,1,,true,12,2026-07-14,Official Aave address book
+2,1,1,aave_v3_ethereum_pool,Pool,pool,4,1,87870bca3f3fd6335c3f4ce8392d69350b4fa4e2,3010,220,100,1,,true,12,2026-07-14,Official Aave address book
+3,1,1,aave_v3_ethereum_pool_configurator,Pool Configurator,configurator,4,1,64b761d848206f447fe2dd461b0c635ec39ebb27,3020,220,100,1,,true,12,2026-07-14,Official Aave address book
+4,1,1,aave_v3_ethereum_oracle,Aave Oracle,oracle,4,1,54586be62e3c3580375ae3723c145253060ca0c2,3030,600,100,1,,true,12,2026-07-14,Official Aave address book
+5,1,1,aave_v3_ethereum_acl_manager,ACL Manager,acl_manager,4,1,c2aacf6553d20d1e9d78e365aaba8032af9c85b0,3040,700,100,1,,true,12,2026-07-14,Official Aave address book

@@ -1,0 +1,14 @@
+tag_id,tag_code,tag_name,tag_group,is_active,source_id,verified_at,notes
+1,proof_of_reserves,Proof of Reserves,evidence,true,1,2026-07-14,
+2,official_docs,Official Documentation,evidence,true,1,2026-07-14,
+3,migration,Migration,lifecycle,true,1,2026-07-14,
+4,aave_v3,Aave V3,protocol_descriptor,true,1,2026-07-14,
+5,bundler,Bundler,infrastructure,true,1,2026-07-14,
+6,cold_storage,Cold Storage,custody,true,1,2026-07-14,
+7,multisig,Multisig,control,true,1,2026-07-14,
+8,gnosis_safe,Gnosis Safe,control,true,1,2026-07-14,
+9,deprecated,Deprecated,lifecycle,true,1,2026-07-14,
+10,proxy,Proxy,contract,true,1,2026-07-14,
+11,implementation,Implementation,contract,true,1,2026-07-14,
+12,inferred,Inferred,evidence,true,1,2026-07-14,
+13,arkham_descriptor,Arkham-specific Descriptor,external_taxonomy,true,1,2026-07-14,Descriptor only; never an approval source by itself
