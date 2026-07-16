@@ -12,6 +12,8 @@ export const ROLE_PERMISSIONS: Record<MqUserRole, string[]> = {
     "batch:commit",
     "registry:edit",
     "dictionary:edit",
+    "network:propose",
+    "network:review",
     "settings:edit",
     "discovery:create",
   ],
@@ -24,9 +26,11 @@ export const ROLE_PERMISSIONS: Record<MqUserRole, string[]> = {
     "batch:commit",
     "registry:edit",
     "dictionary:edit",
+    "network:propose",
+    "network:review",
     "discovery:create",
   ],
-  analyst: ["view", "intake:create", "candidate:propose", "candidate:evidence", "discovery:create"],
+  analyst: ["view", "intake:create", "candidate:propose", "candidate:evidence", "discovery:create", "network:propose"],
   reviewer: ["view", "candidate:review", "candidate:evidence", "source:verify"],
   readonly: ["view"],
 };
@@ -104,6 +108,16 @@ export const U1_CAPABILITY_STATUSES = [
 ] as const;
 
 export type U1CapabilityStatus = (typeof U1_CAPABILITY_STATUSES)[number];
+
+export const NETWORK_CATALOG_STATES = ["catalogued", "disabled"] as const;
+export const NETWORK_READINESS_STATES = ["not_ready", "prepared", "test_ready", "production_ready"] as const;
+export const NETWORK_CHANGE_TYPES = ["create", "update", "activate", "deactivate", "capability_update"] as const;
+export const NETWORK_CHANGE_STATUSES = ["pending", "approved", "rejected", "applied"] as const;
+
+export type NetworkCatalogState = (typeof NETWORK_CATALOG_STATES)[number];
+export type NetworkReadinessState = (typeof NETWORK_READINESS_STATES)[number];
+export type NetworkChangeType = (typeof NETWORK_CHANGE_TYPES)[number];
+export type NetworkChangeStatus = (typeof NETWORK_CHANGE_STATUSES)[number];
 
 export const U1_BUILD_KINDS = ["base", "delta"] as const;
 export const U1_MEMBERSHIP_STATUSES = ["active", "removed", "deprecated"] as const;

@@ -1,5 +1,45 @@
 # MAMAKQUANTCHAIN U1 Claude Handoff
 
+## MQCHAIN-U1 Network Capability Hardening (2026-07-17)
+
+The requested hardening tranche is implemented in the dirty worktree. Start with:
+
+- `docs/architecture/MQCHAIN_U1_NETWORK_CAPABILITY_HARDENING.md`
+- `drizzle/0010_parallel_yellow_claw.sql`
+- `src/lib/mqchain/services/network-support-service.ts`
+- `src/app/api/mqchain/network-support/route.ts`
+- `src/app/mqchain/dictionaries/network-support/page.tsx`
+- `reports/u1_catalog_database_drift.md`
+
+Key outcomes:
+
+- `u1_namespaces.next_id` is corrected from 47 to 48. All 47 published namespace IDs remain unchanged.
+- Network IDs 1-48 and every other published dictionary ID remain stable; no catalog row was deleted or renumbered.
+- Catalog, label, and runtime readiness are separate database/catalog fields.
+- Tier 1 is Bitcoin, Ethereum, Base, BSC, and Solana. Tier 2 is Arbitrum, Optimism, Polygon, Tron, and Avalanche.
+- Every published EVM namespace now uses the generic EVM20 normalizer path. Existing legacy output aliases remain compatible.
+- MQNODE remains unsupported. Metric and MQNODE readiness at `test_ready` or `production_ready` is rejected unless a non-null integration-test reference exists.
+- Unknown networks can only be created inactive through a manual proposal. Activation requires an approved proposal and transaction-scoped proposal context enforced by PostgreSQL.
+- The API is `GET|POST|PATCH /api/mqchain/network-support`; the console is `/mqchain/dictionaries/network-support`.
+- `npm run u1:drift` generates Markdown and JSON catalog/database drift reports. The isolated seeded database currently reports zero errors and zero warnings.
+
+Migration 0010 is additive. It backfills the new fields conservatively and downgrades unsupported historical metric readiness claims before installing evidence constraints. Do not weaken `mq_chain_network_proposal_activation_guard` or bypass the proposal service with direct activation SQL.
+
+Verification completed for this tranche:
+
+```text
+Vitest: 74 files passed, 397 tests passed
+TypeScript: passed
+ESLint: passed
+Next.js production build: passed
+Clean temporary database: all migrations, seed, and zero-drift report passed
+Seeded state: 48 networks, 5 Tier-1, 5 Tier-2, 5 label-ready, 0 runtime-ready
+Unsupported ready claims: 0
+Activation probes: unknown active insert rejected; direct activation rejected; approved-proposal activation allowed
+```
+
+The local development server for this tranche is running at `http://localhost:3011`. Credential authentication succeeded, but the app's configured canonical auth URL redirected browser navigation to port 3000, which was outside this server session. Rely on the passing production build, route tests, and database integration probes unless a fresh browser session is started with matching auth URL configuration.
+
 ## Start Here
 
 Continue in:
@@ -105,6 +145,7 @@ Benchmark evidence is in `reports/u1_cuckoo_benchmark.md`: 100,000 inserted keys
 New inspection routes:
 
 - `/mqchain/dictionaries/networks`
+- `/mqchain/dictionaries/network-support`
 - `/mqchain/dictionaries/codecs`
 - `/mqchain/dictionaries/components`
 - `/mqchain/dictionaries/assets`
@@ -126,7 +167,7 @@ Generated, source-reproducible reports are under `reports/`:
 - `u1_build_validation.md/json`
 - `u1_cuckoo_benchmark.md`
 
-Coverage currently reports 48 catalogued networks, 4 normalizer test-ready, 5 partial, 0 MQNODE production-ready, and 0 metric production-ready. These conservative statuses are intentional.
+Coverage currently reports 48 catalogued networks, 5 Tier-1, 5 Tier-2, 5 label-ready, 0 runtime-ready, 0 MQNODE production-ready, and 0 metric production-ready. These conservative statuses are intentional.
 
 ## Verification Completed 2026-07-14
 

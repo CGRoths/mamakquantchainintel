@@ -1,8 +1,8 @@
 {
   "schemaVersion": "MQCHAIN-U1-BUILD-VALIDATION-1",
-  "buildHash": "37f4790746f007bf3f4e66ad9868d5d8ada27b43cfe1b9c4c78730b342b106ad",
+  "buildHash": "af0c1145b4249f240d51c59b1e898524ca68366d9d1de06ddbeb612b7621c8e8",
   "dictionaryVersion": "cfe03c24e185f131967c85e4f3df70be12b75f4f33867432847321ab90f10658",
-  "rowCount": 18,
+  "rowCount": 15,
   "checks": {
     "postgresCanonicalSource": true,
     "approvedBatchGate": true,
@@ -13,27 +13,27 @@
   },
   "filters": {
     "address_label_current": {
-      "itemCount": 1,
+      "itemCount": 0,
       "targetFalsePositiveRate": 0.001,
       "observedFalsePositiveRate": 0,
       "absentProbeCount": 10000,
-      "serializedBytes": 415,
+      "serializedBytes": 351,
       "roundTripVerified": true
     },
     "address_label_timeline": {
-      "itemCount": 1,
+      "itemCount": 0,
       "targetFalsePositiveRate": 0.001,
       "observedFalsePositiveRate": 0,
       "absentProbeCount": 10000,
-      "serializedBytes": 415,
+      "serializedBytes": 351,
       "roundTripVerified": true
     },
     "metric_group_membership": {
-      "itemCount": 1,
+      "itemCount": 0,
       "targetFalsePositiveRate": 0.001,
       "observedFalsePositiveRate": 0,
       "absentProbeCount": 10000,
-      "serializedBytes": 415,
+      "serializedBytes": 351,
       "roundTripVerified": true
     },
     "asset_native_namespace": {

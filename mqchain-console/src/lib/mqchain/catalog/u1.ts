@@ -88,7 +88,7 @@ export const U1_CSV_CONTRACTS: Partial<Record<U1CatalogFile, CsvContract>> = {
   "chain_capabilities.csv": {
     idColumn: "chain_network_id",
     maxId: UINT32_MAX,
-    requiredColumns: ["chain_network_id", "catalog_status", "normalizer_status", "mqnode_parser_status", "asset_resolver_status", "current_label_status", "timeline_status", "metric_status"],
+    requiredColumns: ["chain_network_id", "support_tier", "catalog_state", "label_readiness", "runtime_readiness", "catalog_status", "normalizer_status", "mqnode_parser_status", "asset_resolver_status", "current_label_status", "timeline_status", "metric_status", "mqnode_integration_test_ref", "metric_integration_test_ref"],
   },
   "categories.csv": {
     idColumn: "category_id",
@@ -183,6 +183,8 @@ export const CAPABILITY_STATUSES = [
   "production_ready",
   "disabled",
 ] as const;
+const NETWORK_CATALOG_STATES = ["catalogued", "disabled"] as const;
+const NETWORK_READINESS_STATES = ["not_ready", "prepared", "test_ready", "production_ready"] as const;
 
 function canonicalText(text: string) {
   return text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").split("\n").map((line) => line.replace(/[ \t]+$/g, "")).join("\n");
@@ -266,6 +268,7 @@ export async function loadAndValidateU1Catalog(root = path.join(process.cwd(), "
   const standards = rows.get("token_standards.csv") ?? [];
   const tokenContracts = rows.get("token_contracts.csv") ?? [];
   const assetNamespaces = rows.get("asset_namespaces.csv") ?? [];
+  const idRanges = rows.get("id_ranges.csv") ?? [];
   const networkIds = new Set(networks.map((row) => row.chain_network_id));
   const codecById = new Map(codecs.map((row) => [row.address_codec_id, row]));
   const namespaceById = new Map(namespaces.map((row) => [row.namespace_id, row]));
@@ -293,10 +296,21 @@ export async function loadAndValidateU1Catalog(root = path.join(process.cwd(), "
     for (const column of ["catalog_status", "normalizer_status", "mqnode_parser_status", "asset_resolver_status", "current_label_status", "timeline_status", "metric_status"]) {
       if (!(CAPABILITY_STATUSES as readonly string[]).includes(row[column])) throw new Error(`Invalid ${column} ${row[column]} for network ${row.chain_network_id}.`);
     }
+    if (!(NETWORK_CATALOG_STATES as readonly string[]).includes(row.catalog_state)) throw new Error(`Invalid catalog_state ${row.catalog_state} for network ${row.chain_network_id}.`);
+    for (const column of ["label_readiness", "runtime_readiness"]) {
+      if (!(NETWORK_READINESS_STATES as readonly string[]).includes(row[column])) throw new Error(`Invalid ${column} ${row[column]} for network ${row.chain_network_id}.`);
+    }
+    if (row.support_tier && !["1", "2"].includes(row.support_tier)) throw new Error(`Invalid support_tier ${row.support_tier} for network ${row.chain_network_id}.`);
+    if (["test_ready", "production_ready"].includes(row.mqnode_parser_status) && !row.mqnode_integration_test_ref) throw new Error(`Network ${row.chain_network_id} MQNODE readiness has no integration test reference.`);
+    if (["test_ready", "production_ready"].includes(row.metric_status) && !row.metric_integration_test_ref) throw new Error(`Network ${row.chain_network_id} metric readiness has no integration test reference.`);
+    if (row.runtime_readiness !== "not_ready" && (row.mqnode_parser_status === "unsupported" || row.metric_status === "unsupported")) throw new Error(`Network ${row.chain_network_id} cannot be runtime ready with unsupported runtime dependencies.`);
     if (row.metric_status === "production_ready" && [row.normalizer_status, row.current_label_status, row.mqnode_parser_status].includes("unsupported")) {
       throw new Error(`Unsupported network ${row.chain_network_id} cannot be metric production ready.`);
     }
   }
+  const namespaceRange = idRanges.find((row) => row.range_code === "u1_namespaces");
+  const maximumNamespaceId = Math.max(...namespaces.map((row) => Number(row.namespace_id)));
+  if (!namespaceRange || Number(namespaceRange.next_id) <= maximumNamespaceId) throw new Error(`Address namespace next_id must be greater than published namespace ID ${maximumNamespaceId}.`);
   for (const row of categories) {
     if (row.parent_category_id && !categoryIds.has(row.parent_category_id)) throw new Error(`Category ${row.category_code} references unknown parent ${row.parent_category_id}.`);
   }

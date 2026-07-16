@@ -2,10 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { POST as completeDiscoveryJob } from "@/app/api/mqchain/discovery/jobs/[id]/complete/route";
 import { POST as registerKvBuild } from "@/app/api/mqchain/kv-builds/route";
+import { PATCH as reviewNetworkProposal, POST as createNetworkProposal } from "@/app/api/mqchain/network-support/route";
 import { POST as classifyResolverFlow } from "@/app/api/mqchain/resolver/route";
 import { POST as createSourceJob } from "@/app/api/mqchain/source-jobs/route";
 import { DISCOVERY_RESULTS_API_MAX_BODY_BYTES } from "@/lib/mqchain/validators/discovery";
 import { KV_BUILD_REGISTRATION_API_MAX_BODY_BYTES } from "@/lib/mqchain/validators/kv-manifest";
+import { NETWORK_PROPOSAL_API_MAX_BODY_BYTES } from "@/lib/mqchain/validators/network-support";
 import { RESOLVER_API_MAX_BODY_BYTES } from "@/lib/mqchain/validators/resolver-api";
 import { SOURCE_JOB_INTAKE_API_MAX_BODY_BYTES } from "@/lib/mqchain/validators/intake";
 
@@ -51,6 +53,16 @@ const jsonPostCases: JsonPostCase[] = [
     name: "discovery completion",
     maxBytes: DISCOVERY_RESULTS_API_MAX_BODY_BYTES,
     post: (request) => completeDiscoveryJob(request as never, { params: Promise.resolve({ id: "1" }) }),
+  },
+  {
+    name: "network change proposal",
+    maxBytes: NETWORK_PROPOSAL_API_MAX_BODY_BYTES,
+    post: (request) => createNetworkProposal(request as never),
+  },
+  {
+    name: "network proposal review",
+    maxBytes: NETWORK_PROPOSAL_API_MAX_BODY_BYTES,
+    post: (request) => reviewNetworkProposal(request as never),
   },
 ];
 

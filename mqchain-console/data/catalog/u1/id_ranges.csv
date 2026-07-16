@@ -7,7 +7,7 @@ range_id,dictionary_kind,range_code,start_id,end_id,next_id,owner_domain,status,
 6,role,u1_roles,7000,9999,7240,mqchain,active,1,New primary functional roles
 7,network,u1_networks,1,9999,49,mqchain,active,1,
 8,address_codec,u1_codecs,1,65535,96,mqchain,active,1,uint16 contract
-9,address_namespace,u1_namespaces,1,4294967295,47,mqchain,active,1,uint32 contract
+9,address_namespace,u1_namespaces,1,4294967295,48,mqchain,active,1,uint32 contract
 10,tag,u1_tags,1,4294967295,1,mqchain,active,1,
 11,tagset,u1_tagsets,1,4294967295,1,mqchain,active,1,
 12,component,u1_components,1,4294967295,1,mqchain,active,1,

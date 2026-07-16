@@ -12,6 +12,14 @@ describe("U1 catalog governance", () => {
     expect(first.rows.get("chain_networks.csv")).toHaveLength(48);
     expect(first.rows.get("address_codecs.csv")).toHaveLength(23);
     expect(first.rows.get("address_namespaces.csv")).toHaveLength(47);
+    const ranges = first.rows.get("id_ranges.csv") ?? [];
+    expect(ranges.find(row => row.range_code === "u1_namespaces")?.next_id).toBe("48");
+    const capabilities = first.rows.get("chain_capabilities.csv") ?? [];
+    expect(capabilities.filter(row => row.support_tier === "1").map(row => Number(row.chain_network_id))).toEqual([1, 2, 4, 7, 8]);
+    expect(capabilities.filter(row => row.support_tier === "2").map(row => Number(row.chain_network_id))).toEqual([3, 5, 6, 9, 14]);
+    expect(capabilities.every(row => row.runtime_readiness === "not_ready")).toBe(true);
+    expect(capabilities.some(row => ["test_ready", "production_ready"].includes(row.mqnode_parser_status))).toBe(false);
+    expect(capabilities.some(row => ["test_ready", "production_ready"].includes(row.metric_status))).toBe(false);
   });
 
   it("rejects duplicate IDs, uppercase codes, and uint16 codec overflow", () => {

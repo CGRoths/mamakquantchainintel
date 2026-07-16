@@ -44,6 +44,7 @@ import {
 import { completeDiscoveryJob, createDiscoveryJob, createDiscoveryJobFromRegistry } from "@/lib/mqchain/services/discovery-service";
 import { addCandidateEvidence, addRegistryEvidence } from "@/lib/mqchain/services/evidence-service";
 import { activateKvBuildManifest, createKvBuildManifest } from "@/lib/mqchain/services/kv-manifest-service";
+import { createNetworkChangeProposal, reviewNetworkChangeProposal } from "@/lib/mqchain/services/network-support-service";
 import { addMetricGroupRule, createMetricGroup, deactivateMetricGroup } from "@/lib/mqchain/services/metric-group-service";
 import {
   addRegistrySecondaryRole,
@@ -166,6 +167,9 @@ export type SettingsMutationData = {
 };
 
 export type SettingsMutationState = ActionResult<SettingsMutationData> | null;
+
+export type NetworkProposalMutationData = { proposalId: number; status: string; message: string };
+export type NetworkProposalMutationState = ActionResult<NetworkProposalMutationData> | null;
 
 function reviewReturnPath(formData: FormData) {
   const returnTo = formValue(formData, "returnTo") ?? "";
@@ -2061,5 +2065,32 @@ export async function updateSettingsUserAccessResultAction(
       isActive: user.isActive,
       message: `${user.email} is now ${user.isActive ? "active" : "inactive"} with ${user.role} access.`,
     };
+  });
+}
+
+export async function createNetworkProposalResultAction(
+  _previousState: NetworkProposalMutationState,
+  formData: FormData,
+): Promise<NetworkProposalMutationState> {
+  return runAction(async () => {
+    const proposal = await createNetworkChangeProposal({
+      changeType: formValue(formData, "changeType"),
+      networkId: formValue(formData, "networkId") || null,
+      proposedValues: JSON.parse(formValue(formData, "proposedValues") || "{}") as unknown,
+      reason: formValue(formData, "reason"),
+    });
+    revalidatePath("/mqchain/dictionaries/network-support");
+    return { proposalId: proposal.id, status: proposal.status, message: `Proposal #${proposal.id} submitted for manual review.` };
+  });
+}
+
+export async function reviewNetworkProposalResultAction(
+  _previousState: NetworkProposalMutationState,
+  formData: FormData,
+): Promise<NetworkProposalMutationState> {
+  return runAction(async () => {
+    const proposal = await reviewNetworkChangeProposal({ proposalId: formValue(formData, "proposalId"), action: formValue(formData, "action"), reviewNotes: formValue(formData, "reviewNotes") });
+    revalidatePath("/mqchain/dictionaries/network-support");
+    return { proposalId: proposal.id, status: proposal.status, message: `Proposal #${proposal.id} is ${proposal.status}.` };
   });
 }

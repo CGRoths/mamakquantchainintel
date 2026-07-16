@@ -13,6 +13,27 @@ describe("normalizeAddress", () => {
     expect(result.payloadHex).toBe("000000000000000000000000000000000000dead");
   });
 
+  it.each([
+    ["ethereum_mainnet", "ethereum", 4, 0x0101],
+    ["base_mainnet", "base", 6, 0x0103],
+    ["bnb_smart_chain_mainnet", "bsc", 9, 0x0106],
+    ["polygon_pos_mainnet", "polygon", 5, 0x0102],
+    ["arbitrum_one", "arbitrum", 7, 0x0104],
+    ["op_mainnet", "optimism", 8, 0x0105],
+    ["avalanche_c_chain", "avalanche", 12, null],
+  ])("reuses EVM20 for %s", (hint, chainCode, namespaceId, prefixCode) => {
+    const result = normalizeAddress("0x1111111111111111111111111111111111111111", hint);
+
+    expect(result).toMatchObject({
+      isValid: true,
+      addressCodecId: 1,
+      addressFamily: "evm20",
+      chainCode,
+      namespaceId,
+      prefixCode,
+    });
+  });
+
   it("recognizes BTC bech32 addresses", () => {
     const result = normalizeAddress("BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4", "btc");
 

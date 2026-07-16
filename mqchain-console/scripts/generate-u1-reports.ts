@@ -14,6 +14,10 @@ async function main() {
       networkCode: network.network_code,
       networkName: network.network_name,
       environment: network.environment,
+      supportTier: capability.support_tier ? Number(capability.support_tier) : null,
+      catalogState: capability.catalog_state,
+      labelReadiness: capability.label_readiness,
+      runtimeReadiness: capability.runtime_readiness,
       catalogued: capability.catalog_status,
       normalizerReady: capability.normalizer_status,
       kvReady: { current: capability.current_label_status, timeline: capability.timeline_status },
@@ -30,6 +34,10 @@ async function main() {
     normalizerPartial: coverage.filter(row => row.normalizerReady === "partial").length,
     mqnodeProductionReady: coverage.filter(row => row.mqnodeParserReady === "production_ready").length,
     metricProductionReady: coverage.filter(row => row.metricReady === "production_ready").length,
+    tier1: coverage.filter(row => row.supportTier === 1).length,
+    tier2: coverage.filter(row => row.supportTier === 2).length,
+    labelReady: coverage.filter(row => ["test_ready", "production_ready"].includes(row.labelReadiness)).length,
+    runtimeReady: coverage.filter(row => ["test_ready", "production_ready"].includes(row.runtimeReadiness)).length,
   };
   const report = { schemaVersion: "MQCHAIN-U1-COVERAGE-1", dictionaryVersion: catalog.dictionaryVersion, summary, networks: coverage };
   const markdown = [
@@ -37,11 +45,11 @@ async function main() {
     "",
     `Dictionary version: \`${catalog.dictionaryVersion}\``,
     "",
-    `Catalogued: ${summary.networks} | normalizer test-ready: ${summary.normalizerTestReady} | normalizer partial: ${summary.normalizerPartial} | MQNODE production-ready: ${summary.mqnodeProductionReady} | metric production-ready: ${summary.metricProductionReady}`,
+    `Catalogued: ${summary.networks} | Tier 1: ${summary.tier1} | Tier 2: ${summary.tier2} | label-ready: ${summary.labelReady} | runtime-ready: ${summary.runtimeReady} | MQNODE production-ready: ${summary.mqnodeProductionReady} | metric production-ready: ${summary.metricProductionReady}`,
     "",
-    "| ID | Network | Environment | Catalog | Normalizer | Current KV | Timeline | MQASSET | MQNODE | Metric | Missing reason | Verified |",
-    "|---:|---|---|---|---|---|---|---|---|---|---|---|",
-    ...coverage.map(row => `| ${row.chainNetworkId} | ${row.networkName} | ${row.environment} | ${row.catalogued} | ${row.normalizerReady} | ${row.kvReady.current} | ${row.kvReady.timeline} | ${row.assetResolverReady} | ${row.mqnodeParserReady} | ${row.metricReady} | ${row.reason.replace(/\|/g, "\\|")} | ${row.lastVerifiedAt} |`),
+    "| ID | Network | Tier | Catalog state | Label readiness | Runtime readiness | Normalizer | Current KV | Timeline | MQASSET | MQNODE | Metric | Missing reason | Verified |",
+    "|---:|---|---:|---|---|---|---|---|---|---|---|---|---|---|",
+    ...coverage.map(row => `| ${row.chainNetworkId} | ${row.networkName} | ${row.supportTier ?? "-"} | ${row.catalogState} | ${row.labelReadiness} | ${row.runtimeReadiness} | ${row.normalizerReady} | ${row.kvReady.current} | ${row.kvReady.timeline} | ${row.assetResolverReady} | ${row.mqnodeParserReady} | ${row.metricReady} | ${row.reason.replace(/\|/g, "\\|")} | ${row.lastVerifiedAt} |`),
     "",
   ].join("\n");
   const out = path.join(process.cwd(), "reports");

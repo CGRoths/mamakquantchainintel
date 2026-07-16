@@ -13,6 +13,7 @@
     "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
     "kv:compile": "tsx --env-file=.env.local scripts/compile-kv.ts",
     "u1:reports": "tsx scripts/generate-u1-reports.ts",
+    "u1:drift": "tsx --env-file=.env.local scripts/generate-u1-drift-report.ts",
     "test": "vitest run"
   },
   "dependencies": {

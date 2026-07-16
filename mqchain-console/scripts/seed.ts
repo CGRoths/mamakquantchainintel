@@ -414,6 +414,10 @@ async function main() {
 
     for (const row of u1Catalog.rows.get("chain_capabilities.csv") ?? []) {
       const values = {
+        supportTier: row.support_tier ? Number(row.support_tier) : null,
+        catalogState: row.catalog_state,
+        labelReadiness: row.label_readiness,
+        runtimeReadiness: row.runtime_readiness,
         catalogStatus: row.catalog_status,
         normalizerStatus: row.normalizer_status,
         mqnodeParserStatus: row.mqnode_parser_status,
@@ -421,6 +425,8 @@ async function main() {
         currentLabelStatus: row.current_label_status,
         timelineStatus: row.timeline_status,
         metricStatus: row.metric_status,
+        mqnodeIntegrationTestRef: row.mqnode_integration_test_ref || null,
+        metricIntegrationTestRef: row.metric_integration_test_ref || null,
         notes: row.notes || null,
         lastVerifiedAt: row.last_verified_at ? new Date(`${row.last_verified_at}T00:00:00Z`) : null,
         updatedAt: new Date(),

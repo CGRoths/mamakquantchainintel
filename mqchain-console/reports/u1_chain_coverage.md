@@ -1,56 +1,56 @@
 # MQCHAIN U1 Chain Coverage
 
-Dictionary version: `cfe03c24e185f131967c85e4f3df70be12b75f4f33867432847321ab90f10658`
+Dictionary version: `76ba7449bb18eae2f46318426e8768afd315cda9090de68f3cdc97c6935c1ac9`
 
-Catalogued: 48 | normalizer test-ready: 4 | normalizer partial: 5 | MQNODE production-ready: 0 | metric production-ready: 0
+Catalogued: 48 | Tier 1: 5 | Tier 2: 5 | label-ready: 5 | runtime-ready: 0 | MQNODE production-ready: 0 | metric production-ready: 0
 
-| ID | Network | Environment | Catalog | Normalizer | Current KV | Timeline | MQASSET | MQNODE | Metric | Missing reason | Verified |
-|---:|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | Bitcoin Mainnet | mainnet | catalogued | test_ready | test_ready | test_ready | test_ready | unsupported | test_ready | Bitcoin codecs native asset mapping and U1 current timeline metric artifacts tested; MQNODE unsupported | 2026-07-14 |
-| 2 | Ethereum Mainnet | mainnet | catalogued | test_ready | test_ready | test_ready | test_ready | unsupported | test_ready | EVM20 Ethereum native and ERC-20 mappings plus U1 artifacts tested; MQNODE unsupported | 2026-07-14 |
-| 3 | Polygon PoS Mainnet | mainnet | catalogued | partial | partial | partial | planned | unsupported | partial | EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending | 2026-07-14 |
-| 4 | Base Mainnet | mainnet | catalogued | partial | partial | partial | planned | unsupported | partial | EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending | 2026-07-14 |
-| 5 | Arbitrum One | mainnet | catalogued | partial | partial | partial | planned | unsupported | partial | EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending | 2026-07-14 |
-| 6 | OP Mainnet | mainnet | catalogued | partial | partial | partial | planned | unsupported | partial | EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending | 2026-07-14 |
-| 7 | BNB Smart Chain Mainnet | mainnet | catalogued | partial | partial | partial | test_ready | unsupported | partial | EVM20 implementation and BNB native mapping exist but network-specific vector pending | 2026-07-14 |
-| 8 | Solana Mainnet | mainnet | catalogued | test_ready | test_ready | test_ready | test_ready | unsupported | test_ready | Solana public key normalizer native and USDC mappings plus U1 artifacts tested; MQNODE unsupported | 2026-07-14 |
-| 9 | TRON Mainnet | mainnet | catalogued | test_ready | test_ready | test_ready | test_ready | unsupported | test_ready | TRON account normalizer native and USDt mappings plus U1 artifacts tested; MQNODE unsupported | 2026-07-14 |
-| 10 | Bitcoin Cash Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 11 | Litecoin Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 12 | Dogecoin Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 13 | Zcash Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 14 | Avalanche C-Chain | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 15 | Gnosis Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 16 | Fantom Opera | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 17 | Cronos Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 18 | zkSync Era Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 19 | Linea Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 20 | Scroll Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 21 | Mantle Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 22 | Blast Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 23 | Celo Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 24 | Moonbeam Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 25 | Moonriver Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 26 | Kaia Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 27 | Berachain Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 28 | Sonic Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-14 |
-| 29 | Sui Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 30 | Aptos Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 31 | TON Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 32 | Cosmos Hub | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-14 |
-| 33 | Osmosis | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-14 |
-| 34 | Injective | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-14 |
-| 35 | Sei | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-14 |
-| 36 | Celestia | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-14 |
-| 37 | Noble | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-14 |
-| 38 | dYdX Chain | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-14 |
-| 39 | NEAR Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 40 | Cardano Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 41 | Polkadot | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 42 | Kusama | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 43 | XRP Ledger | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 44 | Stellar Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 45 | Algorand Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 46 | Tezos Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 47 | Hedera Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
-| 48 | Starknet Mainnet | mainnet | catalogued | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-14 |
+| ID | Network | Tier | Catalog state | Label readiness | Runtime readiness | Normalizer | Current KV | Timeline | MQASSET | MQNODE | Metric | Missing reason | Verified |
+|---:|---|---:|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | Bitcoin Mainnet | 1 | catalogued | test_ready | not_ready | test_ready | test_ready | test_ready | test_ready | unsupported | planned | Tier-1 label path tested; runtime remains not ready pending MQNODE and metric integration tests | 2026-07-17 |
+| 2 | Ethereum Mainnet | 1 | catalogued | test_ready | not_ready | test_ready | test_ready | test_ready | test_ready | unsupported | planned | Tier-1 label path tested; runtime remains not ready pending MQNODE and metric integration tests | 2026-07-17 |
+| 3 | Polygon PoS Mainnet | 2 | catalogued | prepared | not_ready | test_ready | partial | partial | planned | unsupported | partial | Tier-2 normalizer prepared and tested; label/runtime integration remains pending | 2026-07-17 |
+| 4 | Base Mainnet | 1 | catalogued | test_ready | not_ready | test_ready | test_ready | test_ready | planned | unsupported | partial | Tier-1 label path tested; runtime remains not ready pending MQNODE and metric integration tests | 2026-07-17 |
+| 5 | Arbitrum One | 2 | catalogued | prepared | not_ready | test_ready | partial | partial | planned | unsupported | partial | Tier-2 normalizer prepared and tested; label/runtime integration remains pending | 2026-07-17 |
+| 6 | OP Mainnet | 2 | catalogued | prepared | not_ready | test_ready | partial | partial | planned | unsupported | partial | Tier-2 normalizer prepared and tested; label/runtime integration remains pending | 2026-07-17 |
+| 7 | BNB Smart Chain Mainnet | 1 | catalogued | test_ready | not_ready | test_ready | test_ready | test_ready | test_ready | unsupported | partial | Tier-1 label path tested; runtime remains not ready pending MQNODE and metric integration tests | 2026-07-17 |
+| 8 | Solana Mainnet | 1 | catalogued | test_ready | not_ready | test_ready | test_ready | test_ready | test_ready | unsupported | planned | Tier-1 label path tested; runtime remains not ready pending MQNODE and metric integration tests | 2026-07-17 |
+| 9 | TRON Mainnet | 2 | catalogued | prepared | not_ready | test_ready | test_ready | test_ready | test_ready | unsupported | planned | Tier-2 normalizer prepared and tested; label/runtime integration remains pending | 2026-07-17 |
+| 10 | Bitcoin Cash Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 11 | Litecoin Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 12 | Dogecoin Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 13 | Zcash Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 14 | Avalanche C-Chain | 2 | catalogued | prepared | not_ready | test_ready | planned | planned | planned | unsupported | unsupported | Tier-2 normalizer prepared and tested; label/runtime integration remains pending | 2026-07-17 |
+| 15 | Gnosis Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 16 | Fantom Opera | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 17 | Cronos Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 18 | zkSync Era Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 19 | Linea Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 20 | Scroll Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 21 | Mantle Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 22 | Blast Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 23 | Celo Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 24 | Moonbeam Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 25 | Moonriver Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 26 | Kaia Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 27 | Berachain Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 28 | Sonic Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Network-specific normalizer vector pending | 2026-07-17 |
+| 29 | Sui Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 30 | Aptos Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 31 | TON Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 32 | Cosmos Hub | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-17 |
+| 33 | Osmosis | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-17 |
+| 34 | Injective | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-17 |
+| 35 | Sei | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-17 |
+| 36 | Celestia | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-17 |
+| 37 | Noble | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-17 |
+| 38 | dYdX Chain | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | HRP-aware normalizer not implemented | 2026-07-17 |
+| 39 | NEAR Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 40 | Cardano Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 41 | Polkadot | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 42 | Kusama | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 43 | XRP Ledger | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 44 | Stellar Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 45 | Algorand Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 46 | Tezos Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 47 | Hedera Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |
+| 48 | Starknet Mainnet | - | catalogued | not_ready | not_ready | planned | planned | planned | planned | unsupported | unsupported | Normalizer not implemented | 2026-07-17 |

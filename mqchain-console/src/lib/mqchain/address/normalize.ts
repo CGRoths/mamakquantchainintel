@@ -6,15 +6,36 @@ const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvw
 const BECH32_ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 const BECH32_CONST = 1;
 const BECH32M_CONST = 0x2bc830a3;
-const EVM_CHAIN: Record<string, { prefixCode: number; namespaceId: number }> = {
-  ethereum: { prefixCode: 0x0101, namespaceId: 4 },
-  eth: { prefixCode: 0x0101, namespaceId: 4 },
-  polygon: { prefixCode: 0x0102, namespaceId: 5 },
-  base: { prefixCode: 0x0103, namespaceId: 6 },
-  arbitrum: { prefixCode: 0x0104, namespaceId: 7 },
-  optimism: { prefixCode: 0x0105, namespaceId: 8 },
-  bsc: { prefixCode: 0x0106, namespaceId: 9 },
-};
+type Evm20Identity = { chainCode: string; prefixCode: number | null; namespaceId: number };
+
+const EVM20_IDENTITIES: Record<string, Evm20Identity> = {};
+
+function registerEvm20(chainCode: string, namespaceId: number, prefixCode: number | null, aliases: string[] = []) {
+  const identity = { chainCode, namespaceId, prefixCode };
+  for (const alias of [chainCode, ...aliases]) EVM20_IDENTITIES[alias] = identity;
+}
+
+registerEvm20("ethereum", 4, 0x0101, ["eth", "ethereum-mainnet"]);
+registerEvm20("polygon", 5, 0x0102, ["polygon-pos-mainnet"]);
+registerEvm20("base", 6, 0x0103, ["base-mainnet"]);
+registerEvm20("arbitrum", 7, 0x0104, ["arbitrum-one"]);
+registerEvm20("optimism", 8, 0x0105, ["op", "op-mainnet"]);
+registerEvm20("bsc", 9, 0x0106, ["bnb", "bnb-smart-chain-mainnet"]);
+registerEvm20("avalanche", 12, null, ["avax", "avalanche-c-chain"]);
+registerEvm20("gnosis-mainnet", 13, null);
+registerEvm20("fantom-opera", 14, null);
+registerEvm20("cronos-mainnet", 15, null);
+registerEvm20("zksync-era-mainnet", 16, null);
+registerEvm20("linea-mainnet", 17, null);
+registerEvm20("scroll-mainnet", 18, null);
+registerEvm20("mantle-mainnet", 19, null);
+registerEvm20("blast-mainnet", 20, null);
+registerEvm20("celo-mainnet", 21, null);
+registerEvm20("moonbeam-mainnet", 22, null);
+registerEvm20("moonriver-mainnet", 23, null);
+registerEvm20("kaia-mainnet", 24, null);
+registerEvm20("berachain-mainnet", 25, null);
+registerEvm20("sonic-mainnet", 26, null);
 
 function sha256(buffer: Uint8Array) {
   return createHash("sha256").update(buffer).digest();
@@ -195,12 +216,11 @@ function normalizeEvm(rawAddress: string, chainHint?: string | null): Normalized
   }
 
   const chain = normalizeChainHint(chainHint);
-  const chainCode = chain && EVM_CHAIN[chain] ? (chain === "eth" ? "ethereum" : chain) : "ethereum";
-  const identity = EVM_CHAIN[chainCode] ?? EVM_CHAIN.ethereum;
+  const identity = (chain && EVM20_IDENTITIES[chain]) || EVM20_IDENTITIES.ethereum;
   const normalizedAddress = value.toLowerCase();
 
   return success({
-    chainCode,
+    chainCode: identity.chainCode,
     addressFamily: "evm20",
     rawAddress,
     normalizedAddress,
@@ -329,7 +349,7 @@ export function normalizeAddress(rawAddress: string, chainHint?: string | null):
     return failure(rawAddress, "empty_address");
   }
 
-  if (chain && (EVM_CHAIN[chain] || chain === "ethereum")) {
+  if (chain && EVM20_IDENTITIES[chain]) {
     return normalizeEvm(value, chain) ?? failure(rawAddress, "invalid_evm_address");
   }
 

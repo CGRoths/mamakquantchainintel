@@ -12,6 +12,7 @@ describe("MQCHAIN U1 additive migrations", () => {
       migration("0007_robust_bucky.sql"),
       migration("0008_chilly_doctor_octopus.sql"),
       migration("0009_giant_ezekiel_stane.sql"),
+      migration("0010_parallel_yellow_claw.sql"),
     ])).join("\n").toLowerCase();
     expect(sql).not.toMatch(/\bdrop\s+table\b/);
     expect(sql).not.toMatch(/\btruncate\b/);
@@ -32,5 +33,13 @@ describe("MQCHAIN U1 additive migrations", () => {
     expect(sql).toContain("uq_mq_kv_builds_one_active");
     expect(sql).toContain("mq_chain_network_active_namespace_guard");
     expect(sql).toContain("mq_address_codec_active_namespace_guard");
+  });
+
+  it("requires approved manual proposals for unknown-network activation", async () => {
+    const sql = await migration("0010_parallel_yellow_claw.sql");
+    expect(sql).toContain("mq_network_change_proposals");
+    expect(sql).toContain("mq_chain_network_proposal_activation_guard");
+    expect(sql).toContain("unknown network % must be created inactive through a manual proposal");
+    expect(sql).toContain("network % activation requires an approved manual proposal");
   });
 });

@@ -92,6 +92,7 @@ export default async function DictionariesPage() {
             {[
               ["Networks", "/mqchain/dictionaries/networks"], ["Codecs", "/mqchain/dictionaries/codecs"], ["Components", "/mqchain/dictionaries/components"],
               ["Assets", "/mqchain/dictionaries/assets"], ["Token standards", "/mqchain/dictionaries/token-standards"], ["Coverage", "/mqchain/dictionaries/coverage"],
+              ["Network support", "/mqchain/dictionaries/network-support"],
             ].map(([label, href]) => <Button key={href} asChild variant="outline"><Link href={href}>{label}</Link></Button>)}
           </CardContent>
         </Card>

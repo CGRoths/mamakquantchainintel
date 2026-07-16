@@ -1,49 +1,49 @@
-chain_network_id,catalog_status,normalizer_status,mqnode_parser_status,asset_resolver_status,current_label_status,timeline_status,metric_status,notes,last_verified_at
-1,catalogued,test_ready,unsupported,test_ready,test_ready,test_ready,test_ready,Bitcoin codecs native asset mapping and U1 current timeline metric artifacts tested; MQNODE unsupported,2026-07-14
-2,catalogued,test_ready,unsupported,test_ready,test_ready,test_ready,test_ready,EVM20 Ethereum native and ERC-20 mappings plus U1 artifacts tested; MQNODE unsupported,2026-07-14
-3,catalogued,partial,unsupported,planned,partial,partial,partial,EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending,2026-07-14
-4,catalogued,partial,unsupported,planned,partial,partial,partial,EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending,2026-07-14
-5,catalogued,partial,unsupported,planned,partial,partial,partial,EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending,2026-07-14
-6,catalogued,partial,unsupported,planned,partial,partial,partial,EVM20 implementation and U1 serializer exist but network-specific vector and MQASSET mapping pending,2026-07-14
-7,catalogued,partial,unsupported,test_ready,partial,partial,partial,EVM20 implementation and BNB native mapping exist but network-specific vector pending,2026-07-14
-8,catalogued,test_ready,unsupported,test_ready,test_ready,test_ready,test_ready,Solana public key normalizer native and USDC mappings plus U1 artifacts tested; MQNODE unsupported,2026-07-14
-9,catalogued,test_ready,unsupported,test_ready,test_ready,test_ready,test_ready,TRON account normalizer native and USDt mappings plus U1 artifacts tested; MQNODE unsupported,2026-07-14
-10,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-11,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-12,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-13,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-14,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-15,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-16,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-17,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-18,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-19,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-20,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-21,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-22,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-23,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-24,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-25,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-26,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-27,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-28,catalogued,planned,unsupported,planned,planned,planned,unsupported,Network-specific normalizer vector pending,2026-07-14
-29,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-30,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-31,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-32,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
-33,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
-34,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
-35,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
-36,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
-37,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
-38,catalogued,planned,unsupported,planned,planned,planned,unsupported,HRP-aware normalizer not implemented,2026-07-14
-39,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-40,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-41,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-42,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-43,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-44,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-45,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-46,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-47,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
-48,catalogued,planned,unsupported,planned,planned,planned,unsupported,Normalizer not implemented,2026-07-14
+chain_network_id,support_tier,catalog_state,label_readiness,runtime_readiness,catalog_status,normalizer_status,mqnode_parser_status,asset_resolver_status,current_label_status,timeline_status,metric_status,mqnode_integration_test_ref,metric_integration_test_ref,notes,last_verified_at
+1,1,catalogued,test_ready,not_ready,catalogued,test_ready,unsupported,test_ready,test_ready,test_ready,planned,,,Tier-1 label path tested; runtime remains not ready pending MQNODE and metric integration tests,2026-07-17
+2,1,catalogued,test_ready,not_ready,catalogued,test_ready,unsupported,test_ready,test_ready,test_ready,planned,,,Tier-1 label path tested; runtime remains not ready pending MQNODE and metric integration tests,2026-07-17
+3,2,catalogued,prepared,not_ready,catalogued,test_ready,unsupported,planned,partial,partial,partial,,,Tier-2 normalizer prepared and tested; label/runtime integration remains pending,2026-07-17
+4,1,catalogued,test_ready,not_ready,catalogued,test_ready,unsupported,planned,test_ready,test_ready,partial,,,Tier-1 label path tested; runtime remains not ready pending MQNODE and metric integration tests,2026-07-17
+5,2,catalogued,prepared,not_ready,catalogued,test_ready,unsupported,planned,partial,partial,partial,,,Tier-2 normalizer prepared and tested; label/runtime integration remains pending,2026-07-17
+6,2,catalogued,prepared,not_ready,catalogued,test_ready,unsupported,planned,partial,partial,partial,,,Tier-2 normalizer prepared and tested; label/runtime integration remains pending,2026-07-17
+7,1,catalogued,test_ready,not_ready,catalogued,test_ready,unsupported,test_ready,test_ready,test_ready,partial,,,Tier-1 label path tested; runtime remains not ready pending MQNODE and metric integration tests,2026-07-17
+8,1,catalogued,test_ready,not_ready,catalogued,test_ready,unsupported,test_ready,test_ready,test_ready,planned,,,Tier-1 label path tested; runtime remains not ready pending MQNODE and metric integration tests,2026-07-17
+9,2,catalogued,prepared,not_ready,catalogued,test_ready,unsupported,test_ready,test_ready,test_ready,planned,,,Tier-2 normalizer prepared and tested; label/runtime integration remains pending,2026-07-17
+10,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+11,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+12,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+13,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+14,2,catalogued,prepared,not_ready,catalogued,test_ready,unsupported,planned,planned,planned,unsupported,,,Tier-2 normalizer prepared and tested; label/runtime integration remains pending,2026-07-17
+15,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+16,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+17,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+18,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+19,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+20,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+21,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+22,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+23,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+24,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+25,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+26,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+27,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+28,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Network-specific normalizer vector pending,2026-07-17
+29,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+30,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+31,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+32,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,HRP-aware normalizer not implemented,2026-07-17
+33,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,HRP-aware normalizer not implemented,2026-07-17
+34,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,HRP-aware normalizer not implemented,2026-07-17
+35,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,HRP-aware normalizer not implemented,2026-07-17
+36,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,HRP-aware normalizer not implemented,2026-07-17
+37,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,HRP-aware normalizer not implemented,2026-07-17
+38,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,HRP-aware normalizer not implemented,2026-07-17
+39,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+40,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+41,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+42,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+43,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+44,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+45,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+46,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+47,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
+48,,catalogued,not_ready,not_ready,catalogued,planned,unsupported,planned,planned,planned,unsupported,,,Normalizer not implemented,2026-07-17
