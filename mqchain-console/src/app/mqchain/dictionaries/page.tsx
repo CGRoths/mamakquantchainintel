@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getDictionaryOverview } from "@/lib/mqchain/services/dictionary-service";
+import { getDictionaryOverview } from "@/lib/mqchain/origin-client/client";
 
 export default async function DictionariesPage() {
   try {

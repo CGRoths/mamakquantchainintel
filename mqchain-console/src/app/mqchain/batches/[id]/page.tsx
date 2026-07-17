@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { batchLifecyclePermissions } from "@/lib/mqchain/batch-detail";
 import { isCandidateSourceVerificationSatisfied } from "@/lib/mqchain/candidate-detail";
-import { getBatchDetail } from "@/lib/mqchain/services/batch-service";
+import { getBatchDetail } from "@/lib/mqchain/origin-client/client";
 
 type DistributionRow = {
   label: string;

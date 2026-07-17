@@ -1,0 +1,142 @@
+{
+  "ok": true,
+  "frames_root": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\failed\\frames",
+  "states": [
+    "failed"
+  ],
+  "errors": [],
+  "warnings": [],
+  "rows": [
+    {
+      "state": "failed",
+      "expected_frames": 8,
+      "actual_frames": 8,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\failed\\frames\\failed\\00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 24960,
+          "bbox": [
+            6,
+            5,
+            185,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 310
+        },
+        {
+          "index": 1,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\failed\\frames\\failed\\01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23469,
+          "bbox": [
+            5,
+            11,
+            187,
+            197
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 324
+        },
+        {
+          "index": 2,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\failed\\frames\\failed\\02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 19266,
+          "bbox": [
+            5,
+            29,
+            187,
+            178
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 236
+        },
+        {
+          "index": 3,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\failed\\frames\\failed\\03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 17802,
+          "bbox": [
+            5,
+            38,
+            187,
+            170
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 188
+        },
+        {
+          "index": 4,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\failed\\frames\\failed\\04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 13304,
+          "bbox": [
+            5,
+            58,
+            187,
+            149
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 143
+        },
+        {
+          "index": 5,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\failed\\frames\\failed\\05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 17351,
+          "bbox": [
+            5,
+            35,
+            187,
+            172
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 207
+        },
+        {
+          "index": 6,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\failed\\frames\\failed\\06.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22603,
+          "bbox": [
+            5,
+            16,
+            187,
+            191
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 295
+        },
+        {
+          "index": 7,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\failed\\frames\\failed\\07.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23199,
+          "bbox": [
+            14,
+            5,
+            178,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 269
+        }
+      ]
+    }
+  ]
+}

@@ -11,7 +11,7 @@ import {
   filterRowsByReviewGroup,
   paginateReviewCandidateGroups,
 } from "../review";
-import { listCandidates } from "./candidate-service";
+import { listCandidatesFromDatabase as listCandidates } from "./candidate-service";
 
 type CandidateListRow = Awaited<ReturnType<typeof listCandidates>>["rows"][number];
 

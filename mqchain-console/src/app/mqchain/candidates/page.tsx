@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { listCandidates } from "@/lib/mqchain/services/candidate-service";
+import { listCandidates } from "@/lib/mqchain/origin-client/client";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
   const next = new URLSearchParams();

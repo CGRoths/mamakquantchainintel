@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { QUALITY_TIER_MAX } from "@/lib/mqchain/constants";
 import { buildReviewReadiness } from "@/lib/mqchain/review";
-import { getReviewWorkspace } from "@/lib/mqchain/services/review-service";
+import { getReviewWorkspace } from "@/lib/mqchain/origin-client/client";
 
 function pageHref(params: Record<string, string | undefined>, pageKey: "page" | "approvedPage", page: number) {
   const next = new URLSearchParams();

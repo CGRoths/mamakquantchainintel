@@ -9,8 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { buildResolverLookupSummary } from "@/lib/mqchain/resolver-detail";
-import { classifyCexTransactionFlow, parseTransactionAddressSet } from "@/lib/mqchain/services/cex-flow-service";
-import { getAddressResolver } from "@/lib/mqchain/services/resolver-service";
+import { classifyCexTransactionFlow, parseTransactionAddressSet } from "@/lib/mqchain/origin-client/client";
+import { getAddressResolver } from "@/lib/mqchain/origin-client/client";
 import { resolverSchema, transactionFlowSchema } from "@/lib/mqchain/validators/registry";
 
 function SummaryMap({ values }: { values: Record<string, number> }) {

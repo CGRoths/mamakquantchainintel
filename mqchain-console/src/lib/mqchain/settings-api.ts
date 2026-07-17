@@ -1,7 +1,7 @@
 import { roleCan } from "@/lib/auth/permissions";
 
 import { MQCHAIN_ROLES, ROLE_PERMISSIONS, type MqUserRole } from "./constants";
-import type { SettingsUser } from "./services/settings-service";
+import type { SettingsUser } from "./contracts/dto/settings-service";
 import { buildRolePermissionMatrix, SETTINGS_PERMISSION_LABELS } from "./validators/settings";
 
 export const SETTINGS_ACCESS_API_CONTRACT = {

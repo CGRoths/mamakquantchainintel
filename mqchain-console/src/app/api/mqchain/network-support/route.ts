@@ -8,7 +8,7 @@ import {
   getNetworkCatalogDrift,
   listNetworkSupportMatrix,
   reviewNetworkChangeProposal,
-} from "@/lib/mqchain/services/network-support-service";
+} from "@/lib/mqchain/origin-client/client";
 import { NETWORK_PROPOSAL_API_MAX_BODY_BYTES } from "@/lib/mqchain/validators/network-support";
 
 export const dynamic = "force-dynamic";

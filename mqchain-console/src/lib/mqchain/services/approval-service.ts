@@ -2,7 +2,7 @@ import { desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import { mqAddressCandidates, mqAddressEvidence, mqAddressRegistry, mqApprovalEvents, mqAuditLog, mqKvRoleDict, mqSourceVerifications } from "@/db/schema";
-import { assertPermission } from "@/lib/auth/permissions";
+import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { buildCandidateSourceVerificationContext, isCandidateSourceVerificationSatisfied } from "../candidate-detail";
 import { LABEL_STATUS } from "../constants";
 import { FLAG_BITS, applyMetricEligibilityToFlags, clearFlag, markHistoricalOnlyFlags } from "../flags";

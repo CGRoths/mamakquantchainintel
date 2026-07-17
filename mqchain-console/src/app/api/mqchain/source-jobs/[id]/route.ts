@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildSourceJobExportApiResponse } from "@/lib/mqchain/source-job-api";
-import { getSourceJob } from "@/lib/mqchain/services/source-job-service";
+import { getSourceJob } from "@/lib/mqchain/origin-client/client";
 
 export const dynamic = "force-dynamic";
 

@@ -5,7 +5,7 @@ import { assertPermission } from "@/lib/auth/permissions";
 import { readBoundedJsonBody, RequestBodyTooLargeError } from "@/lib/mqchain/api-json";
 import { buildDiscoveryCompletionApiResponse } from "@/lib/mqchain/discovery-api";
 import { DiscoveryJobNotCompletableError } from "@/lib/mqchain/discovery-lifecycle";
-import { completeDiscoveryJob } from "@/lib/mqchain/services/discovery-service";
+import { completeDiscoveryJob } from "@/lib/mqchain/origin-client/client";
 import { DISCOVERY_RESULTS_API_MAX_BODY_BYTES, discoveryResultsApiRequestSchema } from "@/lib/mqchain/validators/discovery";
 
 export const dynamic = "force-dynamic";

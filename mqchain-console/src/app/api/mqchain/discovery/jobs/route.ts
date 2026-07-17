@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildDiscoveryJobListApiResponse } from "@/lib/mqchain/discovery-api";
-import { listDiscoveryJobs } from "@/lib/mqchain/services/discovery-service";
+import { listDiscoveryJobs } from "@/lib/mqchain/origin-client/client";
 
 export const dynamic = "force-dynamic";
 

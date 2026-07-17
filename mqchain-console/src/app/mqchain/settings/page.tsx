@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { MQCHAIN_ROLES } from "@/lib/mqchain/constants";
-import { listSettingsUsers } from "@/lib/mqchain/services/settings-service";
+import { listSettingsUsers } from "@/lib/mqchain/origin-client/client";
 import { SETTINGS_PERMISSION_LABELS, buildRolePermissionMatrix } from "@/lib/mqchain/validators/settings";
 
 export default async function SettingsPage() {

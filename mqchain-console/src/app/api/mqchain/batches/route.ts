@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildBatchListApiResponse } from "@/lib/mqchain/batch-api";
-import { listBatches } from "@/lib/mqchain/services/batch-service";
+import { listBatches } from "@/lib/mqchain/origin-client/client";
 
 export const dynamic = "force-dynamic";
 

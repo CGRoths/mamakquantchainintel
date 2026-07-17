@@ -12,8 +12,8 @@ import {
   createJsonEvidenceIntake,
   createManualIntake,
   createUrlIntake,
-} from "@/lib/mqchain/services/candidate-service";
-import { listSourceJobs } from "@/lib/mqchain/services/source-job-service";
+} from "@/lib/mqchain/origin-client/client";
+import { listSourceJobs } from "@/lib/mqchain/origin-client/client";
 import {
   SOURCE_JOB_INTAKE_API_MAX_BODY_BYTES,
   sourceJobIntakeApiRequestSchema,

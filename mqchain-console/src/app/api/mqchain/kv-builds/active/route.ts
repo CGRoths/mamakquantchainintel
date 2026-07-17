@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildKvServingManifestApiResponse } from "@/lib/mqchain/kv-serving-api";
-import { getActiveKvBuildDetail } from "@/lib/mqchain/services/kv-manifest-service";
+import { getActiveKvBuildDetail } from "@/lib/mqchain/origin-client/client";
 
 export const dynamic = "force-dynamic";
 

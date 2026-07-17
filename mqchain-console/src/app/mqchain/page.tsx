@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buildApprovalEventTargetLinks } from "@/lib/mqchain/audit";
 import type { DistributionRow } from "@/lib/mqchain/batch-detail";
-import { getDashboardOverview } from "@/lib/mqchain/services/dashboard-service";
+import { getDashboardOverview } from "@/lib/mqchain/origin-client/client";
 
 function DistributionTable({ rows, emptyLabel = "No rows." }: { rows: DistributionRow[]; emptyLabel?: string }) {
   return (

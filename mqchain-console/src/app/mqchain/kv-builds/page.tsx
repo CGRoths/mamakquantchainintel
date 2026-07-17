@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
-import { listKvBuilds } from "@/lib/mqchain/services/kv-manifest-service";
+import { listKvBuilds } from "@/lib/mqchain/origin-client/client";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
   const next = new URLSearchParams();

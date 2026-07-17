@@ -1,5 +1,41 @@
 # MAMAKQUANTCHAIN U1 Claude Handoff
 
+## MQCHAIN Origin Boundary Remediation (2026-07-18)
+
+The Vercel-to-PostgreSQL boundary remediation is implemented in `C:\MAMAKQUANT\mamakquantchain\mqchain-console`. Read this first:
+
+- `docs/architecture/MQCHAIN_ORIGIN_BOUNDARY_REMEDIATION.md`
+- `reports/origin_boundary_remediation.md`
+- `origin/app.ts`
+- `src/lib/mqchain/origin-client/client.ts`
+- `src/lib/mqchain/contracts/`
+- `src/test/origin-boundary.test.ts`
+
+Current state:
+
+- Every MQCHAIN App Router page, API route, action, and reachable component uses the Origin client for database-backed work.
+- Vercel has no runtime or type-only dependency on `src/db`, PostgreSQL/Drizzle query implementations, `src/lib/mqchain/services`, Origin-only actor context, or the U1 filesystem catalog loader.
+- `origin/server.ts` is lifecycle-only; `origin/app.ts` owns request handling and is directly testable.
+- Employee requests are HMAC-SHA256 signed with audience, timestamp, request ID, exact body hash, and replay-protected employee context.
+- Signed context contains employee ID and email but no role. The Origin reloads the active `mq_users` row and enforces the current database role.
+- The shared transport owns Cloudflare headers, timeouts, canonical query signing, serialization/date revival, request IDs, and normalized errors.
+- Existing `/api/mqchain/**` URLs, page behavior, permissions, scoring, registry semantics, network proposal rules, and U1 catalog data remain unchanged.
+- No environment file, schema, migration, seed, or database data was changed.
+
+Verification:
+
+```text
+Vitest: 75 files, 410 tests passed
+TypeScript: passed
+ESLint: passed with zero warnings
+Architecture AST graph: zero Vercel boundary violations across more than 100 reachable modules
+Build: passed in the network-enabled retry; the former U1 filesystem tracing warning is gone
+```
+
+Environment variable names are documented in the architecture file. Do not inspect or copy their values. For rollout, deploy the Origin and console versions together, verify Cloudflare policy and signing-secret parity, then smoke-test authentication, dashboard, one read-only list, and one authorized mutation. Rollback is code-only and must restore both applications together.
+
+Important remaining risk: the replay cache is in-memory per Origin process. Add a shared replay store before horizontal replication if cross-replica one-time enforcement is required.
+
 ## MQCHAIN-U1 Network Universe Expansion (2026-07-17)
 
 This tranche is implemented and verified in `C:\MAMAKQUANT\mamakquantchain\mqchain-console`. Read these first:

@@ -13,7 +13,7 @@ import {
   mqSourceDocuments,
   mqSourceJobs,
 } from "@/db/schema";
-import { assertPermission } from "@/lib/auth/permissions";
+import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { normalizeAddress } from "../address/normalize";
 import { attachDiscoveryRunnerTask, defaultRoleForProtocolRootType, parseDiscoveryConfigJson, discoveryTemplateSummary } from "../discovery-config";
 import { buildDiscoveryJobDetailRollup } from "../discovery-detail";

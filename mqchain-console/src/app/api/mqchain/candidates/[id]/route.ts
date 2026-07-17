@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildCandidateDetailExportApiResponse } from "@/lib/mqchain/candidate-api";
-import { getCandidateDetail } from "@/lib/mqchain/services/candidate-service";
+import { getCandidateDetail } from "@/lib/mqchain/origin-client/client";
 
 export const dynamic = "force-dynamic";
 

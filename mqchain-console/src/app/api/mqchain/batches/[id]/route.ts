@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildBatchExportApiResponse } from "@/lib/mqchain/batch-api";
-import { getBatchDetail } from "@/lib/mqchain/services/batch-service";
+import { getBatchDetail } from "@/lib/mqchain/origin-client/client";
 
 export const dynamic = "force-dynamic";
 

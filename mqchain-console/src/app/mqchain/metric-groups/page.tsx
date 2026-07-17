@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { metricGroupRuleSections } from "@/lib/mqchain/metric-rules";
-import { listMetricGroups, previewMetricGroupMembers } from "@/lib/mqchain/services/metric-group-service";
+import { listMetricGroups, previewMetricGroupMembers } from "@/lib/mqchain/origin-client/client";
 import type { MetricGroupRule } from "@/lib/mqchain/types";
 
 function metricGroupHref(params: Record<string, string | undefined>, overrides: Record<string, string | undefined>) {

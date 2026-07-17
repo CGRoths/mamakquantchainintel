@@ -4,7 +4,7 @@ import { ZodError } from "zod";
 import { assertPermission } from "@/lib/auth/permissions";
 import { readBoundedJsonBody, RequestBodyTooLargeError } from "@/lib/mqchain/api-json";
 import { buildKvBuildListApiResponse, buildKvBuildRegistrationApiResponse } from "@/lib/mqchain/kv-serving-api";
-import { createKvBuildManifest, listKvBuilds } from "@/lib/mqchain/services/kv-manifest-service";
+import { createKvBuildManifest, listKvBuilds } from "@/lib/mqchain/origin-client/client";
 import {
   KV_BUILD_REGISTRATION_API_MAX_BODY_BYTES,
   kvBuildRegistrationApiRequestSchema,

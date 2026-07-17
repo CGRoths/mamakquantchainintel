@@ -9,7 +9,7 @@ import {
   mqDictionaryIdRanges,
   mqNetworkChangeProposals,
 } from "@/db/schema";
-import { assertPermission } from "@/lib/auth/permissions";
+import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { loadAndValidateU1Catalog } from "@/lib/mqchain/catalog/u1";
 import { networkChangeProposalSchema, networkChangeReviewSchema } from "@/lib/mqchain/validators/network-support";
 

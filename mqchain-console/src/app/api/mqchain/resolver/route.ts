@@ -4,8 +4,8 @@ import { ZodError } from "zod";
 import { assertPermission } from "@/lib/auth/permissions";
 import { readBoundedJsonBody, RequestBodyTooLargeError } from "@/lib/mqchain/api-json";
 import { buildCexFlowApiResponse, buildResolverApiResponse } from "@/lib/mqchain/resolver-api";
-import { classifyCexTransactionFlow } from "@/lib/mqchain/services/cex-flow-service";
-import { getAddressResolver } from "@/lib/mqchain/services/resolver-service";
+import { classifyCexTransactionFlow } from "@/lib/mqchain/origin-client/client";
+import { getAddressResolver } from "@/lib/mqchain/origin-client/client";
 import {
   cexFlowApiRequestSchema,
   RESOLVER_API_MAX_BODY_BYTES,

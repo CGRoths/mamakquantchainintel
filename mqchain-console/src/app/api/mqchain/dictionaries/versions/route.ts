@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildDictionaryVersionHistoryApiResponse } from "@/lib/mqchain/dictionary-api";
-import { listDictionaryVersionHistory } from "@/lib/mqchain/services/dictionary-service";
+import { listDictionaryVersionHistory } from "@/lib/mqchain/origin-client/client";
 
 export const dynamic = "force-dynamic";
 

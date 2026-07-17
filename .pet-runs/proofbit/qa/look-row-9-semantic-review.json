@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "row": "look-row-9",
+  "continuity": {
+    "verdict": "pass",
+    "reason": "Coherent clockwise progression with stable registered scale and identity, attached unclipped tail, consistent amber eyes, and no backtracking, snapping, whole-body rotation, or registration jump."
+  },
+  "directions": [
+    {"direction": "000", "expected": "up", "verdict": "pass", "reason": "Centered raised muzzle and symmetric upward gaze."},
+    {"direction": "022.5", "expected": "up-right", "verdict": "pass", "reason": "Dominant upward gaze with clear rightward muzzle offset."},
+    {"direction": "045", "expected": "up-right", "verdict": "warning", "reason": "Rightward evidence is clear but vertical lift is subtle."},
+    {"direction": "067.5", "expected": "up-right", "verdict": "pass", "reason": "Strong rightward aim retains slight upward tilt."},
+    {"direction": "090", "expected": "right", "verdict": "pass", "reason": "Muzzle and eye align horizontally right."},
+    {"direction": "112.5", "expected": "down-right", "verdict": "pass", "reason": "Strong rightward aim gains visible downward pitch."},
+    {"direction": "135", "expected": "down-right", "verdict": "pass", "reason": "Balanced rightward and downward head evidence."},
+    {"direction": "157.5", "expected": "down-right", "verdict": "warning", "reason": "Strong downward pitch has a subtle but readable rightward bias."}
+  ]
+}

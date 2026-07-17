@@ -1,4 +1,4 @@
-import { hashJson } from "./services/service-utils";
+import { hashJson } from "./contracts/hash";
 
 export const DICTIONARY_SNAPSHOT_API_CONTRACT = {
   apiVersion: "mqchain-dictionary-snapshot-api-v1",

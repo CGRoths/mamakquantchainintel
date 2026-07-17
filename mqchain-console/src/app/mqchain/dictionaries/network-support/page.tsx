@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
-import { getNetworkCatalogDrift, listNetworkSupportMatrix } from "@/lib/mqchain/services/network-support-service";
+import { getNetworkCatalogDrift, listNetworkSupportMatrix } from "@/lib/mqchain/origin-client/client";
 
 function readinessTone(value: string) {
   if (value === "production_ready") return "border-emerald-500/40 text-emerald-700 dark:text-emerald-300";

@@ -10,7 +10,7 @@ import {
   mqMetricGroupMembers,
   mqMetricGroupMembershipSnapshots,
 } from "@/db/schema";
-import { assertPermission } from "@/lib/auth/permissions";
+import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { extractMetricGroupMembershipSnapshotManifest } from "../metric-group-preview";
 import { buildKvManifestActivationPreflight, extractKvIndexManifestRecords } from "../kv-manifest";
 import { parseKvBuildListFilters, type KvBuildListFilters } from "../list-filters";

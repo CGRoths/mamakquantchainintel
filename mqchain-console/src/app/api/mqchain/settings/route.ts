@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { assertPermission, getCurrentUser } from "@/lib/auth/permissions";
 import { buildSettingsAccessApiResponse } from "@/lib/mqchain/settings-api";
-import { listSettingsUsers } from "@/lib/mqchain/services/settings-service";
+import { listSettingsUsers } from "@/lib/mqchain/origin-client/client";
 
 export const dynamic = "force-dynamic";
 

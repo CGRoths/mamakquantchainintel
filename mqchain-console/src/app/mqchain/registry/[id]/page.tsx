@@ -12,8 +12,8 @@ import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { formatDiscoveryConfigTemplate } from "@/lib/mqchain/discovery-templates";
 import { isHistoricalLabel } from "@/lib/mqchain/flags";
 import { buildRegistryResolverHref, pickRegistryResolverBlock } from "@/lib/mqchain/registry-detail";
-import { listDictionaries } from "@/lib/mqchain/services/dictionary-service";
-import { getRegistryDetail } from "@/lib/mqchain/services/registry-service";
+import { listDictionaries } from "@/lib/mqchain/origin-client/client";
+import { getRegistryDetail } from "@/lib/mqchain/origin-client/client";
 
 function registryTxGraphConfig(detail: Awaited<ReturnType<typeof getRegistryDetail>>) {
   if (!detail) return formatDiscoveryConfigTemplate("tx_graph_scanner");

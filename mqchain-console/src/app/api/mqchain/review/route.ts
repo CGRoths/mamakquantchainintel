@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildReviewWorkspaceApiResponse } from "@/lib/mqchain/review-api";
-import { getReviewWorkspace } from "@/lib/mqchain/services/review-service";
+import { getReviewWorkspace } from "@/lib/mqchain/origin-client/client";
 
 export const dynamic = "force-dynamic";
 

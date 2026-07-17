@@ -13,8 +13,8 @@ import {
   markCandidateNeedsMoreEvidence,
   markCandidateSupersedesRegistry,
   rejectCandidate,
-} from "@/lib/mqchain/services/approval-service";
-import { approveBatch, commitBatch, createBatchFromCandidates, failBatch, supersedeBatch } from "@/lib/mqchain/services/batch-service";
+} from "@/lib/mqchain/origin-client/client";
+import { approveBatch, commitBatch, createBatchFromCandidates, failBatch, supersedeBatch } from "@/lib/mqchain/origin-client/client";
 import {
   createAiCleanedCsvIntake,
   createCsvIntake,
@@ -23,7 +23,7 @@ import {
   createManualIntake,
   createUrlIntake,
   type IntakeSummary,
-} from "@/lib/mqchain/services/candidate-service";
+} from "@/lib/mqchain/origin-client/client";
 import {
   createCategory,
   createEntity,
@@ -40,23 +40,23 @@ import {
   updateKeyPrefix,
   updateProtocol,
   updateRole,
-} from "@/lib/mqchain/services/dictionary-service";
-import { completeDiscoveryJob, createDiscoveryJob, createDiscoveryJobFromRegistry } from "@/lib/mqchain/services/discovery-service";
-import { addCandidateEvidence, addRegistryEvidence } from "@/lib/mqchain/services/evidence-service";
-import { activateKvBuildManifest, createKvBuildManifest } from "@/lib/mqchain/services/kv-manifest-service";
-import { createNetworkChangeProposal, reviewNetworkChangeProposal } from "@/lib/mqchain/services/network-support-service";
-import { addMetricGroupRule, createMetricGroup, deactivateMetricGroup } from "@/lib/mqchain/services/metric-group-service";
+} from "@/lib/mqchain/origin-client/client";
+import { completeDiscoveryJob, createDiscoveryJob, createDiscoveryJobFromRegistry } from "@/lib/mqchain/origin-client/client";
+import { addCandidateEvidence, addRegistryEvidence } from "@/lib/mqchain/origin-client/client";
+import { activateKvBuildManifest, createKvBuildManifest } from "@/lib/mqchain/origin-client/client";
+import { createNetworkChangeProposal, reviewNetworkChangeProposal } from "@/lib/mqchain/origin-client/client";
+import { addMetricGroupRule, createMetricGroup, deactivateMetricGroup } from "@/lib/mqchain/origin-client/client";
 import {
   addRegistrySecondaryRole,
   deactivateRegistryLabel,
   markRegistryHistorical,
   supersedeRegistryLabel,
   updateRegistryLabel,
-} from "@/lib/mqchain/services/registry-service";
-import { createSettingsUser, updateSettingsUserAccess } from "@/lib/mqchain/services/settings-service";
-import { archiveSourceJob, recordSourceVerification } from "@/lib/mqchain/services/source-job-service";
+} from "@/lib/mqchain/origin-client/client";
+import { createSettingsUser, updateSettingsUserAccess } from "@/lib/mqchain/origin-client/client";
+import { archiveSourceJob, recordSourceVerification } from "@/lib/mqchain/origin-client/client";
 import { csvInputFromFormData } from "@/lib/mqchain/csv-upload";
-import { formValue, runAction } from "@/lib/mqchain/services/service-utils";
+import { formValue, runAction } from "@/lib/mqchain/origin-client/action-utils";
 import type { ActionResult } from "@/lib/mqchain/types";
 
 export type IntakeActionData = {

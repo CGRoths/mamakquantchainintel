@@ -3,7 +3,7 @@ import { hash } from "bcryptjs";
 
 import { getDb } from "@/db/client";
 import { mqAuditLog, mqUsers, type MqUser } from "@/db/schema";
-import { assertPermission } from "@/lib/auth/permissions";
+import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 
 import {
   createSettingsUserSchema,

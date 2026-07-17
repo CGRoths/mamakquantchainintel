@@ -16,7 +16,7 @@ import {
   mqSourceVerifications,
   mqUsers,
 } from "@/db/schema";
-import { assertPermission } from "@/lib/auth/permissions";
+import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { parseSourceJobListFilters, type SourceJobListFilters } from "../list-filters";
 import {
   buildSourceJobArchiveMetadata,

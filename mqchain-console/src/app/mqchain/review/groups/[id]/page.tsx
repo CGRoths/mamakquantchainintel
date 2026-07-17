@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { buildReviewReadiness } from "@/lib/mqchain/review";
-import { getReviewGroupDetail } from "@/lib/mqchain/services/review-service";
+import { getReviewGroupDetail } from "@/lib/mqchain/origin-client/client";
 
 export default async function ReviewGroupDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -11,7 +11,7 @@ import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { buildCandidateSourceVerificationContext, buildCandidateTraceWarnings } from "@/lib/mqchain/candidate-detail";
 import { FLAG_BITS, hasFlag } from "@/lib/mqchain/flags";
 import { buildEditedApprovalReadiness, buildReviewReadiness, REVIEW_READINESS_BLOCKER_LABELS } from "@/lib/mqchain/review";
-import { getCandidateDetail } from "@/lib/mqchain/services/candidate-service";
+import { getCandidateDetail } from "@/lib/mqchain/origin-client/client";
 
 export default async function CandidateDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

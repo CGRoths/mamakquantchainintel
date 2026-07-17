@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadAndValidateU1Catalog, type U1CatalogFile } from "@/lib/mqchain/catalog/u1";
+import type { OriginCatalogFile } from "@/lib/mqchain/contracts/catalog";
+import { getOriginCatalogFile } from "@/lib/mqchain/origin-client/client";
 
 export async function U1CatalogTable({
   title,
@@ -10,11 +11,11 @@ export async function U1CatalogTable({
 }: {
   title: string;
   description: string;
-  file: U1CatalogFile;
+  file: OriginCatalogFile;
   columns: Array<{ key: string; label: string; mono?: boolean }>;
 }) {
-  const catalog = await loadAndValidateU1Catalog();
-  const rows = catalog.rows.get(file) ?? [];
+  const catalog = await getOriginCatalogFile(file);
+  const rows = catalog.rows;
   return (
     <>
       <div>

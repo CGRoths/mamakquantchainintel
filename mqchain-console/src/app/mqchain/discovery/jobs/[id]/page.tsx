@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DistributionRow } from "@/lib/mqchain/batch-detail";
 import { buildDiscoveryRunnerTask, discoveryResultSchemaSummary, discoveryTemplateSummary } from "@/lib/mqchain/discovery-config";
-import { getDiscoveryJobDetail } from "@/lib/mqchain/services/discovery-service";
+import { getDiscoveryJobDetail } from "@/lib/mqchain/origin-client/client";
 
 function DistributionTable({ rows, emptyLabel }: { rows: DistributionRow[]; emptyLabel: string }) {
   return (

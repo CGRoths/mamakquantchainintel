@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadAndValidateU1Catalog } from "@/lib/mqchain/catalog/u1";
+import { getOriginCatalog } from "@/lib/mqchain/origin-client/client";
 
 function tone(status: string) {
   if (status === "production_ready") return "border-emerald-500/40 text-emerald-700 dark:text-emerald-300";
@@ -12,9 +12,9 @@ function tone(status: string) {
 }
 
 export default async function CoveragePage() {
-  const catalog = await loadAndValidateU1Catalog();
-  const networks = catalog.rows.get("chain_networks.csv") ?? [];
-  const capabilities = new Map((catalog.rows.get("chain_capabilities.csv") ?? []).map(row => [row.chain_network_id, row]));
+  const catalog = await getOriginCatalog("coverage");
+  const networks = catalog.rows;
+  const capabilities = new Map((catalog.capabilities ?? []).map(row => [row.chain_network_id, row]));
   return (
     <>
       <div><h1 className="text-2xl font-semibold">U1 capability coverage</h1><p className="text-sm text-muted-foreground">Catalog, normalizer, KV, MQASSET, MQNODE, and metric readiness are independent claims.</p></div>

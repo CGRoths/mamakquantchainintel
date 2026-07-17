@@ -1,0 +1,142 @@
+{
+  "ok": true,
+  "frames_root": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\running-left\\frames",
+  "states": [
+    "running-left"
+  ],
+  "errors": [],
+  "warnings": [],
+  "rows": [
+    {
+      "state": "running-left",
+      "expected_frames": 8,
+      "actual_frames": 8,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\running-left\\frames\\running-left\\00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 17453,
+          "bbox": [
+            5,
+            25,
+            187,
+            182
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 285
+        },
+        {
+          "index": 1,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\running-left\\frames\\running-left\\01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15553,
+          "bbox": [
+            5,
+            32,
+            187,
+            176
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 267
+        },
+        {
+          "index": 2,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\running-left\\frames\\running-left\\02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15151,
+          "bbox": [
+            5,
+            30,
+            187,
+            177
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 280
+        },
+        {
+          "index": 3,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\running-left\\frames\\running-left\\03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14332,
+          "bbox": [
+            5,
+            39,
+            187,
+            169
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 244
+        },
+        {
+          "index": 4,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\running-left\\frames\\running-left\\04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14508,
+          "bbox": [
+            5,
+            38,
+            187,
+            170
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 242
+        },
+        {
+          "index": 5,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\running-left\\frames\\running-left\\05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 12420,
+          "bbox": [
+            5,
+            40,
+            187,
+            167
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 205
+        },
+        {
+          "index": 6,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\running-left\\frames\\running-left\\06.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 11224,
+          "bbox": [
+            5,
+            44,
+            187,
+            163
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 212
+        },
+        {
+          "index": 7,
+          "file": "C:\\MAMAKQUANT\\mamakquantchain\\.pet-runs\\proofbit\\qa\\rows\\running-left\\frames\\running-left\\07.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15153,
+          "bbox": [
+            5,
+            29,
+            187,
+            178
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 260
+        }
+      ]
+    }
+  ]
+}

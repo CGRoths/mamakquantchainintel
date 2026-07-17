@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gte, ilike, inArray, lte, or, sql, type SQL } from 
 
 import { getDb } from "@/db/client";
 import { mqAddressRegistry, mqAuditLog, mqCategoryDict, mqEntities, mqKvRoleDict, mqMetricGroupRules, mqMetricGroups, mqProtocols } from "@/db/schema";
-import { assertPermission } from "@/lib/auth/permissions";
+import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { buildMetricGroupCompilePreviewManifest, buildPendingMetricGroupKvManifest, evaluateMetricGroupPreviewMembers } from "../metric-group-preview";
 import type { MetricGroupRule } from "../types";
 import { buildMetricGroupRule, createMetricGroupRuleSchema, createMetricGroupSchema } from "../validators/metric-group";

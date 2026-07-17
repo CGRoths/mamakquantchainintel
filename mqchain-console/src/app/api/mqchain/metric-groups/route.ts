@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildMetricGroupListApiResponse } from "@/lib/mqchain/metric-group-api";
-import { listMetricGroups } from "@/lib/mqchain/services/metric-group-service";
+import { listMetricGroups } from "@/lib/mqchain/origin-client/client";
 
 export const dynamic = "force-dynamic";
 

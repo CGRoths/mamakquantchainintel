@@ -12,7 +12,7 @@ import {
   summarizeKvManifestIndexes,
   summarizePersistedKvIndexRecords,
 } from "@/lib/mqchain/kv-manifest";
-import { getKvBuildDetail } from "@/lib/mqchain/services/kv-manifest-service";
+import { getKvBuildDetail } from "@/lib/mqchain/origin-client/client";
 
 export default async function KvBuildDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
-import { listKeyPrefixes } from "@/lib/mqchain/services/dictionary-service";
+import { listKeyPrefixes } from "@/lib/mqchain/origin-client/client";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
   const next = new URLSearchParams();

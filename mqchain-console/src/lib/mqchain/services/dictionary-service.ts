@@ -15,7 +15,7 @@ import {
   mqProtocols,
   mqUsers,
 } from "@/db/schema";
-import { assertPermission } from "@/lib/auth/permissions";
+import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { buildDictionaryInventory } from "../dictionary-overview";
 import { buildDefaultFlags } from "../flags";
 import {

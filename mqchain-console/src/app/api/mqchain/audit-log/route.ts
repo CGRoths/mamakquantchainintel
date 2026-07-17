@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildAuditTimelineExportApiResponse } from "@/lib/mqchain/audit-api";
-import { listAuditTimeline } from "@/lib/mqchain/services/audit-service";
+import { listAuditTimeline } from "@/lib/mqchain/origin-client/client";
 
 export const dynamic = "force-dynamic";
 

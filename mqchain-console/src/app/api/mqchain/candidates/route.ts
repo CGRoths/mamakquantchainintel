@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildCandidateExportApiResponse, buildCandidateExportCsv } from "@/lib/mqchain/candidate-api";
-import { listCandidates } from "@/lib/mqchain/services/candidate-service";
+import { listCandidates } from "@/lib/mqchain/origin-client/client";
 import { candidateExportApiFormatSchema } from "@/lib/mqchain/validators/candidate";
 
 export const dynamic = "force-dynamic";

@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildRegistryExportApiResponse, buildRegistryExportCsv } from "@/lib/mqchain/registry-api";
-import { listRegistry } from "@/lib/mqchain/services/registry-service";
+import { listRegistry } from "@/lib/mqchain/origin-client/client";
 import { registryExportApiFormatSchema } from "@/lib/mqchain/validators/registry";
 
 export const dynamic = "force-dynamic";

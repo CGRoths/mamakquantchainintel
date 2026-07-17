@@ -1,5 +1,5 @@
 import { buildResolverLookupSummary } from "./resolver-detail";
-import type { ResolverOutput } from "./services/resolver-service";
+import type { ResolverOutput } from "./contracts/dto/resolver-service";
 
 export const RESOLVER_API_CONTRACT = {
   apiVersion: "mqchain-resolver-api-v1",

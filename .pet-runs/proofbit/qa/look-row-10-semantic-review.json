@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "row": "look-row-10",
+  "continuity": {
+    "verdict": "pass",
+    "reason": "Stable shared scale and registration, attached unclipped tail, consistent amber eyes and identity, no reversal or whole-body rotation, smooth 157.5-to-180 boundary, and coherent 337.5-to-000 wrap."
+  },
+  "directions": [
+    {"direction": "180", "expected": "down", "verdict": "pass", "reason": "Symmetric frontal face and lowered centered muzzle establish the down cardinal."},
+    {"direction": "202.5", "expected": "down-left", "verdict": "pass", "reason": "Strong downward pitch includes clear leftward muzzle offset."},
+    {"direction": "225", "expected": "down-left", "verdict": "warning", "reason": "Leftward evidence is strong but the downward component is subtle."},
+    {"direction": "247.5", "expected": "down-left", "verdict": "warning", "reason": "Nearly horizontal-left aim retains slight downward pitch."},
+    {"direction": "270", "expected": "left", "verdict": "pass", "reason": "Muzzle and gaze align cleanly with the left cardinal."},
+    {"direction": "292.5", "expected": "up-left", "verdict": "pass", "reason": "Strong leftward aim gains visible upward tilt."},
+    {"direction": "315", "expected": "up-left", "verdict": "pass", "reason": "Both upward and leftward axes are clear."},
+    {"direction": "337.5", "expected": "up-left", "verdict": "pass", "reason": "Dominant upward pitch retains clear leftward muzzle bias."}
+  ]
+}

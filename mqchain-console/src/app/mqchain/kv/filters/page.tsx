@@ -1,17 +1,12 @@
-import { desc, eq } from "drizzle-orm";
-
 import { DbError } from "@/components/mqchain/db-error";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getDb } from "@/db/client";
-import { mqKvBuilds, mqKvFilterManifests } from "@/db/schema";
+import { listKvFilters } from "@/lib/mqchain/origin-client/client";
 
 export default async function KvFiltersPage() {
   try {
-    const rows = await getDb().select({ filter: mqKvFilterManifests, buildHash: mqKvBuilds.buildHash })
-      .from(mqKvFilterManifests).innerJoin(mqKvBuilds, eq(mqKvFilterManifests.buildId, mqKvBuilds.id))
-      .orderBy(desc(mqKvFilterManifests.createdAt), desc(mqKvFilterManifests.id)).limit(250);
+    const rows = await listKvFilters();
     return <>
       <div><h1 className="text-2xl font-semibold">Cuckoo filter health</h1><p className="text-sm text-muted-foreground">Version-matched membership filters gate KV reads; false negatives block activation.</p></div>
       <Card className="rounded-lg"><CardHeader><CardTitle>{rows.length} filter manifests</CardTitle><CardDescription>Target and observed rates are stored in parts per million.</CardDescription></CardHeader>

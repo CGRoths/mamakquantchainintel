@@ -12,7 +12,7 @@ import {
   mqSourceVerifications,
   mqUsers,
 } from "@/db/schema";
-import { assertPermission } from "@/lib/auth/permissions";
+import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { parseEvidencePayload, summarizeEvidencePayload } from "../evidence";
 import { parseEvidenceLedgerListFilters, type EvidenceLedgerListFilters } from "../list-filters";
 import { candidateEvidenceSchema, registryEvidenceSchema } from "../validators/evidence";

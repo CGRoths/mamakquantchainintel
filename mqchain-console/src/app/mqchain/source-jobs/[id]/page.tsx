@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import type { DistributionRow } from "@/lib/mqchain/batch-detail";
-import { getSourceJob } from "@/lib/mqchain/services/source-job-service";
+import { getSourceJob } from "@/lib/mqchain/origin-client/client";
 import { buildSourceJobOperationalSummary } from "@/lib/mqchain/source-job";
 
 function DistributionTable({ rows, emptyLabel }: { rows: DistributionRow[]; emptyLabel: string }) {

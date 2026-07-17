@@ -18,7 +18,7 @@ import {
   mqSourceDocuments,
   mqSourceJobs,
 } from "@/db/schema";
-import { assertPermission } from "@/lib/auth/permissions";
+import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { LABEL_STATUS } from "../constants";
 import { FLAG_BITS, markHistoricalOnlyFlags, setFlag } from "../flags";
 import { parseRegistryListFilters, type RegistryListFilters } from "../list-filters";

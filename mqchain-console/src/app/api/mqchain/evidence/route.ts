@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 
 import { assertPermission } from "@/lib/auth/permissions";
 import { buildEvidenceLedgerApiResponse } from "@/lib/mqchain/evidence-api";
-import { listEvidenceLedger } from "@/lib/mqchain/services/evidence-service";
+import { listEvidenceLedger } from "@/lib/mqchain/origin-client/client";
 
 export const dynamic = "force-dynamic";
 
