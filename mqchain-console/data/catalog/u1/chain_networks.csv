@@ -47,3 +47,83 @@ chain_network_id,network_code,network_name,chain_family,environment,caip2,evm_ch
 46,tezos_mainnet,Tezos Mainnet,tezos,mainnet,,,1729,true,3,2026-07-14,
 47,hedera_mainnet,Hedera Mainnet,hedera,mainnet,,,3030,true,3,2026-07-14,
 48,starknet_mainnet,Starknet Mainnet,starknet,mainnet,starknet:SN_MAIN,,9004,true,2,2026-07-14,
+49,bitcoin_sv_mainnet,Bitcoin SV Mainnet,utxo,mainnet,,,236,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+50,ecash_mainnet,eCash Mainnet,utxo,mainnet,,,899,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+51,dash_mainnet,Dash Mainnet,utxo,mainnet,,,5,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+52,decred_mainnet,Decred Mainnet,utxo,mainnet,,,42,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+53,digibyte_mainnet,DigiByte Mainnet,utxo,mainnet,,,20,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+54,monero_mainnet,Monero Mainnet,monero,mainnet,,,128,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+55,liquid_mainnet,Liquid Network Mainnet,liquid,mainnet,,,1776,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+56,rootstock_mainnet,Rootstock Mainnet,evm,mainnet,eip155:30,30,137,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+57,ethereum_classic_mainnet,Ethereum Classic Mainnet,evm,mainnet,eip155:61,61,61,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+58,aurora_mainnet,Aurora Mainnet,evm,mainnet,eip155:1313161554,1313161554,60,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+59,callisto_mainnet,Callisto Mainnet,evm,mainnet,eip155:820,820,820,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+60,coinex_smart_chain_mainnet,CoinEx Smart Chain Mainnet,evm,mainnet,eip155:52,52,,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+61,kava_evm_mainnet,Kava EVM Mainnet,evm,mainnet,eip155:2222,2222,,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+62,kcc_mainnet,KCC Mainnet,evm,mainnet,eip155:321,321,641,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+63,manta_pacific_mainnet,Manta Pacific Mainnet,evm,mainnet,eip155:169,169,,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+64,merlin_mainnet,Merlin Mainnet,evm,mainnet,eip155:4200,4200,,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+65,morph_mainnet,Morph Mainnet,evm,mainnet,eip155:2818,2818,,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+66,opbnb_mainnet,opBNB Mainnet,evm,mainnet,eip155:204,204,714,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+67,ronin_mainnet,Ronin Mainnet,evm,mainnet,eip155:2020,2020,,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+68,sei_evm_mainnet,Sei EVM Mainnet,evm,mainnet,eip155:1329,1329,118,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+69,songbird_mainnet,Songbird Canary Network,evm,mainnet,eip155:19,19,,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+70,taiko_mainnet,Taiko Mainnet,evm,mainnet,eip155:167000,167000,,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+71,telos_evm_mainnet,Telos EVM Mainnet,evm,mainnet,eip155:40,40,,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+72,unichain_mainnet,Unichain Mainnet,evm,mainnet,eip155:130,130,60,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+73,world_chain_mainnet,World Chain Mainnet,evm,mainnet,eip155:480,480,60,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+74,xdc_mainnet,XDC Network Mainnet,evm,mainnet,eip155:50,50,550,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+75,zircuit_mainnet,Zircuit Mainnet,evm,mainnet,eip155:48900,48900,60,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+76,zklink_nova_mainnet,zkLink Nova Mainnet,evm,mainnet,eip155:810180,810180,60,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+77,plasma_mainnet,Plasma Mainnet,evm,mainnet,eip155:9745,9745,60,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+78,codex_mainnet,Codex Mainnet,evm,mainnet,eip155:81224,81224,60,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+79,corn_mainnet,Corn Mainnet,evm,mainnet,eip155:21000000,21000000,60,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+80,hyperliquid_mainnet,Hyperliquid L1 Mainnet,hyperliquid,mainnet,,,,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+81,hyperevm_mainnet,HyperEVM Mainnet,evm,mainnet,eip155:999,999,60,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+82,monad_mainnet,Monad Mainnet,evm,mainnet,eip155:143,143,268435779,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+83,avalanche_x_chain,Avalanche X-Chain Mainnet,avalanche,mainnet,,,,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+84,polkadot_asset_hub_mainnet,Polkadot Asset Hub Mainnet,substrate,mainnet,,,,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+85,concordium_mainnet,Concordium Mainnet,concordium,mainnet,,,,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+86,internet_computer_mainnet,Internet Computer Mainnet,internet_computer,mainnet,,,,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+87,multiversx_mainnet,MultiversX Mainnet,multiversx,mainnet,,,,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+88,filecoin_mainnet,Filecoin Mainnet,filecoin,mainnet,,,461,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+89,iota_mainnet,IOTA Mainnet,iota,mainnet,,,4218,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+90,neo_n3_mainnet,NEO N3 Mainnet,neo,mainnet,,,888,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+91,oasis_mainnet,Oasis Consensus Mainnet,oasis,mainnet,,,474,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+92,radix_mainnet,Radix Mainnet,radix,mainnet,,,1022,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+93,reef_mainnet,Reef Mainnet,substrate,mainnet,,,,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+94,theta_mainnet,Theta Mainnet,evm,mainnet,eip155:361,361,500,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+95,vechain_mainnet,VeChain Mainnet,evm,mainnet,eip155:100009,100009,818,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+96,waves_mainnet,Waves Mainnet,waves,mainnet,,,5741564,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+97,wax_mainnet,WAX Mainnet,eosio,mainnet,,,14001,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+98,zilliqa_mainnet,Zilliqa Mainnet,zilliqa,mainnet,,,313,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+99,terra_classic_mainnet,Terra Classic Mainnet,cosmos,mainnet,cosmos:columbus-5,,330,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+100,terra_2_mainnet,Terra 2 Mainnet,cosmos,mainnet,cosmos:phoenix-1,,330,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+101,vaulta_mainnet,Vaulta Mainnet,eosio,mainnet,,,194,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+102,mobilecoin_mainnet,MobileCoin Mainnet,mobilecoin,mainnet,,,866,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+103,metaverse_etp_mainnet,Metaverse ETP Mainnet,utxo,mainnet,,,2302,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+104,vsystems_mainnet,V Systems Mainnet,vsystems,mainnet,,,360,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+105,verge_mainnet,Verge Mainnet,utxo,mainnet,,,77,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+106,polis_mainnet,Polis Mainnet,utxo,mainnet,,,1997,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+107,aion_mainnet,Aion Mainnet,aion,mainnet,,,425,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+108,chromia_mainnet,Chromia Mainnet,chromia,mainnet,,,,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+109,chiliz_mainnet,Chiliz Chain Mainnet,evm,mainnet,eip155:88888,88888,,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+110,enjin_relaychain_mainnet,Enjin Relaychain Mainnet,substrate,mainnet,,,2135,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+111,shentu_mainnet,Shentu Mainnet,cosmos,mainnet,cosmos:shentu-2.2,,118,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+112,zksync_lite_mainnet,zkSync Lite Mainnet,zkrollup,mainnet,,,,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+113,avalanche_p_chain,Avalanche P-Chain Mainnet,avalanche,mainnet,,,,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+114,shimmer_mainnet,Shimmer Mainnet,iota,mainnet,,,4219,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+115,arweave_mainnet,Arweave Mainnet,arweave,mainnet,,,472,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+116,stacks_mainnet,Stacks Mainnet,stacks,mainnet,,,5757,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+117,flow_mainnet,Flow Mainnet,flow,mainnet,,,539,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+118,mina_mainnet,Mina Mainnet,mina,mainnet,,,12586,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+119,secret_network_mainnet,Secret Network Mainnet,cosmos,mainnet,cosmos:secret-4,,529,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+120,akash_mainnet,Akash Mainnet,cosmos,mainnet,cosmos:akashnet-2,,118,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+121,bittensor_mainnet,Bittensor Mainnet,substrate,mainnet,,,,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+122,kaspa_mainnet,Kaspa Mainnet,utxo,mainnet,,,111111,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+123,nervos_ckb_mainnet,Nervos CKB Mainnet,nervos,mainnet,,,309,false,9,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+124,flare_mainnet,Flare Mainnet,evm,mainnet,eip155:14,14,,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+125,immutable_zkevm_mainnet,Immutable zkEVM Mainnet,evm,mainnet,eip155:13371,13371,60,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+126,core_dao_mainnet,Core DAO Mainnet,evm,mainnet,eip155:1116,1116,60,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+127,metis_mainnet,Metis Andromeda Mainnet,evm,mainnet,eip155:1088,1088,60,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal
+128,mode_mainnet,Mode Mainnet,evm,mainnet,eip155:34443,34443,60,false,14,2026-07-17,Canonical mainnet catalogue entry; inactive pending approved manual activation proposal

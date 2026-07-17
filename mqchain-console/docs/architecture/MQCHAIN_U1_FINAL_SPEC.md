@@ -2,6 +2,8 @@
 
 Network capability states and manual change governance are defined in `MQCHAIN_U1_NETWORK_CAPABILITY_HARDENING.md`.
 
+Canonical network expansion, typed identifier namespaces, and workbook alias governance are defined in `MQCHAIN_U1_NETWORK_UNIVERSE_EXPANSION.md`.
+
 U1 separates canonical intelligence from serving artifacts. PostgreSQL owns dictionaries, provenance, candidates, evidence, verification, approvals, batches, registry intervals, metric rules, and manifests. KV stores and filters are immutable, rebuildable outputs.
 
 The only promotion path is `source/discovery -> candidate -> evidence and source verification -> review -> approved batch -> registry -> compiler`. Discovery, intake, and LLM output cannot write registry or active KV state.

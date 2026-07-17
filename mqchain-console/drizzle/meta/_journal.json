@@ -78,6 +78,13 @@
       "when": 1784225702668,
       "tag": "0010_parallel_yellow_claw",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784278685598,
+      "tag": "0011_heavy_agent_brand",
+      "breakpoints": true
     }
   ]
 }

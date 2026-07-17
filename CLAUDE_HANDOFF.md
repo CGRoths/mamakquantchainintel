@@ -1,5 +1,55 @@
 # MAMAKQUANTCHAIN U1 Claude Handoff
 
+## MQCHAIN-U1 Network Universe Expansion (2026-07-17)
+
+This tranche is implemented and verified in `C:\MAMAKQUANT\mamakquantchain\mqchain-console`. Read these first:
+
+- `docs/architecture/MQCHAIN_U1_NETWORK_UNIVERSE_EXPANSION.md`
+- `data/catalog/u1/chain_aliases.csv`
+- `drizzle/0011_heavy_agent_brand.sql`
+- `reports/u1_network_universe.md`
+
+Final catalog state:
+
+| Dictionary | Rows |
+|---|---:|
+| Canonical networks | 128 |
+| Preserved base network IDs | 48 |
+| Added inactive network IDs | 80 |
+| Address/identifier codecs | 59 |
+| Typed namespaces | 166 |
+| Capability rows | 128 |
+| Scoped workbook aliases | 316 |
+
+The alias source is `cex_por_wallet_registry_MQCHAIN_multi_cex.xlsx`, SHA-256 `c19fe777e29dd0d6434d7e9f08aa36fca0d1e89ed89c293accd55b4f8b987594`. It contained 223 globally distinct raw `Chain` strings across 15 source sheets, represented as 316 source-scoped alias rows. No workbook wallet/address row was copied into canonical registry tables.
+
+Alias states are: 281 `approved`, 24 `not_a_network`, 7 `pending_mapping`, 2 `pending_network`, and 2 `unsupported`. Do not force the pending values into canonical mappings. The report lists each unresolved source scope and raw value.
+
+All IDs that existed before this tranche are unchanged: network IDs 1-48, codec IDs 1-95, and namespace IDs 1-47 have identical ID/code mappings. New allocations start at network 49, codec 96, namespace 48, and alias 1. Current allocator heads are network 129, codec 132, namespace 167, and alias 317; all other allocator rows were reconciled to their occupied maxima.
+
+Migration 0011 adds `mq_chain_aliases`, codec `identifier_kind`, namespace `address_type`, and a composite alias mapping FK. It is additive. Validator public keys, staking identifiers, consensus identifiers, and wallet addresses are separate contracts. The validator-key-to-wallet-namespace count is zero.
+
+Every added network is `is_active=false`, label/runtime readiness is `not_ready`, and MQNODE/metric readiness remains unsupported without integration evidence. Migration 0010's proposal activation trigger remains authoritative. Do not bypass it.
+
+Verification:
+
+```text
+Vitest: 74 files, 402 tests passed
+TypeScript: passed
+ESLint: passed with zero warnings
+Next.js production build: passed (known non-fatal catalog filesystem tracing warning)
+Clean temporary database: migrations 0000-0011 and seed passed
+Isolated mqchain_console: migration 0011, db:seed, and zero-drift report passed
+Database counts: 128 networks, 59 codecs, 166 namespaces, 316 aliases, 128 capabilities
+New active networks: 0
+Missing capability rows: 0
+Validator aliases routed to wallet namespaces: 0
+KV compile: passed, build 208f12ce1bbf15272bbf289859cf617809defd98cc15872be749e730261f4c10, 15 rows
+Dictionary version: f8adbdf28418e119001751be4dbf90c14aff48750699ad5f61634e7a002caf06
+```
+
+No native RocksDB work and no Vercel deployment were performed. No commit or push was made.
+
 ## MQCHAIN-U1 Network Capability Hardening (2026-07-17)
 
 The requested hardening tranche is implemented in the dirty worktree. Start with:

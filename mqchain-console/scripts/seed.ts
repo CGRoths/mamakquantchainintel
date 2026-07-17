@@ -11,6 +11,7 @@ import {
   mqAssets,
   mqCatalogSources,
   mqChainCapabilities,
+  mqChainAliases,
   mqChainNetworks,
   mqDictionaryIdRanges,
   mqDictionaryVersions,
@@ -219,6 +220,7 @@ async function main() {
         retrievedAt: row.retrieved_at ? new Date(`${row.retrieved_at}T00:00:00Z`) : null,
         status: row.status,
         notes: row.notes || null,
+        contentHash: row.content_hash || null,
         updatedAt: new Date(),
       };
       await tx.insert(mqCatalogSources).values({ id: Number(row.source_id), ...values }).onConflictDoUpdate({ target: mqCatalogSources.id, set: values });
@@ -302,7 +304,13 @@ async function main() {
       await tx.insert(mqKvRoleDict).values({ roleId: Number(row.role_id), roleCode: row.role_code, ...values }).onConflictDoUpdate({ target: mqKvRoleDict.roleCode, set: values });
     }
 
-    for (const row of u1Catalog.rows.get("chain_networks.csv") ?? []) {
+    const networkRows = u1Catalog.rows.get("chain_networks.csv") ?? [];
+    assertStableCatalogIds(
+      "network",
+      networkRows.map((row) => ({ id: Number(row.chain_network_id), code: row.network_code })),
+      (await tx.select().from(mqChainNetworks)).map((row) => ({ id: row.id, code: row.networkCode })),
+    );
+    for (const row of networkRows) {
       const values = {
         networkCode: row.network_code,
         networkName: row.network_name,
@@ -320,11 +328,18 @@ async function main() {
       await tx.insert(mqChainNetworks).values({ id: Number(row.chain_network_id), ...values }).onConflictDoUpdate({ target: mqChainNetworks.id, set: values });
     }
 
-    for (const row of u1Catalog.rows.get("address_codecs.csv") ?? []) {
+    const codecRows = u1Catalog.rows.get("address_codecs.csv") ?? [];
+    assertStableCatalogIds(
+      "address codec",
+      codecRows.map((row) => ({ id: Number(row.address_codec_id), code: row.codec_code })),
+      (await tx.select().from(mqAddressCodecs)).map((row) => ({ id: row.id, code: row.codecCode })),
+    );
+    for (const row of codecRows) {
       const values = {
         codecCode: row.codec_code,
         codecName: row.codec_name,
         addressFamily: row.address_family,
+        identifierKind: row.identifier_kind,
         acceptedFormats: row.accepted_formats,
         canonicalFormat: row.canonical_format,
         payloadRule: row.payload_rule,
@@ -344,12 +359,19 @@ async function main() {
       await tx.insert(mqAddressCodecs).values({ id: Number(row.address_codec_id), ...values }).onConflictDoUpdate({ target: mqAddressCodecs.id, set: values });
     }
 
-    for (const row of u1Catalog.rows.get("address_namespaces.csv") ?? []) {
+    const namespaceRows = u1Catalog.rows.get("address_namespaces.csv") ?? [];
+    assertStableCatalogIds(
+      "address namespace",
+      namespaceRows.map((row) => ({ id: Number(row.namespace_id), code: row.namespace_code })),
+      (await tx.select().from(mqAddressNamespaces)).map((row) => ({ id: row.id, code: row.namespaceCode })),
+    );
+    for (const row of namespaceRows) {
       const values = {
         namespaceCode: row.namespace_code,
         namespaceName: row.namespace_name,
         chainNetworkId: Number(row.chain_network_id),
         addressCodecId: Number(row.address_codec_id),
+        addressType: row.address_type,
         legacyPrefixCode: row.legacy_prefix_code ? Number(row.legacy_prefix_code) : null,
         addressHrp: row.address_hrp || null,
         networkDiscriminator: row.network_discriminator || null,
@@ -432,6 +454,33 @@ async function main() {
         updatedAt: new Date(),
       };
       await tx.insert(mqChainCapabilities).values({ chainNetworkId: Number(row.chain_network_id), ...values }).onConflictDoUpdate({ target: mqChainCapabilities.chainNetworkId, set: values });
+    }
+
+    const existingAliases = await tx.select().from(mqChainAliases);
+    const existingAliasIdentityById = new Map(existingAliases.map((row) => [row.id, `${row.sourceScope}\u0000${row.rawChainName}\u0000${row.addressType}`]));
+    for (const row of u1Catalog.rows.get("chain_aliases.csv") ?? []) {
+      const id = Number(row.alias_id);
+      const identity = `${row.source_scope}\u0000${row.raw_chain_name}\u0000${row.address_type}`;
+      const existingIdentity = existingAliasIdentityById.get(id);
+      if (existingIdentity && existingIdentity !== identity) throw new Error(`chain alias ID ${id} is already assigned to a different source alias.`);
+      const values = {
+        sourceScope: row.source_scope,
+        rawChainName: row.raw_chain_name,
+        chainNetworkId: row.chain_network_id ? Number(row.chain_network_id) : null,
+        namespaceId: row.namespace_id ? Number(row.namespace_id) : null,
+        addressCodecId: row.address_codec_id ? Number(row.address_codec_id) : null,
+        addressType: row.address_type,
+        assetHint: row.asset_hint || null,
+        tokenStandardHint: row.token_standard_hint || null,
+        status: row.status,
+        evidenceRef: row.evidence_ref,
+        sourceId: Number(row.source_id),
+        approvedBy: row.approved_by || null,
+        approvedAt: row.approved_at ? new Date(`${row.approved_at}T00:00:00Z`) : null,
+        approvalNotes: row.approval_notes || null,
+        updatedAt: new Date(),
+      };
+      await tx.insert(mqChainAliases).values({ id, ...values }).onConflictDoUpdate({ target: mqChainAliases.id, set: values });
     }
 
     for (const row of u1Catalog.rows.get("id_ranges.csv") ?? []) {

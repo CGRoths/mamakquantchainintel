@@ -1,6 +1,6 @@
 # MQCHAIN U1 Protocol Coverage
 
-Dictionary version: `76ba7449bb18eae2f46318426e8768afd315cda9090de68f3cdc97c6935c1ac9`
+Dictionary version: `f8adbdf28418e119001751be4dbf90c14aff48750699ad5f61634e7a002caf06`
 
 Catalogued: 31 | with verified roots: 1 | deployments: 1 | root components: 5
 

@@ -1,0 +1,219 @@
+{
+  "schemaVersion": "MQCHAIN-U1-NETWORK-UNIVERSE-1",
+  "dictionaryVersion": "f8adbdf28418e119001751be4dbf90c14aff48750699ad5f61634e7a002caf06",
+  "workbookEvidence": {
+    "sourceFile": "cex_por_wallet_registry_MQCHAIN_multi_cex.xlsx",
+    "sha256": "c19fe777e29dd0d6434d7e9f08aa36fca0d1e89ed89c293accd55b4f8b987594",
+    "sourceScopes": 15,
+    "scopedDistinctChainValues": 316,
+    "globallyDistinctRawChainValues": 223
+  },
+  "summary": {
+    "networks": 128,
+    "preservedBaseNetworks": 48,
+    "addedInactiveNetworks": 80,
+    "codecs": 59,
+    "namespaces": 166,
+    "capabilities": 128,
+    "aliases": 316,
+    "aliasStatusCounts": {
+      "approved": 281,
+      "pending_mapping": 7,
+      "pending_network": 2,
+      "not_a_network": 24,
+      "unsupported": 2
+    },
+    "addressTypeCounts": {
+      "consensus_identifier": 14,
+      "staking_identifier": 16,
+      "validator_public_key": 5,
+      "wallet_address": 131
+    },
+    "familyCounts": {
+      "aion": 1,
+      "algorand": 1,
+      "arweave": 1,
+      "avalanche": 2,
+      "cardano": 1,
+      "chromia": 1,
+      "concordium": 1,
+      "cosmos": 12,
+      "eosio": 2,
+      "evm": 55,
+      "filecoin": 1,
+      "flow": 1,
+      "hedera": 1,
+      "hyperliquid": 1,
+      "internet_computer": 1,
+      "iota": 2,
+      "liquid": 1,
+      "mina": 1,
+      "mobilecoin": 1,
+      "monero": 1,
+      "move": 2,
+      "multiversx": 1,
+      "near": 1,
+      "neo": 1,
+      "nervos": 1,
+      "oasis": 1,
+      "radix": 1,
+      "solana": 1,
+      "stacks": 1,
+      "starknet": 1,
+      "stellar": 1,
+      "substrate": 6,
+      "tezos": 1,
+      "ton": 1,
+      "tron": 1,
+      "utxo": 14,
+      "vsystems": 1,
+      "waves": 1,
+      "xrpl": 1,
+      "zilliqa": 1,
+      "zkrollup": 1
+    },
+    "publishedIdsRenumbered": 0
+  },
+  "allocators": [
+    {
+      "rangeCode": "legacy_categories",
+      "nextId": 921
+    },
+    {
+      "rangeCode": "u1_categories",
+      "nextId": 10261
+    },
+    {
+      "rangeCode": "legacy_entities",
+      "nextId": 53
+    },
+    {
+      "rangeCode": "legacy_protocols",
+      "nextId": 32
+    },
+    {
+      "rangeCode": "legacy_roles",
+      "nextId": 6051
+    },
+    {
+      "rangeCode": "u1_roles",
+      "nextId": 7231
+    },
+    {
+      "rangeCode": "u1_networks",
+      "nextId": 129
+    },
+    {
+      "rangeCode": "u1_codecs",
+      "nextId": 132
+    },
+    {
+      "rangeCode": "u1_namespaces",
+      "nextId": 167
+    },
+    {
+      "rangeCode": "u1_tags",
+      "nextId": 14
+    },
+    {
+      "rangeCode": "u1_tagsets",
+      "nextId": 1
+    },
+    {
+      "rangeCode": "u1_components",
+      "nextId": 6
+    },
+    {
+      "rangeCode": "u1_metric_groups",
+      "nextId": 21
+    },
+    {
+      "rangeCode": "u1_assets",
+      "nextId": 25
+    },
+    {
+      "rangeCode": "u1_token_standards",
+      "nextId": 21
+    },
+    {
+      "rangeCode": "u1_token_contracts",
+      "nextId": 4
+    },
+    {
+      "rangeCode": "u1_protocol_deployments",
+      "nextId": 2
+    },
+    {
+      "rangeCode": "u1_chain_aliases",
+      "nextId": 317
+    }
+  ],
+  "pendingAliases": [
+    {
+      "sourceScope": "cex_por_workbook:Bitfinex",
+      "rawChainName": "AION",
+      "addressType": "wallet_address",
+      "status": "unsupported"
+    },
+    {
+      "sourceScope": "cex_por_workbook:Bitfinex",
+      "rawChainName": "Avalanche",
+      "addressType": "wallet_address",
+      "status": "pending_mapping"
+    },
+    {
+      "sourceScope": "cex_por_workbook:Bitfinex",
+      "rawChainName": "Avalanche (",
+      "addressType": "wallet_address",
+      "status": "pending_mapping"
+    },
+    {
+      "sourceScope": "cex_por_workbook:Bitfinex",
+      "rawChainName": "ETH/ERC20 (",
+      "addressType": "wallet_address",
+      "status": "pending_mapping"
+    },
+    {
+      "sourceScope": "cex_por_workbook:Bitfinex",
+      "rawChainName": "KAIhot",
+      "addressType": "wallet_address",
+      "status": "pending_network"
+    },
+    {
+      "sourceScope": "cex_por_workbook:Bitfinex",
+      "rawChainName": "Polygon (",
+      "addressType": "wallet_address",
+      "status": "pending_mapping"
+    },
+    {
+      "sourceScope": "cex_por_workbook:Bitfinex",
+      "rawChainName": "XNS",
+      "addressType": "wallet_address",
+      "status": "pending_network"
+    },
+    {
+      "sourceScope": "cex_por_workbook:Bitfinex",
+      "rawChainName": "YOYOW (YYW)",
+      "addressType": "wallet_address",
+      "status": "unsupported"
+    },
+    {
+      "sourceScope": "cex_por_workbook:Firi",
+      "rawChainName": "avalanche",
+      "addressType": "wallet_address",
+      "status": "pending_mapping"
+    },
+    {
+      "sourceScope": "cex_por_workbook:Firi",
+      "rawChainName": "cardnano",
+      "addressType": "wallet_address",
+      "status": "pending_mapping"
+    },
+    {
+      "sourceScope": "cex_por_workbook:Binance_HotCold",
+      "rawChainName": "MTL",
+      "addressType": "wallet_address",
+      "status": "pending_mapping"
+    }
+  ]
+}

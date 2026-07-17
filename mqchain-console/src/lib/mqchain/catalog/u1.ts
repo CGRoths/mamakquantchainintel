@@ -9,6 +9,7 @@ export const U1_CATALOG_FILES = [
   "address_codecs.csv",
   "address_namespaces.csv",
   "chain_capabilities.csv",
+  "chain_aliases.csv",
   "categories.csv",
   "roles.csv",
   "tags.csv",
@@ -77,18 +78,29 @@ export const U1_CSV_CONTRACTS: Partial<Record<U1CatalogFile, CsvContract>> = {
     idColumn: "address_codec_id",
     codeColumn: "codec_code",
     maxId: UINT16_MAX,
-    requiredColumns: ["address_codec_id", "codec_code", "codec_name", "payload_rule", "status", "source_id"],
+    requiredColumns: ["address_codec_id", "codec_code", "codec_name", "identifier_kind", "payload_rule", "status", "source_id"],
   },
   "address_namespaces.csv": {
     idColumn: "namespace_id",
     codeColumn: "namespace_code",
     maxId: UINT32_MAX,
-    requiredColumns: ["namespace_id", "namespace_code", "namespace_name", "chain_network_id", "address_codec_id", "is_active", "source_id"],
+    requiredColumns: ["namespace_id", "namespace_code", "namespace_name", "chain_network_id", "address_codec_id", "address_type", "is_active", "source_id"],
   },
   "chain_capabilities.csv": {
     idColumn: "chain_network_id",
     maxId: UINT32_MAX,
     requiredColumns: ["chain_network_id", "support_tier", "catalog_state", "label_readiness", "runtime_readiness", "catalog_status", "normalizer_status", "mqnode_parser_status", "asset_resolver_status", "current_label_status", "timeline_status", "metric_status", "mqnode_integration_test_ref", "metric_integration_test_ref"],
+  },
+  "chain_aliases.csv": {
+    idColumn: "alias_id",
+    maxId: UINT32_MAX,
+    requiredColumns: ["alias_id", "source_scope", "raw_chain_name", "chain_network_id", "namespace_id", "address_codec_id", "address_type", "asset_hint", "token_standard_hint", "status", "evidence_ref", "source_id", "approved_by", "approved_at", "approval_notes"],
+  },
+  "catalog_sources.csv": {
+    idColumn: "source_id",
+    codeColumn: "source_code",
+    maxId: UINT32_MAX,
+    requiredColumns: ["source_id", "source_code", "source_name", "source_type", "status", "content_hash"],
   },
   "categories.csv": {
     idColumn: "category_id",
@@ -160,12 +172,6 @@ export const U1_CSV_CONTRACTS: Partial<Record<U1CatalogFile, CsvContract>> = {
     maxId: UINT32_MAX,
     requiredColumns: ["asset_namespace_id", "asset_id", "namespace_id", "standard_id", "status", "source_id"],
   },
-  "catalog_sources.csv": {
-    idColumn: "source_id",
-    codeColumn: "source_code",
-    maxId: UINT32_MAX,
-    requiredColumns: ["source_id", "source_code", "source_name", "source_type", "status"],
-  },
   "id_ranges.csv": {
     idColumn: "range_id",
     codeColumn: "range_code",
@@ -185,6 +191,9 @@ export const CAPABILITY_STATUSES = [
 ] as const;
 const NETWORK_CATALOG_STATES = ["catalogued", "disabled"] as const;
 const NETWORK_READINESS_STATES = ["not_ready", "prepared", "test_ready", "production_ready"] as const;
+const CHAIN_ALIAS_STATUSES = ["approved", "pending_mapping", "pending_network", "not_a_network", "unsupported"] as const;
+const CODEC_IDENTIFIER_KINDS = ["wallet_address", "wallet_or_public_key", "wallet_or_staking_identifier", "validator_public_key", "staking_identifier", "consensus_identifier"] as const;
+const NAMESPACE_ADDRESS_TYPES = ["wallet_address", "validator_public_key", "staking_identifier", "consensus_identifier"] as const;
 
 function canonicalText(text: string) {
   return text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").split("\n").map((line) => line.replace(/[ \t]+$/g, "")).join("\n");
@@ -241,6 +250,107 @@ export function parseU1Csv(file: U1CatalogFile, text: string) {
   return parsed.data;
 }
 
+function assertUniqueNonEmpty(rows: U1CatalogRow[], column: string, label: string) {
+  const seen = new Map<string, string>();
+  for (const row of rows) {
+    const value = row[column]?.trim();
+    if (!value) continue;
+    const previous = seen.get(value);
+    if (previous) throw new Error(`Duplicate ${label} ${value} on networks ${previous} and ${row.chain_network_id}.`);
+    seen.set(value, row.chain_network_id);
+  }
+}
+
+export function validateCanonicalNetworkRows(networks: U1CatalogRow[]) {
+  assertUniqueNonEmpty(networks, "caip2", "CAIP-2 ID");
+  assertUniqueNonEmpty(networks, "evm_chain_id", "EVM chain ID");
+  const seenNames = new Map<string, string>();
+  for (const row of networks) {
+    const canonicalName = `${row.network_name.trim().toLowerCase()}\u0000${row.environment.trim().toLowerCase()}`;
+    const previous = seenNames.get(canonicalName);
+    if (previous) throw new Error(`Duplicate canonical network ${row.network_name} on IDs ${previous} and ${row.chain_network_id}.`);
+    seenNames.set(canonicalName, row.chain_network_id);
+    if (Number(row.chain_network_id) > 48 && row.is_active !== "false") throw new Error(`New canonical network ${row.network_code} must remain inactive until a manual proposal is approved.`);
+  }
+}
+
+export function validateNamespaceCodecCompatibility(networks: U1CatalogRow[], codecs: U1CatalogRow[], namespaces: U1CatalogRow[]) {
+  const networkById = new Map(networks.map((row) => [row.chain_network_id, row]));
+  const codecById = new Map(codecs.map((row) => [row.address_codec_id, row]));
+  const allowedKinds: Record<string, Set<string>> = {
+    wallet_address: new Set(["wallet_address", "wallet_or_public_key", "wallet_or_staking_identifier"]),
+    validator_public_key: new Set(["validator_public_key", "wallet_or_public_key"]),
+    staking_identifier: new Set(["staking_identifier", "wallet_or_staking_identifier"]),
+    consensus_identifier: new Set(["consensus_identifier"]),
+  };
+  const networksWithNamespaces = new Set(namespaces.map((row) => row.chain_network_id));
+  for (const network of networks) if (!networksWithNamespaces.has(network.chain_network_id)) throw new Error(`Network ${network.chain_network_id} has no address namespace.`);
+  for (const codec of codecs) {
+    if (!(CODEC_IDENTIFIER_KINDS as readonly string[]).includes(codec.identifier_kind)) throw new Error(`Invalid identifier_kind ${codec.identifier_kind} for codec ${codec.codec_code}.`);
+  }
+  for (const namespace of namespaces) {
+    const network = networkById.get(namespace.chain_network_id);
+    const codec = codecById.get(namespace.address_codec_id);
+    if (!network) throw new Error(`Namespace ${namespace.namespace_code} references unknown network ${namespace.chain_network_id}.`);
+    if (!codec) throw new Error(`Namespace ${namespace.namespace_code} references unknown codec ${namespace.address_codec_id}.`);
+    if (!(NAMESPACE_ADDRESS_TYPES as readonly string[]).includes(namespace.address_type)) throw new Error(`Invalid address_type ${namespace.address_type} for namespace ${namespace.namespace_code}.`);
+    const compatibleFamilies = codec.chain_family_compatibility.split(",").map((value) => value.trim()).filter(Boolean);
+    if (!compatibleFamilies.includes(network.chain_family)) throw new Error(`Namespace ${namespace.namespace_code} uses codec ${codec.codec_code}, which is incompatible with ${network.chain_family}.`);
+    if (!allowedKinds[namespace.address_type]?.has(codec.identifier_kind)) throw new Error(`Namespace ${namespace.namespace_code} routes ${namespace.address_type} through incompatible ${codec.identifier_kind} codec ${codec.codec_code}.`);
+    if (namespace.is_active === "true" && codec.status === "disabled") throw new Error(`Active namespace ${namespace.namespace_code} uses a disabled codec.`);
+  }
+}
+
+export function validateCapabilityCoverage(networks: U1CatalogRow[], capabilities: U1CatalogRow[]) {
+  const networkIds = new Set(networks.map((row) => row.chain_network_id));
+  const capabilityIds = new Set(capabilities.map((row) => row.chain_network_id));
+  for (const networkId of networkIds) if (!capabilityIds.has(networkId)) throw new Error(`Network ${networkId} has no capability row.`);
+  for (const capabilityId of capabilityIds) if (!networkIds.has(capabilityId)) throw new Error(`Capabilities reference unknown network ${capabilityId}.`);
+}
+
+export function validateChainAliasRows(aliases: U1CatalogRow[], networks: U1CatalogRow[], namespaces: U1CatalogRow[], codecs: U1CatalogRow[], sources: U1CatalogRow[]) {
+  const networkIds = new Set(networks.map((row) => row.chain_network_id));
+  const namespaceById = new Map(namespaces.map((row) => [row.namespace_id, row]));
+  const codecIds = new Set(codecs.map((row) => row.address_codec_id));
+  const sourceIds = new Set(sources.map((row) => row.source_id));
+  const seenScopedAliases = new Set<string>();
+  for (const alias of aliases) {
+    const identity = `${alias.source_scope}\u0000${alias.raw_chain_name}\u0000${alias.address_type}`;
+    if (seenScopedAliases.has(identity)) throw new Error(`Duplicate scoped chain alias ${alias.source_scope}: ${alias.raw_chain_name} (${alias.address_type}).`);
+    seenScopedAliases.add(identity);
+    if (!(CHAIN_ALIAS_STATUSES as readonly string[]).includes(alias.status)) throw new Error(`Invalid chain alias status ${alias.status}.`);
+    if (!sourceIds.has(alias.source_id)) throw new Error(`Chain alias ${alias.alias_id} references unknown source ${alias.source_id}.`);
+    const hasAnyMapping = Boolean(alias.chain_network_id || alias.namespace_id || alias.address_codec_id);
+    const hasCompleteMapping = Boolean(alias.chain_network_id && alias.namespace_id && alias.address_codec_id);
+    if (["pending_mapping", "pending_network"].includes(alias.status) && hasAnyMapping) throw new Error(`Pending chain alias ${alias.alias_id} must remain unmapped.`);
+    if (alias.status === "approved" && !hasCompleteMapping) throw new Error(`Approved chain alias ${alias.alias_id} has an incomplete mapping.`);
+    if (hasAnyMapping && !hasCompleteMapping) throw new Error(`Chain alias ${alias.alias_id} has a partial canonical mapping.`);
+    if (hasCompleteMapping) {
+      const namespace = namespaceById.get(alias.namespace_id);
+      if (!networkIds.has(alias.chain_network_id) || !codecIds.has(alias.address_codec_id) || !namespace || namespace.chain_network_id !== alias.chain_network_id || namespace.address_codec_id !== alias.address_codec_id) {
+        throw new Error(`Chain alias ${alias.alias_id} has an invalid network/namespace/codec mapping.`);
+      }
+      if (alias.address_type === "validator_public_key" && namespace.address_type !== "validator_public_key") throw new Error(`Validator public key alias ${alias.alias_id} is routed into a wallet namespace.`);
+    }
+    if (["approved", "not_a_network", "unsupported"].includes(alias.status) && (!alias.approved_by || !alias.approved_at)) throw new Error(`Reviewed chain alias ${alias.alias_id} is missing approval metadata.`);
+  }
+}
+
+export function validateIdRangeAllocators(idRanges: U1CatalogRow[], occupancy: Map<string, [U1CatalogRow[], string]>) {
+  for (const range of idRanges) {
+    const definition = occupancy.get(range.range_code);
+    if (!definition) {
+      if (range.range_code === "u1_tagsets" && Number(range.next_id) > 0) continue;
+      throw new Error(`ID range ${range.range_code} has no catalog occupancy definition.`);
+    }
+    const start = Number(range.start_id);
+    const end = Number(range.end_id);
+    const occupiedIds = definition[0].map((row) => Number(row[definition[1]])).filter((id) => id >= start && id <= end);
+    const maximumOccupiedId = occupiedIds.length ? Math.max(...occupiedIds) : start - 1;
+    if (Number(range.next_id) <= maximumOccupiedId) throw new Error(`${range.range_code} next_id collides with occupied ID ${maximumOccupiedId}.`);
+  }
+}
+
 export async function loadAndValidateU1Catalog(root = path.join(process.cwd(), "data", "catalog", "u1")) {
   const contents = new Map<U1CatalogFile, string>();
   const rows = new Map<U1CatalogFile, U1CatalogRow[]>();
@@ -256,6 +366,7 @@ export async function loadAndValidateU1Catalog(root = path.join(process.cwd(), "
   const codecs = rows.get("address_codecs.csv") ?? [];
   const namespaces = rows.get("address_namespaces.csv") ?? [];
   const capabilities = rows.get("chain_capabilities.csv") ?? [];
+  const aliases = rows.get("chain_aliases.csv") ?? [];
   const sources = rows.get("catalog_sources.csv") ?? [];
   const categories = rows.get("categories.csv") ?? [];
   const roles = rows.get("roles.csv") ?? [];
@@ -269,7 +380,6 @@ export async function loadAndValidateU1Catalog(root = path.join(process.cwd(), "
   const tokenContracts = rows.get("token_contracts.csv") ?? [];
   const assetNamespaces = rows.get("asset_namespaces.csv") ?? [];
   const idRanges = rows.get("id_ranges.csv") ?? [];
-  const networkIds = new Set(networks.map((row) => row.chain_network_id));
   const codecById = new Map(codecs.map((row) => [row.address_codec_id, row]));
   const namespaceById = new Map(namespaces.map((row) => [row.namespace_id, row]));
   const sourceIds = new Set(sources.map((row) => row.source_id));
@@ -282,17 +392,15 @@ export async function loadAndValidateU1Catalog(root = path.join(process.cwd(), "
   const assetIds = new Set(assets.map((row) => row.asset_id));
   const standardIds = new Set(standards.map((row) => row.standard_id));
 
-  for (const row of [...networks, ...codecs, ...namespaces, ...deployments, ...components, ...assets, ...standards, ...tokenContracts, ...assetNamespaces]) {
+  validateCanonicalNetworkRows(networks);
+  validateNamespaceCodecCompatibility(networks, codecs, namespaces);
+  validateCapabilityCoverage(networks, capabilities);
+  validateChainAliasRows(aliases, networks, namespaces, codecs, sources);
+
+  for (const row of [...networks, ...codecs, ...namespaces, ...aliases, ...deployments, ...components, ...assets, ...standards, ...tokenContracts, ...assetNamespaces, ...idRanges]) {
     if (row.source_id && !sourceIds.has(row.source_id)) throw new Error(`Unknown catalog source ${row.source_id}.`);
   }
-  for (const row of namespaces) {
-    if (!networkIds.has(row.chain_network_id)) throw new Error(`Namespace ${row.namespace_code} references unknown network ${row.chain_network_id}.`);
-    const codec = codecById.get(row.address_codec_id);
-    if (!codec) throw new Error(`Namespace ${row.namespace_code} references unknown codec ${row.address_codec_id}.`);
-    if (row.is_active === "true" && codec.status === "disabled") throw new Error(`Active namespace ${row.namespace_code} uses a disabled codec.`);
-  }
   for (const row of capabilities) {
-    if (!networkIds.has(row.chain_network_id)) throw new Error(`Capabilities reference unknown network ${row.chain_network_id}.`);
     for (const column of ["catalog_status", "normalizer_status", "mqnode_parser_status", "asset_resolver_status", "current_label_status", "timeline_status", "metric_status"]) {
       if (!(CAPABILITY_STATUSES as readonly string[]).includes(row[column])) throw new Error(`Invalid ${column} ${row[column]} for network ${row.chain_network_id}.`);
     }
@@ -308,9 +416,18 @@ export async function loadAndValidateU1Catalog(root = path.join(process.cwd(), "
       throw new Error(`Unsupported network ${row.chain_network_id} cannot be metric production ready.`);
     }
   }
-  const namespaceRange = idRanges.find((row) => row.range_code === "u1_namespaces");
-  const maximumNamespaceId = Math.max(...namespaces.map((row) => Number(row.namespace_id)));
-  if (!namespaceRange || Number(namespaceRange.next_id) <= maximumNamespaceId) throw new Error(`Address namespace next_id must be greater than published namespace ID ${maximumNamespaceId}.`);
+  const allocatorOccupancy = new Map<string, [U1CatalogRow[], string]>([
+    ["legacy_categories", [categories, "category_id"]], ["u1_categories", [categories, "category_id"]],
+    ["legacy_entities", [entities, "entity_id"]], ["legacy_protocols", [protocols, "protocol_id"]],
+    ["legacy_roles", [roles, "role_id"]], ["u1_roles", [roles, "role_id"]],
+    ["u1_networks", [networks, "chain_network_id"]], ["u1_codecs", [codecs, "address_codec_id"]],
+    ["u1_namespaces", [namespaces, "namespace_id"]], ["u1_tags", [rows.get("tags.csv") ?? [], "tag_id"]],
+    ["u1_components", [components, "component_id"]], ["u1_metric_groups", [metricGroups, "metric_group_id"]],
+    ["u1_assets", [assets, "asset_id"]], ["u1_token_standards", [standards, "standard_id"]],
+    ["u1_token_contracts", [tokenContracts, "token_contract_id"]], ["u1_protocol_deployments", [deployments, "deployment_id"]],
+    ["u1_chain_aliases", [aliases, "alias_id"]],
+  ]);
+  validateIdRangeAllocators(idRanges, allocatorOccupancy);
   for (const row of categories) {
     if (row.parent_category_id && !categoryIds.has(row.parent_category_id)) throw new Error(`Category ${row.category_code} references unknown parent ${row.parent_category_id}.`);
   }

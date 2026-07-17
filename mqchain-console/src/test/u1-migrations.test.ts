@@ -13,6 +13,7 @@ describe("MQCHAIN U1 additive migrations", () => {
       migration("0008_chilly_doctor_octopus.sql"),
       migration("0009_giant_ezekiel_stane.sql"),
       migration("0010_parallel_yellow_claw.sql"),
+      migration("0011_heavy_agent_brand.sql"),
     ])).join("\n").toLowerCase();
     expect(sql).not.toMatch(/\bdrop\s+table\b/);
     expect(sql).not.toMatch(/\btruncate\b/);
@@ -41,5 +42,13 @@ describe("MQCHAIN U1 additive migrations", () => {
     expect(sql).toContain("mq_chain_network_proposal_activation_guard");
     expect(sql).toContain("unknown network % must be created inactive through a manual proposal");
     expect(sql).toContain("network % activation requires an approved manual proposal");
+  });
+
+  it("adds typed identifier namespaces and scoped chain aliases additively", async () => {
+    const sql = await migration("0011_heavy_agent_brand.sql");
+    expect(sql).toContain('CREATE TABLE "mq_chain_aliases"');
+    expect(sql).toContain('ADD COLUMN "identifier_kind"');
+    expect(sql).toContain('ADD COLUMN "address_type"');
+    expect(sql.indexOf('CREATE UNIQUE INDEX "uq_mq_address_namespaces_mapping"')).toBeLessThan(sql.indexOf('ADD CONSTRAINT "fk_mq_chain_aliases_namespace_mapping"'));
   });
 });

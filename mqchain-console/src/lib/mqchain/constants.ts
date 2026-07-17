@@ -113,11 +113,22 @@ export const NETWORK_CATALOG_STATES = ["catalogued", "disabled"] as const;
 export const NETWORK_READINESS_STATES = ["not_ready", "prepared", "test_ready", "production_ready"] as const;
 export const NETWORK_CHANGE_TYPES = ["create", "update", "activate", "deactivate", "capability_update"] as const;
 export const NETWORK_CHANGE_STATUSES = ["pending", "approved", "rejected", "applied"] as const;
+export const CHAIN_ALIAS_STATUSES = ["approved", "pending_mapping", "pending_network", "not_a_network", "unsupported"] as const;
+export const ADDRESS_IDENTIFIER_KINDS = [
+  "wallet_address",
+  "wallet_or_public_key",
+  "wallet_or_staking_identifier",
+  "validator_public_key",
+  "staking_identifier",
+  "consensus_identifier",
+] as const;
+export const NAMESPACE_ADDRESS_TYPES = ["wallet_address", "validator_public_key", "staking_identifier", "consensus_identifier"] as const;
 
 export type NetworkCatalogState = (typeof NETWORK_CATALOG_STATES)[number];
 export type NetworkReadinessState = (typeof NETWORK_READINESS_STATES)[number];
 export type NetworkChangeType = (typeof NETWORK_CHANGE_TYPES)[number];
 export type NetworkChangeStatus = (typeof NETWORK_CHANGE_STATUSES)[number];
+export type ChainAliasStatus = (typeof CHAIN_ALIAS_STATUSES)[number];
 
 export const U1_BUILD_KINDS = ["base", "delta"] as const;
 export const U1_MEMBERSHIP_STATUSES = ["active", "removed", "deprecated"] as const;
