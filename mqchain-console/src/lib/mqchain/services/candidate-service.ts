@@ -606,7 +606,7 @@ async function buildCandidateSourceVerificationContextMap(
   );
 }
 
-export async function listCandidates(input?: unknown) {
+export async function listCandidatesFromDatabase(input?: unknown) {
   const filters = parseCandidateListFilters(input ?? {});
   const conditions: SQL[] = [];
 
@@ -733,6 +733,138 @@ export async function listCandidates(input?: unknown) {
     pageSize: filters.pageSize,
     totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
   };
+}
+
+
+type CandidateListResult = Awaited<
+  ReturnType<typeof listCandidatesFromDatabase>
+>;
+
+const CANDIDATE_ORIGIN_DATE_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+
+function requireCandidateOriginEnvironmentVariable(
+  name: string,
+): string {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new Error(
+      `Missing required environment variable: ${name}`,
+    );
+  }
+
+  return value;
+}
+
+function candidateQueryFromInput(
+  input: unknown,
+): URLSearchParams {
+  const query = new URLSearchParams();
+
+  if (
+    !input ||
+    typeof input !== "object" ||
+    Array.isArray(input)
+  ) {
+    return query;
+  }
+
+  for (const [key, value] of Object.entries(
+    input as Record<string, unknown>,
+  )) {
+    if (
+      typeof value === "string" &&
+      value.length > 0
+    ) {
+      query.set(key, value);
+      continue;
+    }
+
+    if (
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      query.set(key, String(value));
+    }
+  }
+
+  return query;
+}
+
+export async function listCandidates(
+  input?: unknown,
+): Promise<CandidateListResult> {
+  const originUrl =
+    requireCandidateOriginEnvironmentVariable(
+      "MQCHAIN_ORIGIN_URL",
+    ).replace(/\/+$/, "");
+
+  const clientId =
+    requireCandidateOriginEnvironmentVariable(
+      "CF_ACCESS_CLIENT_ID",
+    );
+
+  const clientSecret =
+    requireCandidateOriginEnvironmentVariable(
+      "CF_ACCESS_CLIENT_SECRET",
+    );
+
+  const query = candidateQueryFromInput(input);
+  const queryString = query.toString();
+
+  const response = await fetch(
+    `${originUrl}/v1/candidates${
+      queryString ? `?${queryString}` : ""
+    }`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "CF-Access-Client-Id": clientId,
+        "CF-Access-Client-Secret": clientSecret,
+      },
+      cache: "no-store",
+      redirect: "manual",
+      signal: AbortSignal.timeout(15_000),
+    },
+  );
+
+  const responseText = await response.text();
+  const contentType =
+    response.headers.get("content-type") ?? "";
+
+  if (!response.ok) {
+    throw new Error(
+      `MQCHAIN candidates origin request failed with status ${response.status}.`,
+    );
+  }
+
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      "MQCHAIN candidates origin returned a non-JSON response.",
+    );
+  }
+
+  try {
+    return JSON.parse(
+      responseText,
+      (_key: string, value: unknown) => {
+        if (
+          typeof value === "string" &&
+          CANDIDATE_ORIGIN_DATE_PATTERN.test(value)
+        ) {
+          return new Date(value);
+        }
+
+        return value;
+      },
+    ) as CandidateListResult;
+  } catch {
+    throw new Error(
+      "MQCHAIN candidates origin returned invalid JSON.",
+    );
+  }
 }
 
 export async function getCandidateDetail(id: number) {

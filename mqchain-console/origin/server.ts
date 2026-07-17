@@ -11,6 +11,7 @@ import { eq, sql } from "drizzle-orm";
 import { closeDb, getDb } from "../src/db/client";
 import { mqUsers } from "../src/db/schema";
 import { getDashboardOverviewFromDatabase } from "../src/lib/mqchain/services/dashboard-origin-service";
+import { listCandidatesFromDatabase } from "../src/lib/mqchain/services/candidate-service";
 
 const SERVICE_NAME = "mqchain-origin";
 const API_VERSION = "v1";
@@ -185,6 +186,28 @@ const server = createServer(async (request, response) => {
         apiVersion: API_VERSION,
         applicationVersion: "0.1.0",
       });
+
+      return;
+    }
+
+    if (
+      method === "GET" &&
+      pathname === "/v1/candidates"
+    ) {
+      const query = Object.fromEntries(
+        requestUrl.searchParams.entries(),
+      );
+
+      const result =
+        await listCandidatesFromDatabase(query);
+
+      sendJson(
+        response,
+        200,
+        JSON.parse(
+          JSON.stringify(result),
+        ) as JsonObject,
+      );
 
       return;
     }
