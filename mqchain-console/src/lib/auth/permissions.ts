@@ -6,6 +6,12 @@ import {
   type MqUserRole,
 } from "../mqchain/constants";
 
+type MqchainUserAccessInput = {
+  id?: string | null;
+  role?: string | null;
+  isActive?: boolean | null;
+};
+
 export function roleCan(
   role: string | undefined | null,
   permission: string,
@@ -20,15 +26,31 @@ export function roleCan(
   return permissions.includes(permission);
 }
 
+export function canUseMqchainUser(
+  user: MqchainUserAccessInput | null | undefined,
+) {
+  return Boolean(
+    user?.id &&
+      user.isActive &&
+      roleCan(user.role, "view"),
+  );
+}
+
 export async function getCurrentUser() {
   const session = await getServerSession(authOptions);
   const user = session?.user;
 
+  /*
+   * The MQCHAIN Origin authenticates only active users before
+   * NextAuth creates this signed session.
+   */
   if (
-    !user?.id ||
-    !user.email ||
-    !user.role ||
-    !roleCan(user.role, "view")
+    !canUseMqchainUser({
+      id: user?.id,
+      role: user?.role,
+      isActive: true,
+    }) ||
+    !user?.email
   ) {
     return null;
   }

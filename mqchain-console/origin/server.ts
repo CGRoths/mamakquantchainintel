@@ -1,4 +1,4 @@
-﻿import { randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import {
   createServer,
   type IncomingMessage,
@@ -10,6 +10,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { closeDb, getDb } from "../src/db/client";
 import { mqUsers } from "../src/db/schema";
+import { getDashboardOverviewFromDatabase } from "../src/lib/mqchain/services/dashboard-origin-service";
 
 const SERVICE_NAME = "mqchain-origin";
 const API_VERSION = "v1";
@@ -184,6 +185,24 @@ const server = createServer(async (request, response) => {
         apiVersion: API_VERSION,
         applicationVersion: "0.1.0",
       });
+
+      return;
+    }
+
+    if (
+      method === "GET" &&
+      pathname === "/v1/dashboard/overview"
+    ) {
+      const overview =
+        await getDashboardOverviewFromDatabase();
+
+      sendJson(
+        response,
+        200,
+        JSON.parse(
+          JSON.stringify(overview),
+        ) as JsonObject,
+      );
 
       return;
     }

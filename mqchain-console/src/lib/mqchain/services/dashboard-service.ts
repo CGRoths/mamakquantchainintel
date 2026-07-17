@@ -1,137 +1,90 @@
-import { count, desc, eq, sql } from "drizzle-orm";
+﻿import type {
+  getDashboardOverviewFromDatabase,
+} from "./dashboard-origin-service";
 
-import { getDb } from "@/db/client";
-import {
-  mqAddressCandidates,
-  mqAddressRegistry,
-  mqApprovalEvents,
-  mqDiscoveryJobs,
-  mqEntities,
-  mqKvBuilds,
-  mqLabelBatches,
-  mqMetricGroups,
-  mqProtocols,
-  mqSourceJobs,
-} from "@/db/schema";
-import { FLAG_BITS } from "../flags";
-import { buildConfidenceDistribution, buildDashboardLatestKvBuildSummary, normalizeDistributionRows } from "../dashboard";
+type DashboardOverview = Awaited<
+  ReturnType<typeof getDashboardOverviewFromDatabase>
+>;
 
-const metricEligibleMask = 1 << FLAG_BITS.metricEligible;
+const ISO_DATE_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 
-function firstCount(rows: { value: number }[]) {
-  return rows[0]?.value ?? 0;
+function requireEnvironmentVariable(name: string): string {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new Error(
+      `Missing required environment variable: ${name}`,
+    );
+  }
+
+  return value;
 }
 
-export async function getDashboardOverview() {
-  const db = getDb();
+export async function getDashboardOverview(): Promise<DashboardOverview> {
+  const originUrl = requireEnvironmentVariable(
+    "MQCHAIN_ORIGIN_URL",
+  ).replace(/\/+$/, "");
 
-  const [
-    pendingCandidates,
-    needsReview,
-    approvedToday,
-    rejectedToday,
-    committedBatches,
-    activeEntities,
-    activeProtocols,
-    activeLabels,
-    unresolvedConflicts,
-    metricEligibleCount,
-    activeMetricGroups,
-    latestBatch,
-    latestKvBuild,
-    discoveryStatusRows,
-    sourceTypeRows,
-    qualityTierRows,
-    registryConfidenceRows,
-    labelsByEntityRows,
-    recentApprovalEvents,
-    recentSourceJobs,
-    recentDiscoveryJobs,
-  ] = await Promise.all([
-    db.select({ value: count() }).from(mqAddressCandidates).where(eq(mqAddressCandidates.candidateStatus, "pending_review")),
-    db.select({ value: count() }).from(mqAddressCandidates).where(eq(mqAddressCandidates.candidateStatus, "needs_more_evidence")),
-    db
-      .select({ value: count() })
-      .from(mqAddressCandidates)
-      .where(sql`${mqAddressCandidates.candidateStatus} = 'approved' and ${mqAddressCandidates.updatedAt}::date = now()::date`),
-    db
-      .select({ value: count() })
-      .from(mqAddressCandidates)
-      .where(sql`${mqAddressCandidates.candidateStatus} = 'rejected' and ${mqAddressCandidates.updatedAt}::date = now()::date`),
-    db.select({ value: count() }).from(mqLabelBatches).where(eq(mqLabelBatches.status, "committed")),
-    db.select({ value: count() }).from(mqEntities).where(eq(mqEntities.isActive, true)),
-    db.select({ value: count() }).from(mqProtocols).where(eq(mqProtocols.isActive, true)),
-    db.select({ value: count() }).from(mqAddressRegistry).where(eq(mqAddressRegistry.isActive, true)),
-    db.select({ value: count() }).from(mqAddressCandidates).where(eq(mqAddressCandidates.candidateStatus, "conflict_pending")),
-    db
-      .select({ value: count() })
-      .from(mqAddressRegistry)
-      .where(sql`${mqAddressRegistry.isActive} = true and (${mqAddressRegistry.flags} & ${metricEligibleMask}) <> 0 and ${mqAddressRegistry.confidenceScore} >= 70`),
-    db.select({ value: count() }).from(mqMetricGroups).where(eq(mqMetricGroups.isActive, true)),
-    db.select().from(mqLabelBatches).where(eq(mqLabelBatches.status, "committed")).orderBy(desc(mqLabelBatches.committedAt)).limit(1),
-    db.select().from(mqKvBuilds).orderBy(desc(mqKvBuilds.createdAt)).limit(1),
-    db
-      .select({ label: mqDiscoveryJobs.status, count: sql<number>`count(*)::int` })
-      .from(mqDiscoveryJobs)
-      .groupBy(mqDiscoveryJobs.status)
-      .orderBy(desc(sql`count(*)`)),
-    db
-      .select({
-        label: sql<string>`coalesce(${mqSourceJobs.sourceType}, ${mqAddressCandidates.discoveredBy}, 'unknown')`,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(mqAddressCandidates)
-      .leftJoin(mqSourceJobs, eq(mqAddressCandidates.sourceJobId, mqSourceJobs.id))
-      .groupBy(sql`coalesce(${mqSourceJobs.sourceType}, ${mqAddressCandidates.discoveredBy}, 'unknown')`)
-      .orderBy(desc(sql`count(*)`))
-      .limit(8),
-    db
-      .select({ label: sql<string>`concat('tier ', ${mqAddressRegistry.qualityTier})`, count: sql<number>`count(*)::int` })
-      .from(mqAddressRegistry)
-      .where(eq(mqAddressRegistry.isActive, true))
-      .groupBy(mqAddressRegistry.qualityTier)
-      .orderBy(desc(sql`count(*)`)),
-    db
-      .select({ confidenceScore: mqAddressRegistry.confidenceScore })
-      .from(mqAddressRegistry)
-      .where(eq(mqAddressRegistry.isActive, true)),
-    db
-      .select({ label: sql<string>`coalesce(${mqEntities.entityName}, 'unassigned')`, count: sql<number>`count(*)::int` })
-      .from(mqAddressRegistry)
-      .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
-      .where(eq(mqAddressRegistry.isActive, true))
-      .groupBy(sql`coalesce(${mqEntities.entityName}, 'unassigned')`)
-      .orderBy(desc(sql`count(*)`))
-      .limit(8),
-    db.select().from(mqApprovalEvents).orderBy(desc(mqApprovalEvents.createdAt)).limit(8),
-    db.select().from(mqSourceJobs).orderBy(desc(mqSourceJobs.createdAt)).limit(8),
-    db.select().from(mqDiscoveryJobs).orderBy(desc(mqDiscoveryJobs.createdAt)).limit(8),
-  ]);
+  const clientId = requireEnvironmentVariable(
+    "CF_ACCESS_CLIENT_ID",
+  );
 
-  return {
-    stats: {
-      pendingCandidates: firstCount(pendingCandidates),
-      needsReview: firstCount(needsReview),
-      approvedToday: firstCount(approvedToday),
-      rejectedToday: firstCount(rejectedToday),
-      committedBatches: firstCount(committedBatches),
-      activeEntities: firstCount(activeEntities),
-      activeProtocols: firstCount(activeProtocols),
-      activeLabels: firstCount(activeLabels),
-      unresolvedConflicts: firstCount(unresolvedConflicts),
-      metricEligibleCount: firstCount(metricEligibleCount),
-      activeMetricGroups: firstCount(activeMetricGroups),
+  const clientSecret = requireEnvironmentVariable(
+    "CF_ACCESS_CLIENT_SECRET",
+  );
+
+  const response = await fetch(
+    `${originUrl}/v1/dashboard/overview`,
+    {
+      method: "GET",
+
+      headers: {
+        Accept: "application/json",
+        "CF-Access-Client-Id": clientId,
+        "CF-Access-Client-Secret": clientSecret,
+      },
+
+      cache: "no-store",
+      redirect: "manual",
+      signal: AbortSignal.timeout(15_000),
     },
-    latestBatch: latestBatch[0] ?? null,
-    latestKvBuild: latestKvBuild[0] ?? null,
-    latestKvBuildSummary: buildDashboardLatestKvBuildSummary(latestKvBuild[0] ?? null),
-    discoveryStatus: normalizeDistributionRows(discoveryStatusRows),
-    sourceTypes: normalizeDistributionRows(sourceTypeRows),
-    qualityTiers: normalizeDistributionRows(qualityTierRows),
-    confidenceDistribution: buildConfidenceDistribution(registryConfidenceRows),
-    labelsByEntity: normalizeDistributionRows(labelsByEntityRows),
-    recentApprovalEvents,
-    recentSourceJobs,
-    recentDiscoveryJobs,
-  };
+  );
+
+  const responseText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(
+      `MQCHAIN dashboard origin request failed with status ${response.status}.`,
+    );
+  }
+
+  const contentType =
+    response.headers.get("content-type") ?? "";
+
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      `MQCHAIN dashboard origin returned ${contentType || "an unknown content type"}.`,
+    );
+  }
+
+  try {
+    return JSON.parse(
+      responseText,
+      (_key: string, value: unknown) => {
+        if (
+          typeof value === "string" &&
+          ISO_DATE_PATTERN.test(value)
+        ) {
+          return new Date(value);
+        }
+
+        return value;
+      },
+    ) as DashboardOverview;
+  } catch {
+    throw new Error(
+      "MQCHAIN dashboard origin returned invalid JSON.",
+    );
+  }
 }
