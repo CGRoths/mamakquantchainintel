@@ -1,8 +1,50 @@
 import { describe, expect, it } from "vitest";
 
 import { normalizeAddress } from "@/lib/mqchain/address/normalize";
+import goldenFixture from "@/test/fixtures/address-normalization-golden-v1.json";
+
+type GoldenRecord = {
+  caseName: string;
+  rawInput: string;
+  chainHint: string | null;
+  isValid: boolean;
+  error: string | null;
+  chainCode: string | null;
+  addressFamily: string | null;
+  rawAddress: string;
+  normalizedAddress: string;
+  prefixCode: number | null;
+  namespaceId: number | null;
+  addressCodecId: number | null;
+  payloadHex: string | null;
+};
+
+function toGoldenRecord(input: Pick<GoldenRecord, "caseName" | "rawInput" | "chainHint">): GoldenRecord {
+  const result = normalizeAddress(input.rawInput, input.chainHint);
+  return {
+    caseName: input.caseName,
+    rawInput: input.rawInput,
+    chainHint: input.chainHint,
+    isValid: result.isValid,
+    error: result.error ?? null,
+    chainCode: result.chainCode,
+    addressFamily: result.addressFamily,
+    rawAddress: result.rawAddress,
+    normalizedAddress: result.normalizedAddress,
+    prefixCode: result.prefixCode,
+    namespaceId: result.namespaceId,
+    addressCodecId: result.addressCodecId,
+    payloadHex: result.payloadHex,
+  };
+}
 
 describe("normalizeAddress", () => {
+  it("matches the frozen pre-codec-platform golden fixture", () => {
+    expect(goldenFixture.schemaVersion).toBe("MQCHAIN-NORMALIZATION-GOLDEN-1");
+    expect(goldenFixture.generatedFrom).toBe("pre-codec-platform-normalizer");
+    expect(goldenFixture.cases.map(testCase => toGoldenRecord(testCase as GoldenRecord))).toEqual(goldenFixture.cases);
+  });
+
   it("normalizes EVM addresses", () => {
     const result = normalizeAddress("0x000000000000000000000000000000000000dEaD", "ethereum");
 

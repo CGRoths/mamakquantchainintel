@@ -1,11 +1,15 @@
-import { createHash } from "crypto";
-
 import type { NormalizedAddress } from "../types";
+import {
+  bitcoinBech32Codec,
+  bitcoinBech32mCodec,
+  bitcoinP2pkhCodec,
+  bitcoinP2shCodec,
+  evm20Codec,
+  solanaBase58Codec,
+  tronBase58CheckCodec,
+} from "./codecs";
+import type { AddressCodec } from "./codecs";
 
-const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-const BECH32_ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
-const BECH32_CONST = 1;
-const BECH32M_CONST = 0x2bc830a3;
 type Evm20Identity = { chainCode: string; prefixCode: number | null; namespaceId: number };
 
 const EVM20_IDENTITIES: Record<string, Evm20Identity> = {};
@@ -37,153 +41,12 @@ registerEvm20("kaia-mainnet", 24, null);
 registerEvm20("berachain-mainnet", 25, null);
 registerEvm20("sonic-mainnet", 26, null);
 
-function sha256(buffer: Uint8Array) {
-  return createHash("sha256").update(buffer).digest();
-}
+const WALLET_CONTEXT = Object.freeze({ parameters: Object.freeze({}), identifierKind: "wallet_address" });
+const SOLANA_CONTEXT = Object.freeze({ parameters: Object.freeze({}), identifierKind: "wallet_or_public_key" });
 
-function bytesToHex(bytes: Uint8Array) {
-  return Buffer.from(bytes).toString("hex");
-}
-
-function bech32Polymod(values: number[]) {
-  const generator = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
-  let checksum = 1;
-
-  for (const value of values) {
-    const top = checksum >> 25;
-    checksum = ((checksum & 0x1ffffff) << 5) ^ value;
-    for (let index = 0; index < generator.length; index += 1) {
-      if (((top >> index) & 1) === 1) {
-        checksum ^= generator[index];
-      }
-    }
-  }
-
-  return checksum;
-}
-
-function expandBech32Hrp(hrp: string) {
-  return [
-    ...Array.from(hrp, (char) => char.charCodeAt(0) >> 5),
-    0,
-    ...Array.from(hrp, (char) => char.charCodeAt(0) & 31),
-  ];
-}
-
-function convertBits(data: number[], fromBits: number, toBits: number, pad: boolean) {
-  let accumulator = 0;
-  let bits = 0;
-  const maxValue = (1 << toBits) - 1;
-  const maxAccumulator = (1 << (fromBits + toBits - 1)) - 1;
-  const result: number[] = [];
-
-  for (const value of data) {
-    if (value < 0 || value >> fromBits !== 0) {
-      return null;
-    }
-    accumulator = ((accumulator << fromBits) | value) & maxAccumulator;
-    bits += fromBits;
-    while (bits >= toBits) {
-      bits -= toBits;
-      result.push((accumulator >> bits) & maxValue);
-    }
-  }
-
-  if (pad) {
-    if (bits > 0) {
-      result.push((accumulator << (toBits - bits)) & maxValue);
-    }
-  } else if (bits >= fromBits || ((accumulator << (toBits - bits)) & maxValue) !== 0) {
-    return null;
-  }
-
-  return result;
-}
-
-function decodeBase58(value: string) {
-  const base = BigInt(58);
-  const byteMask = BigInt(255);
-  const byteSize = BigInt(8);
-  let decoded = BigInt(0);
-
-  for (const char of value) {
-    const digit = BASE58_ALPHABET.indexOf(char);
-    if (digit === -1) {
-      return null;
-    }
-    decoded = decoded * base + BigInt(digit);
-  }
-
-  const bytes: number[] = [];
-  while (decoded > BigInt(0)) {
-    bytes.unshift(Number(decoded & byteMask));
-    decoded >>= byteSize;
-  }
-
-  for (const char of value) {
-    if (char !== "1") {
-      break;
-    }
-    bytes.unshift(0);
-  }
-
-  return Uint8Array.from(bytes);
-}
-
-function decodeBase58Check(value: string) {
-  const decoded = decodeBase58(value);
-  if (!decoded || decoded.length < 5) {
-    return null;
-  }
-
-  const payload = decoded.slice(0, -4);
-  const checksum = decoded.slice(-4);
-  const expected = sha256(sha256(payload)).slice(0, 4);
-
-  if (!Buffer.from(checksum).equals(Buffer.from(expected))) {
-    return null;
-  }
-
-  return payload;
-}
-
-function decodeBech32(value: string) {
-  if (value.length < 8 || value.length > 90) {
-    return null;
-  }
-
-  const lower = value.toLowerCase();
-  const upper = value.toUpperCase();
-  if (value !== lower && value !== upper) {
-    return null;
-  }
-
-  const separator = lower.lastIndexOf("1");
-  if (separator < 1 || separator + 7 > lower.length) {
-    return null;
-  }
-
-  const hrp = lower.slice(0, separator);
-  const data = lower
-    .slice(separator + 1)
-    .split("")
-    .map((char) => BECH32_ALPHABET.indexOf(char));
-
-  if (data.some((digit) => digit === -1)) {
-    return null;
-  }
-
-  const polymod = bech32Polymod([...expandBech32Hrp(hrp), ...data]);
-  const encoding = polymod === BECH32_CONST ? "bech32" : polymod === BECH32M_CONST ? "bech32m" : null;
-  if (!encoding) {
-    return null;
-  }
-
-  return {
-    hrp,
-    encoding,
-    data: data.slice(0, -6),
-  };
+function normalizeWithCodec(codec: AddressCodec, rawAddress: string, solana = false) {
+  const result = codec.normalize(rawAddress, solana ? SOLANA_CONTEXT : WALLET_CONTEXT);
+  return result.ok ? result : null;
 }
 
 function normalizeChainHint(chainHint?: string | null) {
@@ -210,58 +73,53 @@ function failure(rawAddress: string, error: string): NormalizedAddress {
 }
 
 function normalizeEvm(rawAddress: string, chainHint?: string | null): NormalizedAddress | null {
-  const value = rawAddress.trim();
-  if (!/^0x[a-fA-F0-9]{40}$/.test(value)) {
-    return null;
-  }
+  const normalized = normalizeWithCodec(evm20Codec, rawAddress);
+  if (!normalized) return null;
 
   const chain = normalizeChainHint(chainHint);
+  // LEGACY COMPATIBILITY:
+  // Unknown EVM chain hints currently fall back to Ethereum. This behavior is intentionally
+  // preserved only during Checkpoint B and must be removed with database-backed resolution.
   const identity = (chain && EVM20_IDENTITIES[chain]) || EVM20_IDENTITIES.ethereum;
-  const normalizedAddress = value.toLowerCase();
 
   return success({
     chainCode: identity.chainCode,
-    addressFamily: "evm20",
+    addressFamily: normalized.addressFamily,
     rawAddress,
-    normalizedAddress,
+    normalizedAddress: normalized.canonicalText,
     prefixCode: identity.prefixCode,
     namespaceId: identity.namespaceId,
     addressCodecId: 1,
-    payloadHex: normalizedAddress.slice(2),
+    payloadHex: normalized.payloadHex,
   });
 }
 
 function normalizeBtcBase58(rawAddress: string): NormalizedAddress | null {
-  const value = rawAddress.trim();
-  const payload = decodeBase58Check(value);
-  if (!payload || payload.length !== 21) {
-    return null;
-  }
-
-  const version = payload[0];
-  if (version === 0x00) {
+  const p2pkh = normalizeWithCodec(bitcoinP2pkhCodec, rawAddress);
+  if (p2pkh) {
     return success({
       chainCode: "btc",
-      addressFamily: "btc_p2pkh",
+      addressFamily: p2pkh.addressFamily,
       rawAddress,
-      normalizedAddress: value,
+      normalizedAddress: p2pkh.canonicalText,
       prefixCode: 0x0010,
       namespaceId: 1,
       addressCodecId: 10,
-      payloadHex: bytesToHex(payload),
+      payloadHex: p2pkh.payloadHex,
     });
   }
 
-  if (version === 0x05) {
+  const p2sh = normalizeWithCodec(bitcoinP2shCodec, rawAddress);
+  if (p2sh) {
     return success({
       chainCode: "btc",
-      addressFamily: "btc_p2sh",
+      addressFamily: p2sh.addressFamily,
       rawAddress,
-      normalizedAddress: value,
+      normalizedAddress: p2sh.canonicalText,
       prefixCode: 0x0011,
       namespaceId: 2,
       addressCodecId: 11,
-      payloadHex: bytesToHex(payload),
+      payloadHex: p2sh.payloadHex,
     });
   }
 
@@ -269,75 +127,51 @@ function normalizeBtcBase58(rawAddress: string): NormalizedAddress | null {
 }
 
 function normalizeBtcBech32(rawAddress: string): NormalizedAddress | null {
-  const value = rawAddress.trim();
-  const decoded = decodeBech32(value);
-  if (!decoded || decoded.hrp !== "bc" || decoded.data.length < 1) {
-    return null;
-  }
-  const witnessVersion = decoded.data[0];
-  const program = convertBits(decoded.data.slice(1), 5, 8, false);
-
-  if (
-    witnessVersion > 16 ||
-    !program ||
-    program.length < 2 ||
-    program.length > 40 ||
-    (witnessVersion === 0 && decoded.encoding !== "bech32") ||
-    (witnessVersion > 0 && decoded.encoding !== "bech32m") ||
-    (witnessVersion === 0 && program.length !== 20 && program.length !== 32)
-  ) {
-    return null;
-  }
-
-  const payload = Uint8Array.from([witnessVersion, ...program]);
+  const normalized = normalizeWithCodec(bitcoinBech32Codec, rawAddress) ?? normalizeWithCodec(bitcoinBech32mCodec, rawAddress);
+  if (!normalized) return null;
+  const witnessVersion = Number.parseInt(normalized.payloadHex.slice(0, 2), 16);
 
   return success({
     chainCode: "btc",
-    addressFamily: witnessVersion === 0 ? "btc_bech32" : "btc_bech32m",
+    addressFamily: normalized.addressFamily,
     rawAddress,
-    normalizedAddress: value.toLowerCase(),
+    normalizedAddress: normalized.canonicalText,
     prefixCode: 0x0012,
     namespaceId: witnessVersion === 0 ? 3 : 47,
     addressCodecId: witnessVersion === 0 ? 12 : 13,
-    payloadHex: bytesToHex(payload),
+    payloadHex: normalized.payloadHex,
   });
 }
 
 function normalizeSolana(rawAddress: string): NormalizedAddress | null {
-  const value = rawAddress.trim();
-  const decoded = decodeBase58(value);
-  if (!decoded || decoded.length !== 32) {
-    return null;
-  }
+  const normalized = normalizeWithCodec(solanaBase58Codec, rawAddress, true);
+  if (!normalized) return null;
 
   return success({
     chainCode: "solana",
-    addressFamily: "solana32",
+    addressFamily: normalized.addressFamily,
     rawAddress,
-    normalizedAddress: value,
+    normalizedAddress: normalized.canonicalText,
     prefixCode: 0x0301,
     namespaceId: 10,
     addressCodecId: 20,
-    payloadHex: bytesToHex(decoded),
+    payloadHex: normalized.payloadHex,
   });
 }
 
 function normalizeTron(rawAddress: string): NormalizedAddress | null {
-  const value = rawAddress.trim();
-  const payload = decodeBase58Check(value);
-  if (!payload || payload.length !== 21 || payload[0] !== 0x41) {
-    return null;
-  }
+  const normalized = normalizeWithCodec(tronBase58CheckCodec, rawAddress);
+  if (!normalized) return null;
 
   return success({
     chainCode: "tron",
-    addressFamily: "tron21",
+    addressFamily: normalized.addressFamily,
     rawAddress,
-    normalizedAddress: value,
+    normalizedAddress: normalized.canonicalText,
     prefixCode: 0x0401,
     namespaceId: 11,
     addressCodecId: 21,
-    payloadHex: bytesToHex(payload),
+    payloadHex: normalized.payloadHex,
   });
 }
 
