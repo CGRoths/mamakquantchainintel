@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, not, or, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import {
@@ -9,6 +9,10 @@ import {
   mqAuditLog,
   mqEntities,
   mqKvRoleDict,
+  mqKvBuilds,
+  mqKvIndexManifests,
+  mqLabelBatchCandidates,
+  mqLabelBatchEvidence,
   mqLabelBatches,
   mqProtocols,
   mqSourceDocuments,
@@ -28,7 +32,8 @@ import {
   buildSourceJobVerificationRollup,
 } from "../source-job";
 import { candidateSourceSheetMatches, candidateSourceUrlMatches } from "../candidate-detail";
-import { sourceJobArchiveSchema, sourceVerificationSchema } from "../validators/source-job";
+import { buildSourceJobDeletionPreview, SourceJobDeletionError, type SourceJobDeletionPreview } from "../source-job-deletion";
+import { isSourceJobDeleteConfirmation, sourceJobDeletionSchema, sourceJobArchiveSchema, sourceVerificationSchema } from "../validators/source-job";
 
 function sourceJobOrderBy(sort: SourceJobListFilters["sort"]) {
   if (sort === "updated_at") return desc(mqSourceJobs.updatedAt);
@@ -360,5 +365,200 @@ export async function archiveSourceJob(input: unknown) {
     });
 
     return updated;
+  });
+}
+
+type SourceJobTransaction = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
+
+type SourceJobDeletionPlan = {
+  preview: SourceJobDeletionPreview;
+  sourceJob: typeof mqSourceJobs.$inferSelect;
+  documentIds: number[];
+  candidateIds: number[];
+  batchIds: number[];
+  evidenceIds: number[];
+  verificationIds: number[];
+};
+
+function ids(rows: Array<{ id: number }>) {
+  return rows.map(row => row.id);
+}
+
+async function loadSourceJobDeletionPlan(tx: SourceJobTransaction, sourceJobId: number): Promise<SourceJobDeletionPlan> {
+  const [sourceJob] = await tx
+    .select()
+    .from(mqSourceJobs)
+    .where(eq(mqSourceJobs.id, sourceJobId))
+    .limit(1)
+    .for("update");
+  if (!sourceJob) throw new SourceJobDeletionError(404, "source_job_not_found", "Source job not found.");
+
+  const documents = await tx.select({ id: mqSourceDocuments.id }).from(mqSourceDocuments).where(eq(mqSourceDocuments.sourceJobId, sourceJobId));
+  const documentIds = ids(documents);
+  const candidates = await tx
+    .select({ id: mqAddressCandidates.id, candidateStatus: mqAddressCandidates.candidateStatus })
+    .from(mqAddressCandidates)
+    .where(eq(mqAddressCandidates.sourceJobId, sourceJobId));
+  const candidateIds = ids(candidates);
+
+  const directBatchConditions: SQL[] = [eq(mqLabelBatches.sourceJobId, sourceJobId)];
+  if (documentIds.length) directBatchConditions.push(inArray(mqLabelBatches.sourceDocumentId, documentIds));
+  const directBatches = await tx.select({ id: mqLabelBatches.id }).from(mqLabelBatches).where(or(...directBatchConditions));
+  const candidateBatchLinks = candidateIds.length
+    ? await tx.select({ id: mqLabelBatchCandidates.batchId }).from(mqLabelBatchCandidates).where(inArray(mqLabelBatchCandidates.candidateId, candidateIds))
+    : [];
+  const batchIds = [...new Set([...ids(directBatches), ...ids(candidateBatchLinks)])];
+  const batches = batchIds.length
+    ? await tx.select({ id: mqLabelBatches.id, status: mqLabelBatches.status }).from(mqLabelBatches).where(inArray(mqLabelBatches.id, batchIds))
+    : [];
+
+  const evidenceConditions: SQL[] = [];
+  if (candidateIds.length) evidenceConditions.push(inArray(mqAddressEvidence.candidateId, candidateIds));
+  if (documentIds.length) evidenceConditions.push(inArray(mqAddressEvidence.sourceDocumentId, documentIds));
+  if (batchIds.length) evidenceConditions.push(inArray(mqAddressEvidence.batchId, batchIds));
+  const evidence = evidenceConditions.length
+    ? await tx.select({ id: mqAddressEvidence.id, registryId: mqAddressEvidence.registryId, batchId: mqAddressEvidence.batchId }).from(mqAddressEvidence).where(or(...evidenceConditions))
+    : [];
+
+  const verificationConditions: SQL[] = [eq(mqSourceVerifications.sourceJobId, sourceJobId)];
+  if (documentIds.length) verificationConditions.push(inArray(mqSourceVerifications.sourceDocumentId, documentIds));
+  if (candidateIds.length) verificationConditions.push(inArray(mqSourceVerifications.candidateId, candidateIds));
+  const verifications = await tx.select({ id: mqSourceVerifications.id }).from(mqSourceVerifications).where(or(...verificationConditions));
+
+  const approvalConditions: SQL[] = [];
+  if (candidateIds.length) approvalConditions.push(inArray(mqApprovalEvents.candidateId, candidateIds));
+  if (batchIds.length) approvalConditions.push(inArray(mqApprovalEvents.batchId, batchIds));
+  const approvalEvents = approvalConditions.length
+    ? await tx.select({ id: mqApprovalEvents.id, registryId: mqApprovalEvents.registryId, batchId: mqApprovalEvents.batchId }).from(mqApprovalEvents).where(or(...approvalConditions))
+    : [];
+
+  const registryConditions: SQL[] = [eq(mqAddressRegistry.primarySourceJobId, sourceJobId)];
+  if (batchIds.length) registryConditions.push(inArray(mqAddressRegistry.approvedBatchId, batchIds));
+  const registryRows = await tx.select({ id: mqAddressRegistry.id }).from(mqAddressRegistry).where(or(...registryConditions));
+  const kvBuilds = batchIds.length
+    ? await tx.select({ id: mqKvBuilds.id }).from(mqKvBuilds).where(inArray(mqKvBuilds.lastCommittedBatchId, batchIds))
+    : [];
+  const kvIndexManifests = batchIds.length
+    ? await tx.select({ id: mqKvIndexManifests.id }).from(mqKvIndexManifests).where(inArray(mqKvIndexManifests.lastCommittedBatchId, batchIds))
+    : [];
+  const candidateReferences = candidateIds.length
+    ? await tx
+        .select({ id: mqAddressCandidates.id, sourceJobId: mqAddressCandidates.sourceJobId })
+        .from(mqAddressCandidates)
+        .where(inArray(mqAddressCandidates.duplicateOfCandidateId, candidateIds))
+    : [];
+  const externalCandidateReferences = candidateReferences.filter(candidate => candidate.sourceJobId !== sourceJobId);
+  const supersedingBatches = batchIds.length
+    ? await tx
+        .select({ id: mqLabelBatches.id })
+        .from(mqLabelBatches)
+        .where(and(inArray(mqLabelBatches.supersedesBatchId, batchIds), not(inArray(mqLabelBatches.id, batchIds))))
+    : [];
+  const batchEvidence = batchIds.length
+    ? await tx.select({ id: mqLabelBatchEvidence.id }).from(mqLabelBatchEvidence).where(inArray(mqLabelBatchEvidence.batchId, batchIds))
+    : [];
+  const evidenceBatchLinks = evidence.length
+    ? await tx
+        .select({ id: mqLabelBatchEvidence.id, batchId: mqLabelBatchEvidence.batchId })
+        .from(mqLabelBatchEvidence)
+        .where(inArray(mqLabelBatchEvidence.evidenceId, ids(evidence)))
+    : [];
+  const linkedBatchIds = new Set(batchIds);
+  const externalEvidenceBatchLinks = evidence.filter(row => row.batchId !== null && !linkedBatchIds.has(row.batchId));
+  const externalApprovalBatchLinks = approvalEvents.filter(row => row.batchId !== null && !linkedBatchIds.has(row.batchId));
+  const externalBatchEvidenceLinks = evidenceBatchLinks.filter(row => row.batchId !== null && !linkedBatchIds.has(row.batchId));
+
+  const protectedBatches = batches.filter(batch => batch.status !== "draft" && batch.status !== "failed");
+  const preview = buildSourceJobDeletionPreview({
+    sourceJobId,
+    sourceName: sourceJob.sourceName,
+    sourceStatus: sourceJob.status,
+    counts: {
+      sourceDocuments: documentIds.length,
+      candidates: candidateIds.length,
+      approvedCandidates: candidates.filter(candidate => candidate.candidateStatus === "approved").length,
+      evidence: evidence.length + batchEvidence.length,
+      verifications: verifications.length,
+      batches: batchIds.length,
+      protectedBatches: protectedBatches.length,
+      registryRows: registryRows.length,
+      kvBuildReferences: kvBuilds.length + kvIndexManifests.length,
+      canonicalEvidence: evidence.filter(row => row.registryId !== null).length,
+      canonicalApprovalEvents: approvalEvents.filter(row => row.registryId !== null).length,
+      externalCandidateReferences: externalCandidateReferences.length,
+      supersedingBatches: supersedingBatches.length,
+      externalEvidenceBatchLinks: externalEvidenceBatchLinks.length,
+      externalApprovalBatchLinks: externalApprovalBatchLinks.length,
+      externalBatchEvidenceLinks: externalBatchEvidenceLinks.length,
+    },
+  });
+
+  return {
+    preview,
+    sourceJob,
+    documentIds,
+    candidateIds,
+    batchIds,
+    evidenceIds: ids(evidence),
+    verificationIds: ids(verifications),
+  };
+}
+
+export async function getSourceJobDeletionPreview(sourceJobId: number) {
+  await assertPermission("intake:delete");
+  if (!Number.isInteger(sourceJobId) || sourceJobId <= 0) throw new SourceJobDeletionError(404, "source_job_not_found", "Source job not found.");
+  return getDb().transaction(async tx => (await loadSourceJobDeletionPlan(tx, sourceJobId)).preview);
+}
+
+export async function deletePendingSourceJob(input: unknown) {
+  const actor = await assertPermission("intake:delete");
+  const parsed = sourceJobDeletionSchema.parse(input);
+  if (!isSourceJobDeleteConfirmation(parsed.sourceJobId, parsed.confirmation)) {
+    throw new SourceJobDeletionError(400, "invalid_confirmation", `Confirmation must exactly equal DELETE ${parsed.sourceJobId}.`);
+  }
+
+  return getDb().transaction(async tx => {
+    const plan = await loadSourceJobDeletionPlan(tx, parsed.sourceJobId);
+    if (!plan.preview.deletable) {
+      throw new SourceJobDeletionError(409, "source_job_deletion_blocked", "Source job has protected downstream dependencies.", {
+        blockers: plan.preview.blockers,
+        preview: plan.preview,
+      });
+    }
+
+    const deletionTimestamp = new Date();
+    await tx.insert(mqAuditLog).values({
+      actorId: actor.id,
+      action: "source_job_deleted",
+      targetTable: "mq_source_jobs",
+      targetId: String(parsed.sourceJobId),
+      payload: {
+        sourceName: plan.sourceJob.sourceName,
+        sourceStatus: plan.sourceJob.status,
+        deletedCounts: plan.preview.counts,
+        actor: { id: actor.id, email: actor.email, name: actor.name, role: actor.role },
+        confirmation: parsed.confirmation,
+        deletionTimestamp: deletionTimestamp.toISOString(),
+      },
+    });
+
+    if (plan.batchIds.length) await tx.delete(mqLabelBatchEvidence).where(inArray(mqLabelBatchEvidence.batchId, plan.batchIds));
+    const approvalConditions: SQL[] = [];
+    if (plan.candidateIds.length) approvalConditions.push(inArray(mqApprovalEvents.candidateId, plan.candidateIds));
+    if (plan.batchIds.length) approvalConditions.push(inArray(mqApprovalEvents.batchId, plan.batchIds));
+    if (approvalConditions.length) await tx.delete(mqApprovalEvents).where(or(...approvalConditions));
+    const batchCandidateConditions: SQL[] = [];
+    if (plan.candidateIds.length) batchCandidateConditions.push(inArray(mqLabelBatchCandidates.candidateId, plan.candidateIds));
+    if (plan.batchIds.length) batchCandidateConditions.push(inArray(mqLabelBatchCandidates.batchId, plan.batchIds));
+    if (batchCandidateConditions.length) await tx.delete(mqLabelBatchCandidates).where(or(...batchCandidateConditions));
+    if (plan.evidenceIds.length) await tx.delete(mqAddressEvidence).where(inArray(mqAddressEvidence.id, plan.evidenceIds));
+    if (plan.verificationIds.length) await tx.delete(mqSourceVerifications).where(inArray(mqSourceVerifications.id, plan.verificationIds));
+    if (plan.batchIds.length) await tx.delete(mqLabelBatches).where(inArray(mqLabelBatches.id, plan.batchIds));
+    if (plan.candidateIds.length) await tx.delete(mqAddressCandidates).where(inArray(mqAddressCandidates.id, plan.candidateIds));
+    if (plan.documentIds.length) await tx.delete(mqSourceDocuments).where(inArray(mqSourceDocuments.id, plan.documentIds));
+    const deleted = await tx.delete(mqSourceJobs).where(eq(mqSourceJobs.id, parsed.sourceJobId)).returning({ id: mqSourceJobs.id });
+    if (deleted.length !== 1) throw new Error("Source job deletion did not remove exactly one row.");
+
+    return { sourceJobId: parsed.sourceJobId, deletedCounts: plan.preview.counts };
   });
 }

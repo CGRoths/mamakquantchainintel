@@ -38,6 +38,7 @@ export type UpdateSettingsUserAccessInput = z.infer<typeof updateSettingsUserAcc
 export const SETTINGS_PERMISSION_LABELS = [
   { permission: "view", label: "View console" },
   { permission: "intake:create", label: "Create intake" },
+  { permission: "intake:delete", label: "Delete pending intake" },
   { permission: "candidate:propose", label: "Propose labels" },
   { permission: "candidate:evidence", label: "Add evidence" },
   { permission: "source:verify", label: "Verify sources" },

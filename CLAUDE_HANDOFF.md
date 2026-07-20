@@ -1,5 +1,24 @@
 # MAMAKQUANTCHAIN U1 Claude Handoff
 
+## Safe Pending Source-Job Deletion (2026-07-20)
+
+Owner/admin-only deletion of non-canonical source jobs is implemented in `C:\MAMAKQUANT\mamakquantchain\mqchain-console`. Start with:
+
+- `src/lib/mqchain/source-job-deletion.ts`
+- `src/lib/mqchain/services/source-job-service.ts`
+- `origin/app.ts`
+- `src/components/mqchain/delete-source-job-dialog.tsx`
+- `src/test/source-job-deletion.test.ts`
+- `src/test/source-job-deletion-api.test.ts`
+
+The new `intake:delete` permission belongs only to owner and admin. Origin exposes `GET /v1/source-jobs/:id/delete-preview` and `DELETE /v1/source-jobs/:id`; the Vercel adapter calls these through the signed Origin client and has no PostgreSQL dependency. The UI is available as a row action and in the detail-page Danger zone, requires the exact confirmation `DELETE <id>`, preserves the preview after an error, and redirects to `/mqchain/source-jobs` after success.
+
+Deletion is one transaction. It reloads and locks the source job, recalculates blockers, inserts the persistent `source_job_deleted` audit record, then deletes batch evidence, approval events, batch-candidate links, address evidence, source verifications, draft/failed batches, candidates, documents, and finally the source job. It blocks archived jobs, approved candidates, protected batches, registry dependencies, KV build/index-manifest references, canonical evidence or approval events, superseding batches, and cross-job/cross-batch references. No cascade migration or canonical registry/KV behavior changed.
+
+Verification completed: 79 test files and 462 tests passed; TypeScript passed; ESLint passed; the network-enabled Next.js production build passed. Vitest still prints the existing missing `typescript.js.map` warning. The first sandboxed build failed only because Google Fonts was unreachable. No commit, push, deployment, database mutation, schema, migration, environment, codec, or normalization change occurred.
+
+Remaining risk: rollback and row-isolation coverage verifies the transaction/service contract without mutating a live PostgreSQL test database. Before production use, smoke-test one disposable pending job in a staging database and confirm its audit row survives while an unrelated source job remains unchanged.
+
 ## MQCHAIN Origin Boundary Remediation (2026-07-18)
 
 The Vercel-to-PostgreSQL boundary remediation is implemented in `C:\MAMAKQUANT\mamakquantchain\mqchain-console`. Read this first:

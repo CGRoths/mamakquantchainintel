@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { DbError } from "@/components/mqchain/db-error";
+import { DeleteSourceJobDialog } from "@/components/mqchain/delete-source-job-dialog";
 import { ArchiveSourceJobForm, SourceVerificationForm } from "@/components/mqchain/source-job-forms";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,7 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
     }
 
     const canArchive = roleCan(currentUser?.role, "intake:create");
+    const canDelete = roleCan(currentUser?.role, "intake:delete");
     const canVerifySource = roleCan(currentUser?.role, "source:verify");
     const summary = detail.sourceJob.metadata as Record<string, unknown>;
     const operationalSummary = buildSourceJobOperationalSummary({
@@ -213,6 +215,15 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
                 disabled={archived}
                 sourceJobId={detail.sourceJob.id}
               />
+            </CardContent>
+          </Card>
+        ) : null}
+        {canDelete ? (
+          <Card className="border-destructive/50 rounded-lg">
+            <CardHeader><CardTitle className="text-destructive">Danger zone</CardTitle></CardHeader>
+            <CardContent className="flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">Permanently remove this source job only when no approved, committed, registry, or KV dependency exists.</p>
+              <DeleteSourceJobDialog sourceJobId={detail.sourceJob.id} sourceName={detail.sourceJob.sourceName} />
             </CardContent>
           </Card>
         ) : null}

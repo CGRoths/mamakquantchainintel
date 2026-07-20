@@ -24,6 +24,14 @@ describe("role permissions", () => {
     expect(ROLE_PERMISSIONS.readonly).not.toContain("intake:create");
   });
 
+  it("limits pending source-job deletion to owners and admins", () => {
+    expect(ROLE_PERMISSIONS.owner).toContain("intake:delete");
+    expect(ROLE_PERMISSIONS.admin).toContain("intake:delete");
+    expect(ROLE_PERMISSIONS.analyst).not.toContain("intake:delete");
+    expect(ROLE_PERMISSIONS.reviewer).not.toContain("intake:delete");
+    expect(ROLE_PERMISSIONS.readonly).not.toContain("intake:delete");
+  });
+
   it("keeps canonical registry edits limited to operators", () => {
     expect(ROLE_PERMISSIONS.owner).toContain("registry:edit");
     expect(ROLE_PERMISSIONS.admin).toContain("registry:edit");

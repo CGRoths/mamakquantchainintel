@@ -31,7 +31,8 @@ import { addRegistrySecondaryRole, deactivateRegistryLabel, getRegistryDetail, l
 import { getAddressResolver } from "../src/lib/mqchain/services/resolver-service";
 import { getReviewGroupDetail, getReviewGroupsWorkspace, getReviewWorkspace } from "../src/lib/mqchain/services/review-service";
 import { createSettingsUser, listSettingsUsers, updateSettingsUserAccess } from "../src/lib/mqchain/services/settings-service";
-import { archiveSourceJob, getSourceJob, listSourceJobs, recordSourceVerification } from "../src/lib/mqchain/services/source-job-service";
+import { archiveSourceJob, deletePendingSourceJob, getSourceJob, getSourceJobDeletionPreview, listSourceJobs, recordSourceVerification } from "../src/lib/mqchain/services/source-job-service";
+import { SourceJobDeletionError } from "../src/lib/mqchain/source-job-deletion";
 
 const BODY_LIMITS = {
   credentials: 16 * 1024,
@@ -157,6 +158,8 @@ async function employeeRoute(method: string, pathname: string, url: URL, body: R
   let match = pathname.match(/^\/v1\/candidates\/(\d+)$/);
   if (method === "GET" && match) return authorized(actor, "view", () => getCandidateDetail(Number(match![1])));
   if (method === "GET" && pathname === "/v1/source-jobs") return authorized(actor, "view", () => listSourceJobs(query));
+  match = pathname.match(/^\/v1\/source-jobs\/(\d+)\/delete-preview$/);
+  if (method === "GET" && match) return authorized(actor, "intake:delete", () => getSourceJobDeletionPreview(Number(match![1])));
   match = pathname.match(/^\/v1\/source-jobs\/(\d+)$/);
   if (method === "GET" && match) return authorized(actor, "view", () => getSourceJob(Number(match![1])));
   if (method === "GET" && pathname === "/v1/review") return authorized(actor, "view", () => getReviewWorkspace(query));
@@ -242,6 +245,8 @@ async function employeeRoute(method: string, pathname: string, url: URL, body: R
   if (method === "POST" && /^\/v1\/metric-groups\/\d+\/deactivate$/.test(pathname)) return authorized(actor, "dictionary:edit", () => deactivateMetricGroup(body));
   if (method === "POST" && /^\/v1\/source-jobs\/\d+\/archive$/.test(pathname)) return authorized(actor, "intake:create", () => archiveSourceJob(body));
   if (method === "POST" && /^\/v1\/source-jobs\/\d+\/verifications$/.test(pathname)) return authorized(actor, "source:verify", () => recordSourceVerification(body));
+  match = pathname.match(/^\/v1\/source-jobs\/(\d+)$/);
+  if (method === "DELETE" && match) return authorized(actor, "intake:delete", () => deletePendingSourceJob({ ...body, sourceJobId: Number(match![1]) }));
   const dictionaryMutationMatch = pathname.match(/^\/v1\/dictionaries\/([^/]+)$/);
   if ((method === "POST" || method === "PATCH") && dictionaryMutationMatch && dictionaryReaders[dictionaryMutationMatch[1]]) return authorized(actor, "dictionary:edit", () => {
     const handlers: Record<string, Record<string, (input: unknown) => Promise<unknown>>> = {
@@ -280,10 +285,10 @@ export async function handleOriginRequest(request: IncomingMessage, response: Se
     const result = await employeeRoute(method, url.pathname, url, body, actor);
     sendJson(response, method === "POST" && ["/v1/intake", "/v1/batches", "/v1/discovery/jobs", "/v1/kv-builds", "/v1/metric-groups", "/v1/settings/users", "/v1/network-proposals"].includes(url.pathname) ? 201 : 200, result, requestId);
   } catch (error) {
-    const status = error instanceof OriginHttpError ? error.status : error instanceof ZodError ? 400 : 500;
-    const code = error instanceof OriginHttpError ? error.code : error instanceof ZodError ? "validation_failed" : "internal_error";
-    const message = error instanceof OriginHttpError ? error.message : error instanceof ZodError ? "Validation failed." : "Internal server error.";
-    const details = error instanceof OriginHttpError ? error.details : error instanceof ZodError ? error.flatten() : undefined;
+    const status = error instanceof OriginHttpError || error instanceof SourceJobDeletionError ? error.status : error instanceof ZodError ? 400 : 500;
+    const code = error instanceof OriginHttpError || error instanceof SourceJobDeletionError ? error.code : error instanceof ZodError ? "validation_failed" : "internal_error";
+    const message = error instanceof OriginHttpError || error instanceof SourceJobDeletionError ? error.message : error instanceof ZodError ? "Validation failed." : "Internal server error.";
+    const details = error instanceof OriginHttpError || error instanceof SourceJobDeletionError ? error.details : error instanceof ZodError ? error.flatten() : undefined;
     if (status >= 500) console.error(JSON.stringify({ level: "error", event: "origin_request_failed", requestId, message: error instanceof Error ? error.message : "unknown" }));
     sendJson(response, status, { error: { code, message, details }, requestId }, requestId);
   } finally {

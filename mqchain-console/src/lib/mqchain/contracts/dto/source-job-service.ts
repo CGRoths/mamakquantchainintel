@@ -280,3 +280,30 @@ export declare function archiveSourceJob(input: unknown): Promise<{
     createdAt: Date;
     updatedAt: Date;
 }>;
+
+export type SourceJobDeletionCounts = {
+    sourceDocuments: number;
+    candidates: number;
+    approvedCandidates: number;
+    evidence: number;
+    verifications: number;
+    batches: number;
+    protectedBatches: number;
+    registryRows: number;
+    kvBuildReferences: number;
+};
+
+export type SourceJobDeletionPreview = {
+    sourceJobId: number;
+    sourceName: string | null;
+    sourceStatus: string;
+    deletable: boolean;
+    blockers: string[];
+    counts: SourceJobDeletionCounts;
+};
+
+export declare function getSourceJobDeletionPreview(sourceJobId: number): Promise<SourceJobDeletionPreview>;
+export declare function deletePendingSourceJob(input: unknown): Promise<{
+    sourceJobId: number;
+    deletedCounts: SourceJobDeletionCounts;
+}>;

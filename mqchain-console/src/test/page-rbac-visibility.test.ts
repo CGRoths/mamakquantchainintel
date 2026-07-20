@@ -10,7 +10,8 @@ import { describe, expect, it } from "vitest";
  */
 const GATED_MUTATION_PAGES: Array<{ page: string; permissions: string[] }> = [
   { page: "intake/new/page.tsx", permissions: ["intake:create"] },
-  { page: "source-jobs/[id]/page.tsx", permissions: ["intake:create", "source:verify"] },
+  { page: "source-jobs/[id]/page.tsx", permissions: ["intake:create", "intake:delete", "source:verify"] },
+  { page: "source-jobs/page.tsx", permissions: ["intake:delete"] },
   { page: "candidates/[id]/page.tsx", permissions: ["candidate:review", "candidate:evidence"] },
   { page: "review/page.tsx", permissions: ["candidate:review", "candidate:evidence"] },
   { page: "review/groups/[id]/page.tsx", permissions: ["candidate:review", "candidate:evidence"] },

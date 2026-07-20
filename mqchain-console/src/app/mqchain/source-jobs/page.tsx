@@ -1,11 +1,13 @@
 import Link from "next/link";
 
 import { DbError } from "@/components/mqchain/db-error";
+import { DeleteSourceJobDialog } from "@/components/mqchain/delete-source-job-dialog";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import { listSourceJobs } from "@/lib/mqchain/origin-client/client";
 
 function pageHref(params: Record<string, string | undefined>, page: number) {
@@ -22,7 +24,8 @@ export default async function SourceJobsPage({ searchParams }: { searchParams: P
   const params = await searchParams;
 
   try {
-    const result = await listSourceJobs(params);
+    const [result, currentUser] = await Promise.all([listSourceJobs(params), getCurrentUser()]);
+    const canDelete = roleCan(currentUser?.role, "intake:delete");
 
     return (
       <>
@@ -106,6 +109,7 @@ export default async function SourceJobsPage({ searchParams }: { searchParams: P
                   <TableHead>Status</TableHead>
                   <TableHead>Summary</TableHead>
                   <TableHead>Created</TableHead>
+                  {canDelete ? <TableHead className="text-right">Actions</TableHead> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -124,11 +128,12 @@ export default async function SourceJobsPage({ searchParams }: { searchParams: P
                         rows {String(metadata.totalRows ?? 0)} / created {String(metadata.candidatesCreated ?? 0)} / invalid {String(metadata.invalidAddresses ?? 0)}
                       </TableCell>
                       <TableCell className="font-mono text-xs">{job.createdAt.toISOString()}</TableCell>
+                      {canDelete ? <TableCell className="text-right"><DeleteSourceJobDialog sourceJobId={job.id} sourceName={job.sourceName} /></TableCell> : null}
                     </TableRow>
                   );
                 })}
                 {!result.rows.length ? (
-                  <TableRow><TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">No source jobs match these filters.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={canDelete ? 7 : 6} className="py-8 text-center text-sm text-muted-foreground">No source jobs match these filters.</TableCell></TableRow>
                 ) : null}
               </TableBody>
             </Table>

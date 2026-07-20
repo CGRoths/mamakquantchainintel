@@ -22,6 +22,19 @@ export const sourceJobArchiveSchema = z.object({
   reason: z.string().trim().optional(),
 });
 
+export const sourceJobDeletionSchema = z.object({
+  sourceJobId: z.coerce.number().int().positive(),
+  confirmation: z.string(),
+});
+
+export function sourceJobDeleteConfirmation(sourceJobId: number) {
+  return `DELETE ${sourceJobId}`;
+}
+
+export function isSourceJobDeleteConfirmation(sourceJobId: number, confirmation: string) {
+  return confirmation === sourceJobDeleteConfirmation(sourceJobId);
+}
+
 export const sourceVerificationSchema = z.object({
   sourceJobId: z.coerce.number().int().positive(),
   sourceDocumentId: optionalPositiveInt(),

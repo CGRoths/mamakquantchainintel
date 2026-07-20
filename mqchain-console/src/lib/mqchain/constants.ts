@@ -6,6 +6,7 @@ export const ROLE_PERMISSIONS: Record<MqUserRole, string[]> = {
   owner: [
     "view",
     "intake:create",
+    "intake:delete",
     "candidate:review",
     "candidate:evidence",
     "source:verify",
@@ -20,6 +21,7 @@ export const ROLE_PERMISSIONS: Record<MqUserRole, string[]> = {
   admin: [
     "view",
     "intake:create",
+    "intake:delete",
     "candidate:review",
     "candidate:evidence",
     "source:verify",
