@@ -203,7 +203,7 @@ export type CandidateDetailExportInput = {
 
 function csvEscape(value: unknown) {
   if (value === null || value === undefined) return "";
-  const text = String(value);
+  const text = typeof value === "object" ? JSON.stringify(value) : String(value);
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
@@ -229,7 +229,7 @@ function sourceReference(metadata: JsonRecord) {
     sourceRoleLabels: Array.isArray(metadata.source_role_labels)
       ? metadata.source_role_labels.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
       : [],
-    rawReference: metadataString(metadata, "rawReference"),
+    rawReference: metadata.rawReference ?? null,
     notes: metadataString(metadata, "notes"),
     metricEligibleHint: metadataString(metadata, "metricEligible"),
   };

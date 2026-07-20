@@ -33,6 +33,8 @@ import { getReviewGroupDetail, getReviewGroupsWorkspace, getReviewWorkspace } fr
 import { createSettingsUser, listSettingsUsers, updateSettingsUserAccess } from "../src/lib/mqchain/services/settings-service";
 import { archiveSourceJob, deletePendingSourceJob, getSourceJob, getSourceJobDeletionPreview, listSourceJobs, recordSourceVerification } from "../src/lib/mqchain/services/source-job-service";
 import { SourceJobDeletionError } from "../src/lib/mqchain/source-job-deletion";
+import { createResearchIntake, preflightResearchIntake, ResearchIntakeError } from "../src/lib/mqchain/services/research-intake-service";
+import { createDictionaryProposal, listDictionaryProposals, rerunDictionaryResolution, reviewDictionaryProposal } from "../src/lib/mqchain/services/dictionary-proposal-service";
 
 const BODY_LIMITS = {
   credentials: 16 * 1024,
@@ -57,7 +59,7 @@ function header(request: IncomingMessage, name: string) {
 function bodyLimitFor(method: string, pathname: string) {
   if (method === "GET" || method === "HEAD") return 0;
   if (pathname === "/v1/auth/credentials") return BODY_LIMITS.credentials;
-  if (pathname === "/v1/intake") return BODY_LIMITS.intake;
+  if (pathname === "/v1/intake" || pathname.startsWith("/v1/intake/")) return BODY_LIMITS.intake;
   if (pathname === "/v1/kv-builds" || /^\/v1\/discovery\/jobs\/\d+\/complete$/.test(pathname)) return BODY_LIMITS.manifest;
   return BODY_LIMITS.standard;
 }
@@ -178,6 +180,7 @@ async function employeeRoute(method: string, pathname: string, url: URL, body: R
   if (method === "GET" && pathname === "/v1/dictionaries") return authorized(actor, "view", listDictionaries);
   if (method === "GET" && pathname === "/v1/dictionaries/overview") return authorized(actor, "view", getDictionaryOverview);
   if (method === "GET" && pathname === "/v1/dictionaries/versions") return authorized(actor, "view", () => listDictionaryVersionHistory(query));
+  if (method === "GET" && pathname === "/v1/dictionary-proposals") return authorized(actor, "view", listDictionaryProposals);
   const dictionaryReaders: Record<string, (input: unknown) => Promise<unknown>> = { entities: listEntities, protocols: listProtocols, categories: listCategories, roles: listRoles, "key-prefixes": listKeyPrefixes };
   match = pathname.match(/^\/v1\/dictionaries\/([^/]+)$/);
   if (method === "GET" && match && dictionaryReaders[match![1]]) return authorized(actor, "view", () => dictionaryReaders[match![1]](query));
@@ -215,6 +218,11 @@ async function employeeRoute(method: string, pathname: string, url: URL, body: R
     if (!handler) throw new OriginHttpError(400, "invalid_intake_type", "Intake type is invalid.");
     return handler(body.input);
   });
+  if (method === "POST" && pathname === "/v1/intake/preflight") return authorized(actor, "intake:create", () => preflightResearchIntake(body));
+  if (method === "POST" && pathname === "/v1/intake/research") return authorized(actor, "intake:create", () => createResearchIntake(body));
+  if (method === "POST" && pathname === "/v1/dictionary-proposals") return authorized(actor, "intake:create", () => createDictionaryProposal(body));
+  if (method === "PATCH" && /^\/v1\/dictionary-proposals\/\d+$/.test(pathname)) return authorized(actor, "dictionary:edit", () => reviewDictionaryProposal(body));
+  if (method === "POST" && pathname === "/v1/dictionary-resolution/rerun") return authorized(actor, "dictionary:edit", () => rerunDictionaryResolution(body));
   match = pathname.match(/^\/v1\/candidates\/\d+\/review$/);
   if (method === "POST" && match) return authorized(actor, "candidate:review", () => {
     const functions: Record<string, (input: unknown) => Promise<unknown>> = { approve: approveCandidate, approve_suggested: approveCandidateAsSuggested, reject: rejectCandidate, needs_more_evidence: markCandidateNeedsMoreEvidence, conflict: markCandidateConflict, duplicate: markCandidateDuplicate, supersedes_registry: markCandidateSupersedesRegistry, historical_only: markCandidateHistoricalOnly, metric_ineligible: markCandidateMetricIneligible };
@@ -285,10 +293,11 @@ export async function handleOriginRequest(request: IncomingMessage, response: Se
     const result = await employeeRoute(method, url.pathname, url, body, actor);
     sendJson(response, method === "POST" && ["/v1/intake", "/v1/batches", "/v1/discovery/jobs", "/v1/kv-builds", "/v1/metric-groups", "/v1/settings/users", "/v1/network-proposals"].includes(url.pathname) ? 201 : 200, result, requestId);
   } catch (error) {
-    const status = error instanceof OriginHttpError || error instanceof SourceJobDeletionError ? error.status : error instanceof ZodError ? 400 : 500;
-    const code = error instanceof OriginHttpError || error instanceof SourceJobDeletionError ? error.code : error instanceof ZodError ? "validation_failed" : "internal_error";
-    const message = error instanceof OriginHttpError || error instanceof SourceJobDeletionError ? error.message : error instanceof ZodError ? "Validation failed." : "Internal server error.";
-    const details = error instanceof OriginHttpError || error instanceof SourceJobDeletionError ? error.details : error instanceof ZodError ? error.flatten() : undefined;
+    const domainError = error instanceof OriginHttpError || error instanceof SourceJobDeletionError || error instanceof ResearchIntakeError;
+    const status = domainError ? error.status : error instanceof ZodError ? 400 : 500;
+    const code = domainError ? error.code : error instanceof ZodError ? "validation_failed" : "internal_error";
+    const message = domainError ? error.message : error instanceof ZodError ? "Validation failed." : "Internal server error.";
+    const details = domainError ? error.details : error instanceof ZodError ? error.flatten() : undefined;
     if (status >= 500) console.error(JSON.stringify({ level: "error", event: "origin_request_failed", requestId, message: error instanceof Error ? error.message : "unknown" }));
     sendJson(response, status, { error: { code, message, details }, requestId }, requestId);
   } finally {

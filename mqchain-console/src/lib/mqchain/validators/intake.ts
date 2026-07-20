@@ -79,6 +79,15 @@ export const aiCleanedCsvIntakeSchema = csvIntakeSchema.extend({
   sourceType: z.literal("llm_cleaned_csv").default("llm_cleaned_csv"),
 });
 
+export const researchCsvPreflightSchema = csvIntakeSchema.extend({
+  sourceType: z.enum(["csv_upload", "llm_cleaned_csv"]).default("llm_cleaned_csv"),
+});
+
+export const researchCsvCreateSchema = researchCsvPreflightSchema.extend({
+  expectedDictionaryVersion: z.string().trim().length(64),
+  preflightHash: z.string().trim().length(64),
+});
+
 export const deploymentSourceIntakeSchema = z
   .object({
     sourceType: z.enum(SOURCE_TYPES).default("official_url"),

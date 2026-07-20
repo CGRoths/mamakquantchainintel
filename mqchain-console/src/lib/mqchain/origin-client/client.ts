@@ -22,6 +22,7 @@ import type * as SettingsContract from "../contracts/dto/settings-service";
 import type * as SourceContract from "../contracts/dto/source-job-service";
 import { encodeOriginActorClaims, MQCHAIN_ACTOR_HEADER, MQCHAIN_REQUEST_ID_HEADER, MQCHAIN_SIGNATURE_HEADER, signOriginRequest } from "../contracts/request-signing";
 import type { OriginCatalogFile, OriginCatalogKey, OriginCatalogResponse } from "../contracts/catalog";
+import type { ResearchIntakeCreatedDto, ResearchPreflightReportDto } from "../contracts/research-intake";
 import { originClientErrorFromResponse } from "./errors";
 import { parseOriginJson, serializeOriginBody } from "./serialization";
 
@@ -157,6 +158,12 @@ export const createAiCleanedCsvIntake = (input: unknown) => intake("ai_cleaned_c
 export const createUrlIntake = (input: unknown) => intake("url", input);
 export const createJsonEvidenceIntake = (input: unknown) => intake("json_evidence", input);
 export const createDeploymentSourceIntake = (input: unknown) => intake("deployment", input);
+export const preflightResearchIntake = (input: unknown) => mutate<ResearchPreflightReportDto>("intake:create", "/v1/intake/preflight", input);
+export const createResearchIntake = (input: unknown) => mutate<ResearchIntakeCreatedDto>("intake:create", "/v1/intake/research", input);
+export const listDictionaryProposals = () => read<Record<string, unknown>[]>("/v1/dictionary-proposals");
+export const createDictionaryProposal = (input: unknown) => mutate<Record<string, unknown>>("intake:create", "/v1/dictionary-proposals", input);
+export const reviewDictionaryProposal = (input: unknown) => mutate<Record<string, unknown>>("dictionary:edit", `/v1/dictionary-proposals/${inputId(input, "proposalId")}`, input, "PATCH");
+export const rerunDictionaryResolution = (input: unknown) => mutate<{ dictionaryVersion: string; candidatesInspected: number; candidatesUpdated: number }>("dictionary:edit", "/v1/dictionary-resolution/rerun", input);
 
 const candidateReview = (action: string, input: unknown) => mutate("candidate:review", `/v1/candidates/${inputId(input, "candidateId")}/review`, { action, input });
 export const approveCandidate = (input: unknown) => candidateReview("approve", input);

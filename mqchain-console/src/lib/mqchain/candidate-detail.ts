@@ -44,6 +44,7 @@ export type CandidateSourceVerificationContext = {
   hasVerifiedCandidate: boolean;
   hasVerifiedSourceUrl: boolean;
   matchingVerifiedCount: number;
+  matchingTrustTiers?: string[];
   status:
     | "candidate_verified"
     | "source_sheet_verified"
@@ -182,7 +183,7 @@ export function buildCandidateSourceVerificationContext(
   const hasVerifiedSourceJob = verified.some(
     (verification) => verification.verificationScope === "source_job" && verification.sourceJobId === input.candidate.sourceJobId,
   );
-  const matchingVerifiedCount = verified.filter((verification) => {
+  const matchingVerified = verified.filter((verification) => {
     if (verification.candidateId === input.candidate.id) return true;
     if (input.candidate.sourceDocumentId && verification.sourceDocumentId === input.candidate.sourceDocumentId) return true;
     if (verification.verificationScope === "source_sheet") {
@@ -193,7 +194,9 @@ export function buildCandidateSourceVerificationContext(
       return Boolean(verification.sourceJobId === input.candidate.sourceJobId && verification.sourceUrl && matchingSourceUrls.has(verification.sourceUrl));
     }
     return verification.sourceJobId === input.candidate.sourceJobId;
-  }).length;
+  });
+  const matchingVerifiedCount = matchingVerified.length;
+  const matchingTrustTiers = [...new Set(matchingVerified.map(verification => verification.sourceTrust))].sort();
 
   if (hasVerifiedCandidate) {
     return {
@@ -206,6 +209,7 @@ export function buildCandidateSourceVerificationContext(
       hasVerifiedCandidate,
       hasVerifiedSourceUrl,
       matchingVerifiedCount,
+      matchingTrustTiers,
       status: "candidate_verified",
       message: "Candidate-specific source verification is recorded.",
     };
@@ -222,6 +226,7 @@ export function buildCandidateSourceVerificationContext(
       hasVerifiedCandidate,
       hasVerifiedSourceUrl,
       matchingVerifiedCount,
+      matchingTrustTiers,
       status: hasVerifiedSourceSheet ? "source_sheet_verified" : "source_sheet_verification_missing",
       message: hasVerifiedSourceSheet
         ? "Sheet-scoped source verification matches this candidate."
@@ -240,6 +245,7 @@ export function buildCandidateSourceVerificationContext(
       hasVerifiedCandidate,
       hasVerifiedSourceUrl,
       matchingVerifiedCount,
+      matchingTrustTiers,
       status: "source_document_verified",
       message: "Source-document verification covers this candidate.",
     };
@@ -256,6 +262,7 @@ export function buildCandidateSourceVerificationContext(
       hasVerifiedCandidate,
       hasVerifiedSourceUrl,
       matchingVerifiedCount,
+      matchingTrustTiers,
       status: "source_job_verified",
       message: "Source-job verification covers this candidate.",
     };
@@ -272,6 +279,7 @@ export function buildCandidateSourceVerificationContext(
       hasVerifiedCandidate,
       hasVerifiedSourceUrl,
       matchingVerifiedCount,
+      matchingTrustTiers,
       status: "source_url_verified",
       message: "Source-URL verification matches this candidate's source URL.",
     };
@@ -287,6 +295,7 @@ export function buildCandidateSourceVerificationContext(
     hasVerifiedCandidate,
     hasVerifiedSourceUrl,
     matchingVerifiedCount,
+    matchingTrustTiers,
     status: "source_verification_missing",
     message: "No matching verified source record is linked to this candidate yet.",
   };

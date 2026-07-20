@@ -27,6 +27,14 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
     const selectedProtocol = dictionaries.protocols.find((protocol) => protocol.id === candidate.suggestedProtocolId);
     const selectedRole = dictionaries.roles.find((role) => role.roleId === candidate.suggestedRoleId);
     const candidateMetadata = candidate.metadata ?? {};
+    const normalizationStatus = typeof candidateMetadata.normalizationStatus === "string" ? candidateMetadata.normalizationStatus : null;
+    const sourceSheet = typeof candidateMetadata.sourceSheet === "string" ? candidateMetadata.sourceSheet : null;
+    const sourceRow = typeof candidateMetadata.sourceRow === "number" ? candidateMetadata.sourceRow : null;
+    const sourceSection = typeof candidateMetadata.sourceSection === "string" ? candidateMetadata.sourceSection : null;
+    const rowSourceUrl = typeof candidateMetadata.sourceUrl === "string" ? candidateMetadata.sourceUrl : null;
+    const rawReference = candidateMetadata.rawReference && typeof candidateMetadata.rawReference === "object"
+      ? JSON.stringify(candidateMetadata.rawReference, null, 2)
+      : typeof candidateMetadata.rawReference === "string" ? candidateMetadata.rawReference : null;
     const attachedEvidenceCount = detail.evidence.length;
     const reviewReason = typeof candidateMetadata.reviewReason === "string" ? candidateMetadata.reviewReason : null;
     const duplicateReason = typeof candidateMetadata.duplicateReason === "string" ? candidateMetadata.duplicateReason : null;
@@ -105,9 +113,13 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
                 <div><span className="text-muted-foreground">Quality tier</span><div className="font-mono">{candidate.qualityTier}</div></div>
                 <div><span className="text-muted-foreground">Evidence count</span><div className="font-mono">{attachedEvidenceCount}</div></div>
                 <div><span className="text-muted-foreground">Discovered by</span><div>{candidate.discoveredBy}</div></div>
-                <div><span className="text-muted-foreground">Suggested entity</span><div>{selectedEntity?.entityName ?? candidate.entityHint ?? "-"}</div></div>
-                <div><span className="text-muted-foreground">Suggested protocol</span><div>{selectedProtocol?.protocolName ?? candidate.protocolHint ?? "-"}</div></div>
-                <div><span className="text-muted-foreground">Suggested role</span><div>{selectedRole?.roleCode ?? candidate.roleHint ?? "-"}</div></div>
+                <div><span className="text-muted-foreground">Entity hint</span><div>{candidate.entityHint ?? "-"}</div></div>
+                <div><span className="text-muted-foreground">Resolved entity</span><div>{selectedEntity?.entityName ?? "Unresolved"}</div></div>
+                <div><span className="text-muted-foreground">Protocol hint</span><div>{candidate.protocolHint ?? "-"}</div></div>
+                <div><span className="text-muted-foreground">Resolved protocol</span><div>{selectedProtocol?.protocolName ?? "Unresolved"}</div></div>
+                <div><span className="text-muted-foreground">Role hint</span><div>{candidate.roleHint ?? "-"}</div></div>
+                <div><span className="text-muted-foreground">Resolved role</span><div>{selectedRole?.roleCode ?? "Unresolved"}</div></div>
+                <div><span className="text-muted-foreground">Normalization status</span><div>{normalizationStatus ?? "legacy"}</div></div>
                 <div className="md:col-span-2"><span className="text-muted-foreground">Approval flags</span><div className="mt-1"><FlagBadges flags={defaultApprovalFlags} /></div></div>
                 <div><span className="text-muted-foreground">First seen</span><div className="font-mono">{candidate.firstSeenBlock ?? "-"}</div></div>
                 <div><span className="text-muted-foreground">Last seen</span><div className="font-mono">{candidate.lastSeenBlock ?? "-"}</div></div>
@@ -140,6 +152,10 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
                 <div><span className="text-muted-foreground">Document type</span><div>{detail.sourceDocument?.documentType ?? "-"}</div></div>
                 <div><span className="text-muted-foreground">Original name</span><div>{detail.sourceDocument?.originalName ?? "-"}</div></div>
                 <div><span className="text-muted-foreground">Content hash</span><div className="break-all font-mono text-xs">{detail.sourceDocument?.contentHash ?? "-"}</div></div>
+                <div><span className="text-muted-foreground">Source sheet / row</span><div>{sourceSheet ?? "-"} / {sourceRow ?? "-"}</div></div>
+                <div><span className="text-muted-foreground">Source section</span><div>{sourceSection ?? "-"}</div></div>
+                <div className="md:col-span-2"><span className="text-muted-foreground">Row source URL</span><div className="break-all">{rowSourceUrl ?? "-"}</div></div>
+                <div className="md:col-span-2"><span className="text-muted-foreground">Raw reference</span><pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap border-l-2 pl-3 font-mono text-xs">{rawReference ?? "-"}</pre></div>
                 <div>
                   <span className="text-muted-foreground">Discovery job</span>
                   <div className="font-mono">

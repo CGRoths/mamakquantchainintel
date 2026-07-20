@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mqchain://schemas/research-normalization/MQCHAIN-RESEARCH-CSV-1",
+  "title": "MQCHAIN research normalization row",
+  "type": "object",
+  "required": ["schema_version", "dictionary_version", "address", "chain", "address_type", "source_name", "evidence_type", "trust_tier", "confidence", "quality_tier", "normalization_status"],
+  "properties": {
+    "schema_version": { "const": "MQCHAIN-RESEARCH-CSV-1" },
+    "dictionary_version": { "type": "string", "minLength": 1 },
+    "address": { "type": "string", "minLength": 1 },
+    "chain": { "type": "string", "minLength": 1 },
+    "address_type": { "enum": ["wallet_address", "validator_public_key", "staking_identifier", "consensus_identifier", "wallet_or_public_key"] },
+    "entity": { "type": "string" },
+    "entity_code": { "type": "string" },
+    "role": { "type": "string" },
+    "role_code": { "type": "string" },
+    "source_url": { "type": "string" },
+    "source_name": { "type": "string", "minLength": 1 },
+    "source_sheet": { "type": "string" },
+    "source_row": { "type": ["integer", "string"] },
+    "source_section": { "type": "string" },
+    "source_document_hash": { "type": "string" },
+    "retrieved_at": { "type": "string" },
+    "evidence_type": { "type": "string", "minLength": 1 },
+    "trust_tier": { "type": "string", "minLength": 1 },
+    "confidence": { "type": ["number", "string"] },
+    "quality_tier": { "type": ["integer", "string"] },
+    "normalization_status": { "enum": ["resolved", "review_required", "pending_entity", "pending_protocol", "pending_role", "pending_component", "pending_category", "pending_alias", "pending_network", "pending_codec", "unsupported_identifier_kind", "invalid_address", "dictionary_version_mismatch", "source_provenance_missing"] },
+    "raw_reference": { "type": ["object", "string"] }
+  },
+  "anyOf": [
+    { "required": ["entity"] },
+    { "required": ["entity_code"] }
+  ],
+  "additionalProperties": true
+}

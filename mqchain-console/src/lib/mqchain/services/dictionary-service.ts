@@ -3,21 +3,29 @@ import { and, asc, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm
 import { getDb } from "@/db/client";
 import {
   mqAddressCandidates,
+  mqAddressCodecs,
+  mqAddressNamespaces,
   mqAddressRegistry,
   mqAuditLog,
   mqCategoryDict,
+  mqChainAliases,
+  mqChainNetworks,
   mqDictionaryVersions,
   mqEntities,
   mqKvKeyPrefixDict,
   mqKvRoleDict,
   mqMetricGroupRules,
   mqMetricGroups,
+  mqNameAliases,
+  mqProtocolComponents,
   mqProtocols,
+  mqTagDict,
   mqUsers,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { buildDictionaryInventory } from "../dictionary-overview";
 import { buildDefaultFlags } from "../flags";
+import type { ResearchDictionaryItem, ResearchDictionarySnapshot } from "../research-normalization";
 import {
   categorySchema,
   categoryUpdateSchema,
@@ -451,6 +459,78 @@ export async function getDictionaryMaps() {
   }
 
   return { ...dictionaries, entityByKey, protocolByKey, roleByKey };
+}
+
+export async function getResearchDictionarySnapshot(): Promise<ResearchDictionarySnapshot> {
+  const db = getDb();
+  const [dictionaries, networks, namespaces, codecs, chainAliases, nameAliases, components, tags] = await Promise.all([
+    listDictionaries(),
+    db.select().from(mqChainNetworks).orderBy(asc(mqChainNetworks.id)),
+    db.select().from(mqAddressNamespaces).orderBy(asc(mqAddressNamespaces.id)),
+    db.select().from(mqAddressCodecs).orderBy(asc(mqAddressCodecs.id)),
+    db.select().from(mqChainAliases).where(eq(mqChainAliases.status, "approved")).orderBy(asc(mqChainAliases.id)),
+    db.select().from(mqNameAliases).where(eq(mqNameAliases.isActive, true)).orderBy(asc(mqNameAliases.id)),
+    db.select().from(mqProtocolComponents).orderBy(asc(mqProtocolComponents.id)),
+    db.select().from(mqTagDict).orderBy(asc(mqTagDict.id)),
+  ]);
+
+  const aliasesFor = (subjectKind: string, subjectId: number) => nameAliases
+    .filter(alias => alias.subjectKind === subjectKind && alias.subjectId === subjectId)
+    .map(alias => alias.alias)
+    .sort();
+  const item = (subjectKind: string, id: number, code: string, name: string): ResearchDictionaryItem => ({
+    id,
+    code,
+    name,
+    aliases: aliasesFor(subjectKind, id),
+  });
+  const codecById = new Map(codecs.map(codec => [codec.id, codec]));
+  const networkById = new Map(networks.map(network => [network.id, network]));
+  const aliasesByNetwork = new Map<number, string[]>();
+  for (const alias of chainAliases) {
+    if (alias.chainNetworkId === null) continue;
+    const values = aliasesByNetwork.get(alias.chainNetworkId) ?? [];
+    values.push(alias.rawChainName);
+    aliasesByNetwork.set(alias.chainNetworkId, values);
+  }
+
+  const networkProfiles = namespaces
+    .filter(namespace => namespace.isActive)
+    .flatMap(namespace => {
+      const network = networkById.get(namespace.chainNetworkId);
+      const codec = codecById.get(namespace.addressCodecId);
+      if (!network || !codec || !network.isActive) return [];
+      return [{
+        networkId: network.id,
+        networkCode: network.networkCode,
+        networkName: network.networkName,
+        aliases: [...new Set(aliasesByNetwork.get(network.id) ?? [])].sort(),
+        namespaceId: namespace.id,
+        prefixCode: namespace.legacyPrefixCode,
+        addressCodecId: codec.id,
+        codecCode: codec.codecCode,
+        identifierKind: codec.identifierKind,
+        parameters: {
+          addressHrp: namespace.addressHrp,
+          networkDiscriminator: namespace.networkDiscriminator,
+        },
+      }];
+    });
+
+  const snapshotWithoutVersion = {
+    entities: dictionaries.entities.map(value => item("entity", value.id, value.entityCode, value.entityName)),
+    protocols: dictionaries.protocols.map(value => item("protocol", value.id, value.protocolCode, value.protocolName)),
+    roles: dictionaries.roles.map(value => item("role", value.roleId, value.roleCode, value.roleName)),
+    categories: dictionaries.categories.map(value => item("category", value.categoryId, value.categoryCode, value.categoryName)),
+    components: components.map(value => item("component", value.id, value.componentCode, value.componentName)),
+    tags: tags.map(value => item("tag", value.id, value.tagCode, value.tagName)),
+    networkProfiles,
+  };
+
+  return {
+    dictionaryVersion: hashJson(snapshotWithoutVersion),
+    ...snapshotWithoutVersion,
+  };
 }
 
 export async function getDashboardStats() {

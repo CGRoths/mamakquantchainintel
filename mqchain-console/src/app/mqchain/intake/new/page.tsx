@@ -8,6 +8,7 @@ import {
   ManualIntakeForm,
   UrlIntakeForm,
 } from "@/components/mqchain/intake-forms";
+import { ResearchIntakeWorkflow } from "@/components/mqchain/research-intake-workflow";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 
@@ -21,6 +22,7 @@ export default async function NewIntakePage() {
         <h1 className="text-2xl font-semibold">New intake</h1>
         <p className="text-sm text-muted-foreground">Create a source job, normalize addresses, stage candidates, and attach evidence.</p>
       </div>
+      <ResearchIntakeWorkflow />
       {!canCreateIntake ? (
         <Card className="rounded-lg">
           <CardHeader>

@@ -146,6 +146,31 @@ describe("candidate export API payloads", () => {
     ]);
   });
 
+  it("preserves structured raw references in JSON and encodes them as JSON in CSV", () => {
+    const structuredRow = {
+      ...candidateRow,
+      candidate: {
+        ...candidateRow.candidate,
+        metadata: {
+          ...candidateRow.candidate.metadata,
+          rawReference: { sheet: "Cold Wallets", row: 7 },
+        },
+      },
+    };
+    const input = {
+      query: { page: 1, pageSize: 50, filters: {} },
+      rows: [structuredRow],
+      total: 1,
+      totalPages: 1,
+    };
+
+    const payload = buildCandidateExportApiResponse(input);
+    const csv = buildCandidateExportCsv(input);
+
+    expect(payload.rows[0]?.sourceReference.rawReference).toEqual({ sheet: "Cold Wallets", row: 7 });
+    expect(csv).toContain('"{""sheet"":""Cold Wallets"",""row"":7}"');
+  });
+
   it("validates candidate export formats", () => {
     expect(candidateExportApiFormatSchema.parse(undefined)).toBe("json");
     expect(candidateExportApiFormatSchema.parse("csv")).toBe("csv");

@@ -23,6 +23,8 @@ import {
   CANDIDATE_STATUSES,
   CHAIN_ALIAS_STATUSES,
   DISCOVERY_JOB_STATUSES,
+  DICTIONARY_PROPOSAL_KINDS,
+  DICTIONARY_PROPOSAL_STATUSES,
   KV_ARTIFACT_STATUSES,
   MQCHAIN_ROLES,
   NETWORK_CATALOG_STATES,
@@ -398,6 +400,38 @@ export const mqNetworkChangeProposals = pgTable(
     index("idx_mq_network_change_proposals_network").on(table.networkId),
     check("ck_mq_network_change_proposals_type", sql`${table.changeType} in (${sqlStringList(NETWORK_CHANGE_TYPES)})`),
     check("ck_mq_network_change_proposals_status", sql`${table.status} in (${sqlStringList(NETWORK_CHANGE_STATUSES)})`),
+  ],
+);
+
+export const mqDictionaryProposals = pgTable(
+  "mq_dictionary_proposals",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    proposalKind: text("proposal_kind").notNull(),
+    proposedCode: text("proposed_code").notNull(),
+    proposedName: text("proposed_name").notNull(),
+    targetReferences: jsonb("target_references").$type<Record<string, unknown>>().notNull().default({}),
+    proposedValues: jsonb("proposed_values").$type<Record<string, unknown>>().notNull().default({}),
+    sourceJobId: bigint("source_job_id", { mode: "number" }).references(() => mqSourceJobs.id),
+    sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(() => mqSourceDocuments.id),
+    candidateId: bigint("candidate_id", { mode: "number" }).references(() => mqAddressCandidates.id),
+    affectedRowReferences: jsonb("affected_row_references").$type<unknown[]>().notNull().default([]),
+    reason: text("reason").notNull(),
+    evidence: jsonb("evidence").$type<Record<string, unknown>>().notNull().default({}),
+    status: text("status").notNull().default("pending"),
+    requestedBy: uuid("requested_by").notNull().references(() => mqUsers.id),
+    reviewedBy: uuid("reviewed_by").references(() => mqUsers.id),
+    reviewNotes: text("review_notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_mq_dictionary_proposals_status").on(table.status),
+    index("idx_mq_dictionary_proposals_kind").on(table.proposalKind),
+    index("idx_mq_dictionary_proposals_source_job").on(table.sourceJobId),
+    check("ck_mq_dictionary_proposals_kind", sql`${table.proposalKind} in (${sqlStringList(DICTIONARY_PROPOSAL_KINDS)})`),
+    check("ck_mq_dictionary_proposals_status", sql`${table.status} in (${sqlStringList(DICTIONARY_PROPOSAL_STATUSES)})`),
   ],
 );
 

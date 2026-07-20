@@ -5,7 +5,8 @@ import { mqAddressCandidates, mqAddressEvidence, mqAddressRegistry, mqApprovalEv
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { buildCandidateSourceVerificationContext, isCandidateSourceVerificationSatisfied } from "../candidate-detail";
 import { LABEL_STATUS } from "../constants";
-import { FLAG_BITS, applyMetricEligibilityToFlags, clearFlag, markHistoricalOnlyFlags } from "../flags";
+import { FLAG_BITS, applyMetricEligibilityToFlags, clearFlag, hasFlag, markHistoricalOnlyFlags } from "../flags";
+import { validateMetricEligibility } from "../metric-eligibility";
 import { buildCandidateReviewAuditPayload } from "../review";
 import {
   approvalEditSchema,
@@ -81,6 +82,7 @@ async function assertCandidateSourceVerified(
   if (!isCandidateSourceVerificationSatisfied(context.status)) {
     throw new Error(`Candidate ${candidate.id} must have verified source context before approval. ${context.message}`);
   }
+  return context;
 }
 
 function baseApprovalDraft(
@@ -116,9 +118,23 @@ export async function approveCandidate(input: unknown) {
       throw new Error("Candidate not found.");
     }
     await assertCandidateHasAttachedEvidence(tx, candidate.id);
-    await assertCandidateSourceVerified(tx, candidate);
+    const sourceVerification = await assertCandidateSourceVerified(tx, candidate);
+    const [role] = await tx.select().from(mqKvRoleDict).where(eq(mqKvRoleDict.roleId, parsed.roleId)).limit(1);
+    if (!role) throw new Error("Resolved role not found.");
 
-    const draftFlags = applyMetricEligibilityToFlags(parsed.flags, parsed.metricEligible === "true");
+    const metricEligibility = validateMetricEligibility({
+      requested: parsed.metricEligible === "true",
+      roleCode: role.roleCode,
+      roleMetricUsageDefault: role.metricUsageDefault,
+      confidenceScore: parsed.confidenceScore,
+      labelStatus: parsed.labelStatus,
+      identifierKind: typeof candidate.metadata?.identifierKind === "string" ? candidate.metadata.identifierKind : "wallet_address",
+      sourceVerificationSatisfied: true,
+      matchingTrustTiers: sourceVerification.matchingTrustTiers ?? [],
+    });
+    if (parsed.metricEligible === "true" && !metricEligibility.eligible) throw new Error(`Metric eligibility blocked: ${metricEligibility.blockers.join(", ")}.`);
+
+    const draftFlags = applyMetricEligibilityToFlags(parsed.flags, metricEligibility.eligible);
     const approvalDraft = {
       entityId: parsed.entityId,
       protocolId: optionalNumber(parsed.protocolId),
@@ -127,7 +143,7 @@ export async function approveCandidate(input: unknown) {
       qualityTier: parsed.qualityTier,
       labelStatus: parsed.labelStatus,
       flags: draftFlags,
-      metricEligible: parsed.metricEligible === "true",
+      metricEligible: metricEligibility.eligible,
       validFromBlock: optionalNumber(parsed.validFromBlock),
       validToBlock: optionalNumber(parsed.validToBlock),
       firstSeenBlock: optionalNumber(parsed.firstSeenBlock),
@@ -160,7 +176,7 @@ export async function approveCandidate(input: unknown) {
       reason: parsed.notes || "Approved with review edits.",
       beforeJson: candidate,
       afterJson: updated,
-      metadata: { approvalDraft, metricEligible: parsed.metricEligible === "true" },
+      metadata: { approvalDraft, metricEligible: metricEligibility.eligible },
     });
 
     await tx.insert(mqAuditLog).values({
@@ -194,13 +210,25 @@ export async function approveCandidateAsSuggested(input: unknown) {
       throw new Error("Candidate not found.");
     }
     await assertCandidateHasAttachedEvidence(tx, candidate.id);
-    await assertCandidateSourceVerified(tx, candidate);
+    const sourceVerification = await assertCandidateSourceVerified(tx, candidate);
 
     if (!candidate.suggestedEntityId || !candidate.suggestedRoleId) {
       throw new Error("Candidate needs suggested entity and role before quick approval.");
     }
 
     const [role] = await tx.select().from(mqKvRoleDict).where(eq(mqKvRoleDict.roleId, candidate.suggestedRoleId)).limit(1);
+    if (!role) throw new Error("Resolved role not found.");
+    const requestedMetricEligible = hasFlag(role.defaultFlags, FLAG_BITS.metricEligible);
+    const metricEligibility = validateMetricEligibility({
+      requested: requestedMetricEligible,
+      roleCode: role.roleCode,
+      roleMetricUsageDefault: role.metricUsageDefault,
+      confidenceScore: candidate.confidenceScore,
+      labelStatus: LABEL_STATUS.activeCurrent,
+      identifierKind: typeof candidate.metadata?.identifierKind === "string" ? candidate.metadata.identifierKind : "wallet_address",
+      sourceVerificationSatisfied: true,
+      matchingTrustTiers: sourceVerification.matchingTrustTiers ?? [],
+    });
     const approvalDraft = {
       entityId: candidate.suggestedEntityId,
       protocolId: candidate.suggestedProtocolId ?? null,
@@ -208,7 +236,8 @@ export async function approveCandidateAsSuggested(input: unknown) {
       confidenceScore: candidate.confidenceScore,
       qualityTier: candidate.qualityTier,
       labelStatus: LABEL_STATUS.activeCurrent,
-      flags: role?.defaultFlags ?? 0,
+      flags: applyMetricEligibilityToFlags(role.defaultFlags, metricEligibility.eligible),
+      metricEligible: metricEligibility.eligible,
       validFromBlock: null,
       validToBlock: null,
       firstSeenBlock: candidate.firstSeenBlock,

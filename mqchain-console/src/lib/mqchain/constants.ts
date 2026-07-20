@@ -115,6 +115,8 @@ export const NETWORK_CATALOG_STATES = ["catalogued", "disabled"] as const;
 export const NETWORK_READINESS_STATES = ["not_ready", "prepared", "test_ready", "production_ready"] as const;
 export const NETWORK_CHANGE_TYPES = ["create", "update", "activate", "deactivate", "capability_update"] as const;
 export const NETWORK_CHANGE_STATUSES = ["pending", "approved", "rejected", "applied"] as const;
+export const DICTIONARY_PROPOSAL_KINDS = ["entity", "protocol", "role", "component", "category", "tag", "alias", "network", "codec"] as const;
+export const DICTIONARY_PROPOSAL_STATUSES = ["pending", "approved", "rejected", "applied"] as const;
 export const CHAIN_ALIAS_STATUSES = ["approved", "pending_mapping", "pending_network", "not_a_network", "unsupported"] as const;
 export const ADDRESS_IDENTIFIER_KINDS = [
   "wallet_address",

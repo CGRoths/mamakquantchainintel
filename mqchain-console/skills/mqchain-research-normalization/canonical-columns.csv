@@ -1,0 +1,40 @@
+position,column,required_for_resolved_wallet,description
+1,schema_version,true,CSV contract version
+2,dictionary_version,true,Generated dictionary bundle version
+3,address,true,Raw identifier text
+4,chain,true,Canonical network code or approved alias
+5,source_chain_label,false,Original source network label
+6,address_type,true,Identifier kind
+7,entity,false,Canonical entity name
+8,entity_code,false,Canonical entity code
+9,protocol,false,Canonical protocol name
+10,protocol_code,false,Canonical protocol code
+11,category_code,false,Canonical category code
+12,role,false,Canonical role name
+13,role_code,false,Canonical role code
+14,component_code,false,Protocol-specific component code
+15,component_name,false,Raw component name
+16,component_type,false,Component class
+17,tags,false,Pipe-separated canonical tag codes
+18,source_url,false,Source URL
+19,source_name,true,Human-readable source name
+20,source_sheet,false,Workbook sheet
+21,source_row,false,One-based source row
+22,source_section,false,Document section
+23,source_document_hash,false,Source document content hash
+24,retrieved_at,true,Retrieval timestamp
+25,evidence_type,true,Evidence class
+26,trust_tier,true,Claimed source trust only
+27,confidence,true,Research confidence 0-100
+28,quality_tier,true,Quality tier
+29,metric_eligible,true,Requested metric eligibility
+30,verification_scope,false,Required verification scope
+31,normalization_status,true,Deterministic row status
+32,proposed_entity_code,false,Unapproved proposal code
+33,proposed_protocol_code,false,Unapproved proposal code
+34,proposed_role_code,false,Unapproved proposal code
+35,proposed_component_code,false,Unapproved proposal code
+36,proposal_reason,false,Reason for governed proposal
+37,source_role_label,false,Original source role label
+38,notes,false,Research notes
+39,raw_reference,false,JSON object preserving source detail

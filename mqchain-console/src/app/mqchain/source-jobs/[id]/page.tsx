@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { DbError } from "@/components/mqchain/db-error";
 import { DeleteSourceJobDialog } from "@/components/mqchain/delete-source-job-dialog";
-import { ArchiveSourceJobForm, SourceVerificationForm } from "@/components/mqchain/source-job-forms";
+import { ArchiveSourceJobForm, RerunDictionaryResolutionForm, SourceVerificationForm } from "@/components/mqchain/source-job-forms";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,6 +83,7 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
     const canArchive = roleCan(currentUser?.role, "intake:create");
     const canDelete = roleCan(currentUser?.role, "intake:delete");
     const canVerifySource = roleCan(currentUser?.role, "source:verify");
+    const canEditDictionary = roleCan(currentUser?.role, "dictionary:edit");
     const summary = detail.sourceJob.metadata as Record<string, unknown>;
     const operationalSummary = buildSourceJobOperationalSummary({
       status: detail.sourceJob.status,
@@ -233,6 +234,12 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
             <CardContent>
               <SourceVerificationForm defaultSourceUrl={detail.sourceJob.sourceUrl} sourceJobId={detail.sourceJob.id} />
             </CardContent>
+          </Card>
+        ) : null}
+        {canEditDictionary ? (
+          <Card className="rounded-lg">
+            <CardHeader><CardTitle>Dictionary resolution</CardTitle></CardHeader>
+            <CardContent><RerunDictionaryResolutionForm sourceJobId={detail.sourceJob.id} /></CardContent>
           </Card>
         ) : null}
         <section className="grid gap-4 xl:grid-cols-3">

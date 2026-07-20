@@ -28,6 +28,7 @@ import { buildSourceJobIntakeAuditPayload, buildSourceJobScopeSummary, type Sour
 import { fetchSourceText } from "../source-url";
 import { defaultEvidenceTrustTierForSource, normalizeEvidenceTrustTier } from "../trust";
 import type { CsvIntakeRow } from "../types";
+import type { NormalizedAddress } from "../types";
 import {
   aiCleanedCsvIntakeSchema,
   csvIntakeSchema,
@@ -50,6 +51,16 @@ export type IntakeSummary = {
   evidenceCreated: number;
   conflictsFound: number;
   errors: string[];
+};
+
+export type PreparedCsvIntakeRow = CsvIntakeRow & {
+  preflightNormalization?: NormalizedAddress;
+  preflightResolution?: {
+    entityId: number | null;
+    protocolId: number | null;
+    roleId: number | null;
+    roleCode: string | null;
+  };
 };
 
 function cleanKey(value: unknown) {
@@ -289,8 +300,8 @@ export async function createJsonEvidenceIntake(formInput: unknown): Promise<Inta
   });
 }
 
-async function createCandidatesFromRows(
-  rows: CsvIntakeRow[],
+export async function createCandidatesFromRows(
+  rows: PreparedCsvIntakeRow[],
   source: {
     sourceType: string;
     sourceName: string;
@@ -350,7 +361,7 @@ async function createCandidatesFromRows(
 
     for (const [rowIndex, row] of rows.entries()) {
       const rawAddress = row.address ?? "";
-      const normalized = normalizeAddress(rawAddress, row.chain);
+      const normalized = row.preflightNormalization ?? normalizeAddress(rawAddress, row.chain);
 
       if (!normalized.isValid) {
         invalidAddresses += 1;
@@ -383,11 +394,15 @@ async function createCandidatesFromRows(
         )
         .limit(1);
 
-      const hints = await resolveHints(row, {
+      const hints = row.preflightResolution ? null : await resolveHints(row, {
         entityHint: source.entityHint,
         protocolHint: source.protocolHint,
         roleHint: row.role,
       });
+      const suggestedEntityId = row.preflightResolution?.entityId ?? hints?.entity?.id;
+      const suggestedProtocolId = row.preflightResolution?.protocolId ?? hints?.protocol?.id;
+      const suggestedRoleId = row.preflightResolution?.roleId ?? hints?.role?.roleId;
+      const suggestedRoleCode = row.preflightResolution?.roleCode ?? hints?.role?.roleCode;
 
       const confidenceScore = Math.max(0, Math.min(100, Number(row.confidence ?? 50) || 50));
       const qualityTier = Math.max(QUALITY_TIER_MIN, Math.min(QUALITY_TIER_MAX, Number(row.quality_tier ?? 1) || 1));
@@ -410,9 +425,9 @@ async function createCandidatesFromRows(
           entityHint: row.entity || source.entityHint,
           protocolHint: row.protocol || source.protocolHint,
           roleHint: row.role,
-          suggestedEntityId: hints.entity?.id,
-          suggestedProtocolId: hints.protocol?.id,
-          suggestedRoleId: hints.role?.roleId,
+          suggestedEntityId,
+          suggestedProtocolId,
+          suggestedRoleId,
           confidenceScore,
           qualityTier,
           candidateStatus,
@@ -423,6 +438,17 @@ async function createCandidatesFromRows(
           lastSeenBlock: optionalNumber(row.last_seen_block),
           metadata: {
             rowIndex: rowIndex + 1,
+            sourceSheet: row.source_sheet,
+            sourceRow: optionalNumber(row.source_row),
+            sourceUrl: row.source_url || source.sourceUrl,
+            sourceSection: row.source_section,
+            sourceDocumentHash: row.source_document_hash,
+            retrievedAt: row.retrieved_at,
+            dictionaryVersion: row.dictionary_version,
+            normalizationStatus: row.normalization_status,
+            identifierKind: row.identifier_kind,
+            componentHint: row.component,
+            tagHints: row.tags,
             notes: row.notes,
             metricEligible: row.metric_eligible,
             normalizerError: normalized.error,
@@ -433,6 +459,21 @@ async function createCandidatesFromRows(
             source_role_labels:
               row.source_role_labels ?? (row.source_role_label ?? row.role_source ?? row.role ? [row.source_role_label ?? row.role_source ?? row.role] : undefined),
             rawReference: row.raw_reference,
+            rawRow: row.raw_row,
+            sourceEvidence: {
+              sourceName: row.source_name || source.sourceName,
+              sourceUrl: row.source_url || source.sourceUrl,
+              sourceSheet: row.source_sheet,
+              sourceRow: optionalNumber(row.source_row),
+              sourceSection: row.source_section,
+              sourceDocumentHash: row.source_document_hash,
+              retrievedAt: row.retrieved_at,
+            },
+            normalization: {
+              schemaVersion: row.schema_version,
+              dictionaryVersion: row.dictionary_version,
+              status: row.normalization_status,
+            },
           },
         })
         .returning();
@@ -466,7 +507,7 @@ async function createCandidatesFromRows(
       sourceScopeRows.push({
         chainCode: normalized.chainCode,
         roleHint: row.role,
-        suggestedRoleCode: hints.role?.roleCode,
+        suggestedRoleCode,
       });
     }
 

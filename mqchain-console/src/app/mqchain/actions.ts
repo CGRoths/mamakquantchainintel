@@ -54,7 +54,7 @@ import {
   updateRegistryLabel,
 } from "@/lib/mqchain/origin-client/client";
 import { createSettingsUser, updateSettingsUserAccess } from "@/lib/mqchain/origin-client/client";
-import { archiveSourceJob, recordSourceVerification } from "@/lib/mqchain/origin-client/client";
+import { archiveSourceJob, recordSourceVerification, rerunDictionaryResolution } from "@/lib/mqchain/origin-client/client";
 import { csvInputFromFormData } from "@/lib/mqchain/csv-upload";
 import { formValue, runAction } from "@/lib/mqchain/origin-client/action-utils";
 import type { ActionResult } from "@/lib/mqchain/types";
@@ -124,6 +124,8 @@ export type SourceJobMutationData = {
   sourceVerificationId?: number;
   status?: string | null;
   archiveStorageUri?: string | null;
+  candidatesInspected?: number;
+  candidatesUpdated?: number;
   message: string;
 };
 
@@ -1896,6 +1898,23 @@ export async function recordSourceVerificationResultAction(
       sourceVerificationId: verification.id,
       status: verification.status,
       message: `Source verification ${verification.id} recorded; candidates still require review and batch commit.`,
+    };
+  });
+}
+
+export async function rerunDictionaryResolutionResultAction(
+  _previousState: SourceJobMutationState,
+  formData: FormData,
+): Promise<SourceJobMutationState> {
+  return runAction(async () => {
+    const sourceJobId = Number(formValue(formData, "sourceJobId"));
+    const result = await rerunDictionaryResolution({ sourceJobId });
+    revalidateSourceJobPaths(sourceJobId);
+    return {
+      sourceJobId,
+      candidatesInspected: result.candidatesInspected,
+      candidatesUpdated: result.candidatesUpdated,
+      message: `Re-resolved ${result.candidatesInspected} candidates; ${result.candidatesUpdated} suggested dictionary mappings changed. Candidate status and evidence were preserved.`,
     };
   });
 }

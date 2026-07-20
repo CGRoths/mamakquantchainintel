@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import { archiveSourceJobResultAction, recordSourceVerificationResultAction, type SourceJobMutationState } from "@/app/mqchain/actions";
+import { archiveSourceJobResultAction, recordSourceVerificationResultAction, rerunDictionaryResolutionResultAction, type SourceJobMutationState } from "@/app/mqchain/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -198,6 +198,20 @@ export function SourceVerificationForm({
           {pending ? "Recording..." : "Record verification"}
         </Button>
       </div>
+    </form>
+  );
+}
+
+export function RerunDictionaryResolutionForm({ sourceJobId }: { sourceJobId: number }) {
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState(rerunDictionaryResolutionResultAction, initialState);
+  useEffect(() => { if (state?.ok) router.refresh(); }, [router, state]);
+  return (
+    <form action={formAction} className="flex flex-wrap items-center gap-3">
+      <input type="hidden" name="sourceJobId" value={sourceJobId} />
+      <Button type="submit" variant="outline" disabled={pending}>{pending ? "Resolving..." : "Re-run dictionary resolution"}</Button>
+      {state?.ok ? <p className="text-sm text-muted-foreground">{state.data.message}</p> : null}
+      {state?.ok === false ? <p className="text-sm text-destructive">{state.error}</p> : null}
     </form>
   );
 }
