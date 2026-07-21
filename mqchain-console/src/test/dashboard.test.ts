@@ -76,6 +76,7 @@ describe("dashboard rollups", () => {
           registrySnapshotHash: "registry-snapshot-v1",
           rowCount: 3,
           expectedCounts: { addressLabelCurrent: 1, addressLabelTimeline: 1, metricGroupMembership: 1 },
+          validation: { validationRunId: 7, status: "passed", reportHash: "a".repeat(64) },
           indexes: {
             addressLabelCurrent: { indexName: "address_label_current", rowCount: 1, hash: "current-hash" },
             addressLabelTimeline: { indexName: "address_label_timeline", rowCount: 1, hash: "timeline-hash" },
@@ -126,8 +127,8 @@ describe("dashboard rollups", () => {
       // Not compiled, plus missing build hash, dictionary version, storage URI,
       // all five frozen schema versions, dictionary-version agreement, registry
       // snapshot hash, the current index's content hash, the timeline index and
-      // the metric-group index.
-      blockerCount: 14,
+      // the metric-group index, explicit expected counts, and three-way parity.
+      blockerCount: 16,
     });
   });
 });
