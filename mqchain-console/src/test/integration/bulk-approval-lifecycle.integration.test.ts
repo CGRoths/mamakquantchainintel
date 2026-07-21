@@ -25,7 +25,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
   let createBatchFromCandidates: typeof import("@/lib/mqchain/services/batch-service").createBatchFromCandidates;
   let approveBatch: typeof import("@/lib/mqchain/services/batch-service").approveBatch;
   let commitBatch: typeof import("@/lib/mqchain/services/batch-service").commitBatch;
-  let computePendingKvBuildHash: typeof import("@/lib/mqchain/kv-manifest").computePendingKvBuildHash;
+  let computeFullKvBuildRequestHash: typeof import("@/lib/mqchain/kv-manifest").computeFullKvBuildRequestHash;
 
   const actor = { id: "", email: "owner@mamakquant.local", name: "Owner", role: "owner" as const };
   const eligibleCandidateIds: number[] = [];
@@ -68,7 +68,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
       "@/lib/mqchain/services/bulk-approval-service"
     ));
     ({ createBatchFromCandidates, approveBatch, commitBatch } = await import("@/lib/mqchain/services/batch-service"));
-    ({ computePendingKvBuildHash } = await import("@/lib/mqchain/kv-manifest"));
+    ({ computeFullKvBuildRequestHash } = await import("@/lib/mqchain/kv-manifest"));
 
     // The target database is disposable, so start from a clean slate and make
     // repeated runs deterministic.
@@ -441,6 +441,31 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
   });
 
   it("requires batch approval before commit, then preserves U1 identity and the frozen KV contract", async () => {
+    const [priorBatch] = await db.insert(schema.mqLabelBatches).values({
+      sourceName: "Prior committed batch",
+      status: "committed",
+      createdBy: actor.id,
+      approvedBy: actor.id,
+      approvedAt: new Date(),
+      committedAt: new Date(),
+    }).returning();
+    const [priorRegistry] = await db.insert(schema.mqAddressRegistry).values({
+      normalizedAddress: `0x${payloadFor(999)}`,
+      chainCode: `it_eth_${NETWORK_ID}`,
+      prefixCode: 60,
+      namespaceId: NAMESPACE_ID,
+      addressCodecId: CODEC_ID,
+      payloadHex: payloadFor(999),
+      entityId: ENTITY_ID,
+      categoryId: CATEGORY_ID,
+      roleId: ROLE_ID,
+      confidenceScore: 90,
+      labelStatus: 1,
+      qualityTier: 3,
+      flags: 1,
+      approvedBatchId: priorBatch.id,
+      isActive: true,
+    }).returning();
     const batch = await runWithOriginActor(actor, () =>
       createBatchFromCandidates({ candidateIds: eligibleCandidateIds.join(","), sourceName: "Integration batch" }),
     );
@@ -475,7 +500,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
     const [kvBuild] = await db
       .select()
       .from(schema.mqKvBuilds)
-      .where(sql`${schema.mqKvBuilds.manifest}->>'batchId' = ${String(batch.id)}`);
+      .where(sql`${schema.mqKvBuilds.manifest}->>'triggeringBatchId' = ${String(batch.id)}`);
     const manifest = kvBuild.manifest as Record<string, unknown>;
 
     expect(kvBuild.dictionaryVersion).toBe(commit.dictionaryVersion);
@@ -485,11 +510,21 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
     expect(manifest.timelineSchemaVersion).toBe("MQT-U1");
     expect(manifest.metricSchemaVersion).toBe("MQG-U1");
     expect(manifest.registrySnapshotHash).toMatch(/^[0-9a-f]{64}$/);
-    expect(manifest.expectedCounts).toMatchObject({ addressLabelCurrent: 10 });
+    expect(manifest).toMatchObject({
+      reason: "full_registry_compile",
+      compileScope: "full",
+      triggeringBatchId: batch.id,
+      lastCommittedBatchId: batch.id,
+    });
+    expect(manifest.expectedCounts).toMatchObject({
+      addressLabelCurrent: 11,
+      addressLabelTimeline: 0,
+      metricGroupMembership: 0,
+    });
     expect(manifest.artifactStatus).toBe("pending_external_compile");
-    expect(manifest.registryIds).toEqual([...commit.registryIds].sort((left, right) => left - right));
+    expect(manifest.registryIds).toEqual([priorRegistry.id, ...commit.registryIds].sort((left, right) => left - right));
 
     // The recorded build hash is reproducible from the stored manifest alone.
-    expect(computePendingKvBuildHash(manifest as never)).toBe(kvBuild.buildHash);
+    expect(computeFullKvBuildRequestHash(manifest as never)).toBe(kvBuild.buildHash);
   });
 });

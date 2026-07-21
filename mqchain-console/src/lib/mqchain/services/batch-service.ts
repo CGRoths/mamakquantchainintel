@@ -32,9 +32,8 @@ import { assertBatchCandidatesStillApproved, assertSelectedCandidatesApproved, t
 import { buildBatchSourceProvenance } from "../batch-source";
 import { buildCandidateSourceVerificationContext } from "../candidate-detail";
 import { LABEL_STATUS } from "../constants";
-import { FLAG_BITS, hasFlag, markHistoricalOnlyFlags } from "../flags";
-import { computeRegistrySnapshotHash, validateU1AddressKey } from "../kv/contract";
-import { buildPendingBatchKvManifest, computePendingKvBuildHash } from "../kv-manifest";
+import { markHistoricalOnlyFlags } from "../flags";
+import { validateU1AddressKey } from "../kv/contract";
 import { parseBatchListFilters, type BatchListFilters } from "../list-filters";
 import {
   describeRegistryCommitTarget,
@@ -44,6 +43,7 @@ import {
 import { buildRegistryCommitMetadata } from "../registry-provenance";
 import { batchIdSchema, batchLifecycleSchema, createBatchSchema } from "../validators/batch";
 import { recordDictionaryVersion } from "./dictionary-service";
+import { createFullKvBuildRequest } from "./full-kv-build-service";
 import { hashJson, optionalNumber } from "./service-utils";
 
 function getApprovalDraft(candidate: typeof mqAddressCandidates.$inferSelect) {
@@ -475,7 +475,6 @@ export async function commitBatch(input: unknown) {
   const actor = await assertPermission("batch:commit");
   const parsed = batchIdSchema.parse(input);
   const db = getDb();
-  const dictionaryVersion = await recordDictionaryVersion(actor.id, "batch_commit_kv_handoff");
 
   return db.transaction(async (tx) => {
     const [batch] = await tx.select().from(mqLabelBatches).where(eq(mqLabelBatches.id, parsed.batchId)).limit(1);
@@ -740,32 +739,16 @@ export async function commitBatch(input: unknown) {
       });
     }
 
-    // The registry snapshot hash and the build hash are derived from immutable
-    // committed content only. No timestamps participate, so the same registry
-    // snapshot always reproduces the same build hash.
-    const committedRegistryRows = registryIds.length
-      ? await tx.select().from(mqAddressRegistry).where(inArray(mqAddressRegistry.id, registryIds))
-      : [];
-    const registrySnapshotHash = computeRegistrySnapshotHash(committedRegistryRows);
-    const timelineRowCount = committedRegistryRows.filter(
-      (registryRow) => registryRow.validFromBlock !== null || registryRow.validToBlock !== null,
-    ).length;
-    const metricEligibleRowCount = committedRegistryRows.filter((registryRow) =>
-      hasFlag(registryRow.flags, FLAG_BITS.metricEligible),
-    ).length;
-
-    const pendingKvManifest = buildPendingBatchKvManifest({
-      batchId: batch.id,
-      registryIds,
-      registrySnapshotHash,
-      dictionaryVersion,
-      expectedCounts: {
-        addressLabelCurrent: committedRegistryRows.filter((registryRow) => registryRow.isActive).length,
-        addressLabelTimeline: timelineRowCount,
-        metricGroupMembership: metricEligibleRowCount,
-      },
+    const fullRequest = await createFullKvBuildRequest(tx, {
+      triggeringBatchId: batch.id,
+      lastCommittedBatchId: batch.id,
     });
-    const buildHash = computePendingKvBuildHash(pendingKvManifest);
+    const dictionaryVersion = await recordDictionaryVersion(actor.id, "batch_commit_full_kv_handoff", tx);
+    if (dictionaryVersion !== fullRequest.snapshot.dictionaryVersion) {
+      throw new Error("Dictionary snapshot changed while creating the full KV request.");
+    }
+    const pendingKvManifest = fullRequest.manifest;
+    const buildHash = fullRequest.buildHash;
 
     const [kvBuild] = await tx
       .insert(mqKvBuilds)
@@ -773,7 +756,8 @@ export async function commitBatch(input: unknown) {
         buildHash,
         dictionaryVersion,
         status: "pending",
-        rowCount: registryIds.length,
+        rowCount: fullRequest.snapshot.registryIds.length,
+        lastCommittedBatchId: batch.id,
         manifest: pendingKvManifest,
         createdBy: actor.id,
       })
@@ -804,8 +788,8 @@ export async function commitBatch(input: unknown) {
         buildId: kvBuild.id,
         buildHash: kvBuild.buildHash,
         dictionaryVersion,
-        rowCount: registryIds.length,
-        registryIds,
+        rowCount: fullRequest.snapshot.registryIds.length,
+        registryIds: [...fullRequest.snapshot.registryIds],
         manifest: pendingKvManifest,
       }),
     });
@@ -827,7 +811,7 @@ export async function commitBatch(input: unknown) {
     });
 
     return { batch: updatedBatch, registryIds, dictionaryVersion };
-  });
+  }, { isolationLevel: "repeatable read" });
 }
 
 export async function getBatchCandidateCount(batchId: number) {

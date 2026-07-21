@@ -17,6 +17,15 @@ export type PendingBatchKvManifestInput = {
   expectedCounts: PendingKvExpectedCounts;
 };
 
+export type FullKvBuildManifestInput = {
+  triggeringBatchId: number;
+  lastCommittedBatchId: number;
+  registryIds: readonly number[];
+  registrySnapshotHash: string;
+  dictionaryVersion: string;
+  expectedCounts: PendingKvExpectedCounts;
+};
+
 export type KvBuildActivationCandidate = {
   status: string;
   buildHash: string | null;
@@ -334,6 +343,42 @@ export function buildPendingBatchKvManifest(input: PendingBatchKvManifestInput) 
     artifactStatus: "pending_external_compile",
     note: "RocksDB compilation is external; this manifest is the Vercel control-plane handoff.",
   };
+}
+
+export function buildPendingFullKvManifest(input: FullKvBuildManifestInput) {
+  return {
+    reason: "full_registry_compile",
+    compileScope: "full",
+    triggeringBatchId: input.triggeringBatchId,
+    lastCommittedBatchId: input.lastCommittedBatchId,
+    registryIds: [...input.registryIds].sort((left, right) => left - right),
+    registrySnapshotHash: input.registrySnapshotHash,
+    dictionaryVersion: input.dictionaryVersion,
+    ...MQCHAIN_KV_CONTRACT_SCHEMA_VERSIONS,
+    expectedCounts: { ...input.expectedCounts },
+    artifactType: "rocksdb",
+    artifactStatus: "pending_external_compile",
+    note: "Full immutable registry snapshot pending external RocksDB compilation.",
+  } as const;
+}
+
+export function computeFullKvBuildRequestHash(manifest: ReturnType<typeof buildPendingFullKvManifest>) {
+  return hashJson({
+    reason: manifest.reason,
+    compileScope: manifest.compileScope,
+    triggeringBatchId: manifest.triggeringBatchId,
+    lastCommittedBatchId: manifest.lastCommittedBatchId,
+    registryIds: manifest.registryIds,
+    registrySnapshotHash: manifest.registrySnapshotHash,
+    dictionaryVersion: manifest.dictionaryVersion,
+    dictionarySchemaVersion: manifest.dictionarySchemaVersion,
+    keySchemaVersion: manifest.keySchemaVersion,
+    valueSchemaVersion: manifest.valueSchemaVersion,
+    timelineSchemaVersion: manifest.timelineSchemaVersion,
+    metricSchemaVersion: manifest.metricSchemaVersion,
+    expectedCounts: manifest.expectedCounts,
+    artifactType: manifest.artifactType,
+  });
 }
 
 /**
