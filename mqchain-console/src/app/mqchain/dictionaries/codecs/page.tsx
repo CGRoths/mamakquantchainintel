@@ -1,9 +1,11 @@
-import { U1CatalogTable } from "@/components/mqchain/u1-catalog-table";
+import { RuntimeDictionaryTable } from "@/components/mqchain/runtime-dictionary-table";
+import { getRuntimeDictionaryDashboard } from "@/lib/mqchain/origin-client/client";
 
-export default function CodecsPage() {
-  return <U1CatalogTable title="Address codecs" description="Canonical textual, payload, checksum, and normalizer contracts." file="address_codecs.csv" columns={[
-    { key: "address_codec_id", label: "ID", mono: true }, { key: "codec_code", label: "Code", mono: true }, { key: "address_family", label: "Family" },
-    { key: "payload_rule", label: "Payload" }, { key: "checksum_behavior", label: "Checksum" }, { key: "normalizer_version", label: "Normalizer", mono: true },
-    { key: "status", label: "Status" }, { key: "verified_at", label: "Verified", mono: true }, { key: "notes", label: "Notes" },
+export default async function CodecsPage() {
+  const data = await getRuntimeDictionaryDashboard();
+  return <RuntimeDictionaryTable title="Address codecs" description="Canonical PostgreSQL codec metadata; runtime implementations remain static code." dictionaryVersion={data.dictionaryVersion} rows={data.codecs} columns={[
+    { key: "id", label: "ID", mono: true }, { key: "codecCode", label: "Code", mono: true }, { key: "codecName", label: "Codec" },
+    { key: "identifierKind", label: "Identifier" }, { key: "payloadRule", label: "Payload" }, { key: "checksumBehavior", label: "Checksum" },
+    { key: "normalizerVersion", label: "Normalizer", mono: true }, { key: "status", label: "Status" }, { key: "updatedAt", label: "Updated", mono: true },
   ]} />;
 }

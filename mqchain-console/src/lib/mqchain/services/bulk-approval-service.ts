@@ -7,10 +7,12 @@ import { mqAddressCandidates, mqApprovalEvents, mqAuditLog } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 
 import { summarizeApprovalBlockers, type CandidateApprovalBlocker } from "../candidate-approval";
+import { extractCandidateSourceSheetNames } from "../candidate-detail";
 import { buildCandidateReviewAuditPayload } from "../review";
 import { bulkApprovalExecuteSchema, bulkApprovalPreviewSchema, type BulkApprovalMode } from "../validators/bulk-approval";
 import { buildCandidateApprovalEvaluations } from "./candidate-approval-evaluation";
 import { getCanonicalDictionarySnapshot } from "./dictionary-service";
+import { idSchema } from "../validators/dictionary";
 
 type Db = ReturnType<typeof getDb>;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -85,6 +87,57 @@ export async function previewBulkCandidateApproval(input: unknown): Promise<Bulk
   });
 
   return toPreview(bundle, parsed.mode);
+}
+
+export async function getSourceJobApprovalCoverage(input: unknown) {
+  await assertPermission("candidate:review");
+  const { id: sourceJobId } = idSchema.parse(input);
+  const db = getDb();
+  const candidates = await db
+    .select()
+    .from(mqAddressCandidates)
+    .where(eq(mqAddressCandidates.sourceJobId, sourceJobId));
+  const candidateIds = candidates.map(candidate => candidate.id).sort((left, right) => left - right);
+  const snapshot = await getCanonicalDictionarySnapshot(db);
+  const bundle = candidateIds.length
+    ? await buildCandidateApprovalEvaluations({
+        reader: db,
+        candidateIds,
+        dictionaryVersion: snapshot.versionHash,
+        lockRows: false,
+        mode: "eligible_only",
+      })
+    : null;
+  const evaluationById = new Map(bundle?.evaluations.map(evaluation => [evaluation.candidateId, evaluation]) ?? []);
+  const groups = new Map<string, number[]>();
+  for (const candidate of candidates) {
+    const sheets = extractCandidateSourceSheetNames(candidate.metadata);
+    for (const sheet of sheets.length ? sheets : ["(unscoped)"]) {
+      groups.set(sheet, [...(groups.get(sheet) ?? []), candidate.id]);
+    }
+  }
+
+  return {
+    sourceJobId,
+    dictionaryVersion: snapshot.versionHash,
+    sheets: [...groups.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([sourceSheet, ids]) => {
+      const sortedIds = [...ids].sort((left, right) => left - right);
+      const eligibleCandidateIds = sortedIds.filter(id => evaluationById.get(id)?.eligible);
+      const blockedCandidateIds = sortedIds.filter(id => !evaluationById.get(id)?.eligible);
+      const verificationStatuses = new Set(sortedIds.map(id => bundle?.sourceVerificationStatusById.get(id) ?? "source_verification_missing"));
+      return {
+        sourceSheet,
+        candidateCount: sortedIds.length,
+        verification: verificationStatuses.size === 1 ? [...verificationStatuses][0] : "mixed",
+        eligibleCount: eligibleCandidateIds.length,
+        blockedCount: blockedCandidateIds.length,
+        candidateIds: sortedIds,
+        eligibleCandidateIds,
+        blockedCandidateIds,
+        selectionAllowed: sortedIds.length <= 10_000,
+      };
+    }),
+  };
 }
 
 export type BulkApprovalResult = {

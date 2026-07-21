@@ -218,7 +218,7 @@ export async function recordSourceVerification(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [sourceJob] = await tx.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, parsed.sourceJobId)).limit(1);
+    const [sourceJob] = await tx.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, parsed.sourceJobId)).limit(1).for("update");
     let candidateForScope: typeof mqAddressCandidates.$inferSelect | null = null;
     if (!sourceJob) {
       throw new Error("Source job not found.");

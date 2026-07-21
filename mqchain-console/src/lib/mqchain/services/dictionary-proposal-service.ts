@@ -145,7 +145,7 @@ export async function rerunDictionaryResolution(input: unknown) {
   const snapshot = await getResearchDictionarySnapshot();
   if (parsed.expectedDictionaryVersion && parsed.expectedDictionaryVersion !== snapshot.dictionaryVersion) throw new Error("dictionary_version_changed");
   const byKey = (items: readonly { id: number; code: string; name: string; aliases?: readonly string[] }[]) => new Map(items.flatMap(item => [item.code, item.name, ...(item.aliases ?? [])].map(value => [value.trim().toLowerCase().replace(/[_\s]+/g, "-"), item] as const)));
-  const entities = byKey(snapshot.entities), protocols = byKey(snapshot.protocols), roles = byKey(snapshot.roles);
+  const entities = byKey(snapshot.entities), protocols = byKey(snapshot.protocols), roles = byKey(snapshot.roles), components = byKey(snapshot.components);
   return getDb().transaction(async tx => {
     await tx.execute(sql`select pg_advisory_xact_lock(70424101)`);
     const conditions = [];
@@ -159,8 +159,9 @@ export async function rerunDictionaryResolution(input: unknown) {
         suggestedEntityId: entities.get(normalize(candidate.entityHint))?.id ?? null,
         suggestedProtocolId: protocols.get(normalize(candidate.protocolHint))?.id ?? null,
         suggestedRoleId: roles.get(normalize(candidate.roleHint))?.id ?? null,
+        suggestedComponentId: components.get(normalize(typeof candidate.metadata?.componentHint === "string" ? candidate.metadata.componentHint : null))?.id ?? null,
       };
-      const before = { suggestedEntityId: candidate.suggestedEntityId, suggestedProtocolId: candidate.suggestedProtocolId, suggestedRoleId: candidate.suggestedRoleId };
+      const before = { suggestedEntityId: candidate.suggestedEntityId, suggestedProtocolId: candidate.suggestedProtocolId, suggestedRoleId: candidate.suggestedRoleId, suggestedComponentId: candidate.suggestedComponentId };
       if (hashJson(before) === hashJson(after)) continue;
       await tx.update(mqAddressCandidates).set({ ...after, updatedAt: new Date() }).where(eq(mqAddressCandidates.id, candidate.id));
       changes.push({ candidateId: candidate.id, before, after });

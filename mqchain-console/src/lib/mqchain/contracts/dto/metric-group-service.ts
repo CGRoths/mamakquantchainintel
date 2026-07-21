@@ -13,6 +13,14 @@ export declare function listMetricGroups(input?: unknown): Promise<{
             activatedAt: Date | null;
             retiredAt: Date | null;
         }[];
+        previewDiagnostics: {
+            evaluatedRows: number;
+            memberRows: number;
+            excludedInactive: number;
+            excludedOutOfChainScope: number;
+            excludedMetricIneligible: number;
+            excludedRuleMismatch: number;
+        };
         id: number;
         metricGroupCode: string;
         metricGroupName: string;
@@ -25,6 +33,7 @@ export declare function listMetricGroups(input?: unknown): Promise<{
         createdAt: Date;
         updatedAt: Date;
     }[];
+    dictionaryVersion: string;
     filters: {
         active: "active" | "inactive" | "all";
         sort: "created_at" | "updated_at" | "code" | "confidence";

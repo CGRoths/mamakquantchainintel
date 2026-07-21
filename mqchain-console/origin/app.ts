@@ -16,13 +16,13 @@ import { runWithOriginActor } from "../src/lib/mqchain/origin-only/actor-context
 import { serializeOriginBody } from "../src/lib/mqchain/origin-client/serialization";
 import { listAuditTimeline } from "../src/lib/mqchain/services/audit-service";
 import { approveCandidate, approveCandidateAsSuggested, markCandidateConflict, markCandidateDuplicate, markCandidateHistoricalOnly, markCandidateMetricIneligible, markCandidateNeedsMoreEvidence, markCandidateSupersedesRegistry, rejectCandidate } from "../src/lib/mqchain/services/approval-service";
-import { BulkApprovalError, executeBulkCandidateApproval, previewBulkCandidateApproval } from "../src/lib/mqchain/services/bulk-approval-service";
-import { approveBatch, commitBatch, createBatchFromCandidates, failBatch, getBatchDetail, listBatches, supersedeBatch } from "../src/lib/mqchain/services/batch-service";
+import { BulkApprovalError, executeBulkCandidateApproval, getSourceJobApprovalCoverage, previewBulkCandidateApproval } from "../src/lib/mqchain/services/bulk-approval-service";
+import { approveBatch, BatchLifecycleError, commitBatch, createBatchFromCandidates, failBatch, getBatchDetail, listBatches, supersedeBatch } from "../src/lib/mqchain/services/batch-service";
 import { createAiCleanedCsvIntake, createCsvIntake, createDeploymentSourceIntake, createJsonEvidenceIntake, createManualIntake, createUrlIntake, getCandidateDetail, listCandidatesFromDatabase } from "../src/lib/mqchain/services/candidate-service";
 import { classifyCexTransactionFlow } from "../src/lib/mqchain/services/cex-flow-service";
 import type { CexFlowInput } from "../src/lib/mqchain/services/cex-flow-service";
 import { getDashboardOverviewFromDatabase } from "../src/lib/mqchain/services/dashboard-origin-service";
-import { createCategory, createEntity, createKeyPrefix, createProtocol, createRole, deactivateCategory, deactivateEntity, deactivateKeyPrefix, deactivateProtocol, deactivateRole, getDictionaryOverview, listCategories, listDictionaries, listDictionaryVersionHistory, listEntities, listKeyPrefixes, listProtocols, listRoles, updateCategory, updateEntity, updateKeyPrefix, updateProtocol, updateRole } from "../src/lib/mqchain/services/dictionary-service";
+import { createCategory, createEntity, createKeyPrefix, createProtocol, createRole, deactivateCategory, deactivateEntity, deactivateKeyPrefix, deactivateProtocol, deactivateRole, getDictionaryOverview, getRuntimeDictionaryDashboard, listCategories, listDictionaries, listDictionaryVersionHistory, listEntities, listKeyPrefixes, listProtocols, listRoles, updateCategory, updateEntity, updateKeyPrefix, updateProtocol, updateRole } from "../src/lib/mqchain/services/dictionary-service";
 import { completeDiscoveryJob, createDiscoveryJob, createDiscoveryJobFromRegistry, getDiscoveryJobDetail, listDiscoveryJobs } from "../src/lib/mqchain/services/discovery-service";
 import { addCandidateEvidence, addRegistryEvidence, listEvidenceLedger } from "../src/lib/mqchain/services/evidence-service";
 import { activateKvBuildManifest, createKvBuildManifest, getActiveKvBuildDetail, getKvBuildDetail, listKvBuilds } from "../src/lib/mqchain/services/kv-manifest-service";
@@ -189,6 +189,9 @@ async function employeeRoute(method: string, pathname: string, url: URL, body: R
   match = pathname.match(/^\/v1\/dictionaries\/([^/]+)$/);
   if (method === "GET" && match && dictionaryReaders[match![1]]) return authorized(actor, "view", () => dictionaryReaders[match![1]](query));
   if (method === "GET" && pathname === "/v1/metric-groups") return authorized(actor, "view", () => listMetricGroups(query));
+  if (method === "GET" && pathname === "/v1/dictionaries/runtime-u1") return authorized(actor, "view", getRuntimeDictionaryDashboard);
+  match = pathname.match(/^\/v1\/source-jobs\/(\d+)\/approval-coverage$/);
+  if (method === "GET" && match) return authorized(actor, "candidate:review", () => getSourceJobApprovalCoverage({ id: Number(match![1]) }));
   match = pathname.match(/^\/v1\/metric-groups\/([^/]+)\/members$/);
   if (method === "GET" && match) return authorized(actor, "view", () => query.byCode === "true" ? previewMetricGroupMembersByCode(decodeURIComponent(match![1]), query.focusedRegistryId ? Number(query.focusedRegistryId) : null) : previewMetricGroupMembers(Number(match![1]), query.focusedRegistryId ? Number(query.focusedRegistryId) : null));
   if (method === "GET" && pathname === "/v1/discovery/jobs") return authorized(actor, "view", () => listDiscoveryJobs(query));
@@ -303,7 +306,8 @@ export async function handleOriginRequest(request: IncomingMessage, response: Se
       error instanceof OriginHttpError ||
       error instanceof SourceJobDeletionError ||
       error instanceof ResearchIntakeError ||
-      error instanceof BulkApprovalError;
+      error instanceof BulkApprovalError ||
+      error instanceof BatchLifecycleError;
     const status = domainError ? error.status : error instanceof ZodError ? 400 : 500;
     const code = domainError ? error.code : error instanceof ZodError ? "validation_failed" : "internal_error";
     const message = domainError ? error.message : error instanceof ZodError ? "Validation failed." : "Internal server error.";

@@ -5,6 +5,7 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
+  createBatchAction,
   executeBulkCandidateApprovalResultAction,
   previewBulkCandidateApprovalResultAction,
   type BulkApprovalPreviewState,
@@ -40,7 +41,9 @@ function formatCount(value: number) {
   return value.toLocaleString("en-US");
 }
 
-export function BulkApprovalPanel({ rows }: { rows: BulkApprovalRow[] }) {
+export type BulkApprovalSelectionGroup = { label: string; candidateIds: readonly number[]; eligibleCount: number; blockedCount: number };
+
+export function BulkApprovalPanel({ rows, selectionGroups = [] }: { rows: BulkApprovalRow[]; selectionGroups?: readonly BulkApprovalSelectionGroup[] }) {
   const router = useRouter();
   const [rawSelected, setRawSelected] = useState<number[]>([]);
   const [mode, setMode] = useState<BulkApprovalMode>("eligible_only");
@@ -130,6 +133,15 @@ export function BulkApprovalPanel({ rows }: { rows: BulkApprovalRow[] }) {
           </Button>
           <span className="font-mono text-sm">Selected: {formatCount(selected.length)}</span>
         </div>
+        {selectionGroups.length ? (
+          <div className="flex flex-wrap gap-2">
+            {selectionGroups.map(group => (
+              <Button key={group.label} type="button" variant="outline" size="sm" onClick={() => setRawSelected([...group.candidateIds])} disabled={!group.candidateIds.length || group.candidateIds.length > 10_000}>
+                Select all {group.label} ({formatCount(group.candidateIds.length)})
+              </Button>
+            ))}
+          </div>
+        ) : null}
 
         <Table>
           <TableHeader>
@@ -348,6 +360,13 @@ export function BulkApprovalPanel({ rows }: { rows: BulkApprovalRow[] }) {
                 {formatCount(result.blockedCount)} blocked and left pending. No label batch was created.
               </span>
             </AlertDescription>
+            {result.approvedCandidateIds.length ? (
+              <form action={createBatchAction} className="mt-3 flex flex-wrap items-end gap-2">
+                {result.approvedCandidateIds.map(candidateId => <input key={candidateId} type="hidden" name="candidateId" value={candidateId} />)}
+                <Input name="sourceName" defaultValue={`Bulk approval ${result.bulkOperationId.slice(0, 8)}`} className="max-w-sm" />
+                <Button type="submit" size="sm">Create batch from approved candidates</Button>
+              </form>
+            ) : null}
           </Alert>
         ) : null}
       </CardContent>

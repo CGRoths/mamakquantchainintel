@@ -12,6 +12,7 @@ import {
   mqProtocolComponents,
   mqProtocols,
   mqSourceVerifications,
+  mqSourceJobs,
 } from "@/db/schema";
 
 import { buildCandidateSourceVerificationContext } from "../candidate-detail";
@@ -75,6 +76,14 @@ export async function buildCandidateApprovalEvaluations(input: {
   const normalizedAddresses = Array.from(
     new Set(candidates.map((candidate) => candidate.normalizedAddress).filter((value): value is string => Boolean(value))),
   );
+
+  if (lockRows && sourceJobIds.length) {
+    await reader
+      .select({ id: mqSourceJobs.id })
+      .from(mqSourceJobs)
+      .where(inArray(mqSourceJobs.id, sourceJobIds))
+      .for("update");
+  }
 
   const [
     evidenceCounts,

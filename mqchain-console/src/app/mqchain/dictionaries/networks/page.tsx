@@ -1,9 +1,11 @@
-import { U1CatalogTable } from "@/components/mqchain/u1-catalog-table";
+import { RuntimeDictionaryTable } from "@/components/mqchain/runtime-dictionary-table";
+import { getRuntimeDictionaryDashboard } from "@/lib/mqchain/origin-client/client";
 
-export default function NetworksPage() {
-  return <U1CatalogTable title="Chain networks" description="Explicit network identities; catalog presence does not imply production support." file="chain_networks.csv" columns={[
-    { key: "chain_network_id", label: "ID", mono: true }, { key: "network_code", label: "Code", mono: true }, { key: "network_name", label: "Network" },
-    { key: "chain_family", label: "Family" }, { key: "environment", label: "Environment" }, { key: "caip2", label: "CAIP-2", mono: true },
-    { key: "evm_chain_id", label: "EVM ID", mono: true }, { key: "is_active", label: "Active" }, { key: "verified_at", label: "Verified", mono: true },
+export default async function NetworksPage() {
+  const data = await getRuntimeDictionaryDashboard();
+  return <RuntimeDictionaryTable title="Chain networks" description="Canonical PostgreSQL network identities; catalog presence does not imply runtime readiness." dictionaryVersion={data.dictionaryVersion} rows={data.networks} columns={[
+    { key: "id", label: "ID", mono: true }, { key: "networkCode", label: "Code", mono: true }, { key: "networkName", label: "Network" },
+    { key: "chainFamily", label: "Family" }, { key: "environment", label: "Environment" }, { key: "caip2", label: "CAIP-2", mono: true },
+    { key: "evmChainId", label: "EVM ID", mono: true }, { key: "isActive", label: "Active" }, { key: "updatedAt", label: "Updated", mono: true },
   ]} />;
 }

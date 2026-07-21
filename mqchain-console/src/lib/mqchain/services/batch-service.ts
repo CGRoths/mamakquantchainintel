@@ -46,6 +46,14 @@ import { recordDictionaryVersion } from "./dictionary-service";
 import { createFullKvBuildRequest } from "./full-kv-build-service";
 import { hashJson, optionalNumber } from "./service-utils";
 
+export class BatchLifecycleError extends Error {
+  readonly status = 409 as const;
+  constructor(readonly code: string, message: string, readonly details?: unknown) {
+    super(message);
+    this.name = "BatchLifecycleError";
+  }
+}
+
 function getApprovalDraft(candidate: typeof mqAddressCandidates.$inferSelect) {
   const metadata = candidate.metadata as { approvalDraft?: Record<string, unknown> } | null;
   return metadata?.approvalDraft ?? {};
@@ -487,7 +495,7 @@ export async function commitBatch(input: unknown) {
     // must produce two separate audit records. A pending_approval batch can
     // never write registry or KV state.
     if (batch.status !== "approved") {
-      throw new Error(
+      throw new BatchLifecycleError("batch_not_approved",
         `Only approved batches can be committed; batch ${batch.id} is ${batch.status}. Approve the batch first.`,
       );
     }

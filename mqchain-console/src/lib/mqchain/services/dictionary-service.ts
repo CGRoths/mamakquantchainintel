@@ -607,6 +607,30 @@ export async function getResearchDictionarySnapshot(): Promise<ResearchDictionar
   };
 }
 
+export async function getRuntimeDictionaryDashboard() {
+  const rows = await loadCanonicalDictionaryRows();
+  const snapshot = buildCanonicalDictionarySnapshot(rows);
+  const protocolById = new Map(rows.protocols.map(protocol => [protocol.id, protocol]));
+  const componentAliases = new Map<number, string[]>();
+  for (const alias of rows.nameAliases) {
+    if (alias.subjectKind !== "component" || !alias.isActive) continue;
+    componentAliases.set(alias.subjectId, [...(componentAliases.get(alias.subjectId) ?? []), alias.alias]);
+  }
+
+  return {
+    dictionaryVersion: snapshot.versionHash,
+    networks: rows.networks.map(network => ({ ...network })),
+    namespaces: rows.namespaces.map(namespace => ({ ...namespace })),
+    codecs: rows.codecs.map(codec => ({ ...codec })),
+    components: rows.components.map(component => ({
+      ...component,
+      protocolCode: protocolById.get(component.protocolId)?.protocolCode ?? null,
+      protocolName: protocolById.get(component.protocolId)?.protocolName ?? null,
+      aliases: [...(componentAliases.get(component.id) ?? [])].sort(),
+    })),
+  };
+}
+
 export async function getDashboardStats() {
   const db = getDb();
   const [

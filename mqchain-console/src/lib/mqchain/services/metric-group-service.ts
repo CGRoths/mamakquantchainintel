@@ -6,7 +6,7 @@ import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { buildMetricGroupCompilePreviewManifest, buildPendingMetricGroupKvManifest, evaluateMetricGroupPreviewMembers } from "../metric-group-preview";
 import type { MetricGroupRule } from "../types";
 import { buildMetricGroupRule, createMetricGroupRuleSchema, createMetricGroupSchema } from "../validators/metric-group";
-import { recordDictionaryVersion } from "./dictionary-service";
+import { getCanonicalDictionarySnapshot, recordDictionaryVersion } from "./dictionary-service";
 import { idSchema } from "../validators/dictionary";
 import { parseMetricGroupListFilters, type MetricGroupListFilters } from "../list-filters";
 
@@ -71,8 +71,33 @@ export async function listMetricGroups(input: unknown = {}) {
     rulesByGroup.set(rule.metricGroupId, [...(rulesByGroup.get(rule.metricGroupId) ?? []), rule]);
   }
 
+  const [dictionary, registryRows] = await Promise.all([
+    getCanonicalDictionarySnapshot(db),
+    db
+      .select({ registry: mqAddressRegistry, entity: mqEntities, protocol: mqProtocols, role: mqKvRoleDict, category: mqCategoryDict })
+      .from(mqAddressRegistry)
+      .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
+      .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
+      .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
+      .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId)),
+  ]);
+  const previewRows = registryRows.map(row => ({
+    ...row,
+    entity: row.entity ? { ...row.entity, entityCode: row.entity.entityCode } : null,
+    role: row.role ? { ...row.role, roleCode: row.role.roleCode } : null,
+    category: row.category ? { ...row.category, categoryCode: row.category.categoryCode } : null,
+  }));
+
   return {
-    rows: rows.map((row) => ({ ...row, rules: rulesByGroup.get(row.id) ?? [] })),
+    rows: rows.map((row) => {
+      const rules = rulesByGroup.get(row.id) ?? [];
+      const activeRules = rules.filter(rule => rule.status === "active").map(rule => rule.ruleJson as MetricGroupRule);
+      const diagnostics = row.isActive
+        ? evaluateMetricGroupPreviewMembers(row, activeRules, previewRows).diagnostics
+        : { evaluatedRows: previewRows.length, memberRows: 0, excludedInactive: previewRows.length, excludedOutOfChainScope: 0, excludedMetricIneligible: 0, excludedRuleMismatch: 0 };
+      return { ...row, rules, previewDiagnostics: diagnostics };
+    }),
+    dictionaryVersion: dictionary.versionHash,
     filters,
     total,
     page: filters.page,
@@ -215,8 +240,7 @@ export async function previewMetricGroupMembers(metricGroupId: number, focusedRe
     .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
     .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
     .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-    .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId))
-    .limit(1000);
+    .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId));
 
   const ruleJson = rules.map((rule) => rule.ruleJson as MetricGroupRule);
   const previewRows = rows.map((row) => ({

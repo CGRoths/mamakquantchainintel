@@ -200,6 +200,7 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
                   <TableHead>Min confidence</TableHead>
                   <TableHead>Metric eligible</TableHead>
                   <TableHead>Active</TableHead>
+                  <TableHead>Current evaluation</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -212,6 +213,10 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
                     <TableCell className="font-mono">{group.minConfidence}</TableCell>
                     <TableCell>{group.requireMetricEligible ? "required" : "not required"}</TableCell>
                     <TableCell>{String(group.isActive)}</TableCell>
+                    <TableCell className="text-xs">
+                      <div>{group.previewDiagnostics.memberRows} members / {group.previewDiagnostics.evaluatedRows} evaluated</div>
+                      <div className="text-muted-foreground">inactive {group.previewDiagnostics.excludedInactive}; chain {group.previewDiagnostics.excludedOutOfChainScope}; metric {group.previewDiagnostics.excludedMetricIneligible}; rule {group.previewDiagnostics.excludedRuleMismatch}</div>
+                    </TableCell>
                     <TableCell className="flex justify-end gap-2">
                       <Button asChild size="sm" variant="outline">
                         <Link href={metricGroupHref(params, { preview: String(group.id) })}>Preview</Link>
@@ -222,7 +227,7 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
                 ))}
                 {!result.rows.length ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
                       No metric groups match these filters.
                     </TableCell>
                   </TableRow>
@@ -231,6 +236,7 @@ export default async function MetricGroupsPage({ searchParams }: { searchParams:
             </Table>
           </CardContent>
         </Card>
+        <p className="truncate font-mono text-xs text-muted-foreground">MQD-U1 {result.dictionaryVersion}</p>
         {canEdit && result.rows.length ? (
           <Card className="rounded-lg">
             <CardHeader>

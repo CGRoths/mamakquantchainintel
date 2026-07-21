@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { DbError } from "@/components/mqchain/db-error";
 import { DeleteSourceJobDialog } from "@/components/mqchain/delete-source-job-dialog";
+import { BulkApprovalPanel, type BulkApprovalRow } from "@/components/mqchain/bulk-approval-panel";
 import { ArchiveSourceJobForm, RerunDictionaryResolutionForm, SourceVerificationForm } from "@/components/mqchain/source-job-forms";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentUser, roleCan } from "@/lib/auth/permissions";
 import type { DistributionRow } from "@/lib/mqchain/batch-detail";
-import { getSourceJob } from "@/lib/mqchain/origin-client/client";
+import { getSourceJob, getSourceJobApprovalCoverage } from "@/lib/mqchain/origin-client/client";
 import { buildSourceJobOperationalSummary } from "@/lib/mqchain/source-job";
 
 function DistributionTable({ rows, emptyLabel }: { rows: DistributionRow[]; emptyLabel: string }) {
@@ -84,6 +85,8 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
     const canDelete = roleCan(currentUser?.role, "intake:delete");
     const canVerifySource = roleCan(currentUser?.role, "source:verify");
     const canEditDictionary = roleCan(currentUser?.role, "dictionary:edit");
+    const canReview = roleCan(currentUser?.role, "candidate:review");
+    const approvalCoverage = canReview ? await getSourceJobApprovalCoverage(detail.sourceJob.id) : null;
     const summary = detail.sourceJob.metadata as Record<string, unknown>;
     const operationalSummary = buildSourceJobOperationalSummary({
       status: detail.sourceJob.status,
@@ -94,6 +97,21 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
     });
     const archived = operationalSummary.archived;
     const candidateAddresses = candidateAddressById(detail.candidates);
+    const bulkApprovalRows: BulkApprovalRow[] = detail.candidates
+      .filter(candidate => candidate.candidateStatus === "pending")
+      .map(candidate => ({
+        candidateId: candidate.id,
+        normalizedAddress: candidate.normalizedAddress,
+        chainCode: candidate.chainCode,
+        entityLabel: candidate.entityHint ?? String(candidate.suggestedEntityId ?? "Unresolved entity"),
+        roleLabel: candidate.roleHint ?? String(candidate.suggestedRoleId ?? "Unresolved role"),
+        componentHint: typeof candidate.metadata.componentHint === "string" ? candidate.metadata.componentHint : null,
+        resolvedComponentId: candidate.suggestedComponentId,
+        proposedComponentCode: null,
+        confidenceScore: candidate.confidenceScore,
+        qualityTier: candidate.qualityTier,
+        quickApprovable: false,
+      }));
 
     return (
       <>
@@ -242,6 +260,20 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
             <CardContent><RerunDictionaryResolutionForm sourceJobId={detail.sourceJob.id} /></CardContent>
           </Card>
         ) : null}
+        {approvalCoverage ? (<>
+          <Card className="rounded-lg">
+            <CardHeader><CardTitle>Verification coverage and approval</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <Table>
+                <TableHeader><TableRow><TableHead>Sheet</TableHead><TableHead>Candidates</TableHead><TableHead>Verification</TableHead><TableHead>Eligible</TableHead><TableHead>Blocked</TableHead></TableRow></TableHeader>
+                <TableBody>{approvalCoverage.sheets.map(sheet => (
+                  <TableRow key={sheet.sourceSheet}><TableCell>{sheet.sourceSheet}</TableCell><TableCell className="font-mono">{sheet.candidateCount}</TableCell><TableCell><StatusBadge status={sheet.verification} /></TableCell><TableCell className="font-mono">{sheet.eligibleCount}</TableCell><TableCell className="font-mono">{sheet.blockedCount}</TableCell></TableRow>
+                ))}</TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+          <BulkApprovalPanel rows={bulkApprovalRows} selectionGroups={approvalCoverage.sheets.map(sheet => ({ label: sheet.sourceSheet, candidateIds: sheet.candidateIds, eligibleCount: sheet.eligibleCount, blockedCount: sheet.blockedCount }))} />
+        </>) : null}
         <section className="grid gap-4 xl:grid-cols-3">
           <Card className="rounded-lg"><CardHeader><CardTitle>Chains</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.candidateRollup.chainDistribution} emptyLabel="No chains." /></CardContent></Card>
           <Card className="rounded-lg"><CardHeader><CardTitle>Confidence</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.candidateRollup.confidenceDistribution} emptyLabel="No confidence data." /></CardContent></Card>

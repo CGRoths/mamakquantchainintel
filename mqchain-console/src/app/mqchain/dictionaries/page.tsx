@@ -90,7 +90,7 @@ export default async function DictionariesPage() {
           <CardHeader><CardTitle>U1 governed catalogs</CardTitle><CardDescription>Inspect universal networks, codecs, components, assets, standards, and honest capability status.</CardDescription></CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             {[
-              ["Networks", "/mqchain/dictionaries/networks"], ["Codecs", "/mqchain/dictionaries/codecs"], ["Components", "/mqchain/dictionaries/components"],
+              ["Networks", "/mqchain/dictionaries/networks"], ["Namespaces", "/mqchain/dictionaries/namespaces"], ["Codecs", "/mqchain/dictionaries/codecs"], ["Components", "/mqchain/dictionaries/components"],
               ["Assets", "/mqchain/dictionaries/assets"], ["Token standards", "/mqchain/dictionaries/token-standards"], ["Coverage", "/mqchain/dictionaries/coverage"],
               ["Network support", "/mqchain/dictionaries/network-support"],
             ].map(([label, href]) => <Button key={href} asChild variant="outline"><Link href={href}>{label}</Link></Button>)}

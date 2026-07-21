@@ -24,6 +24,8 @@ import type * as SourceContract from "../contracts/dto/source-job-service";
 import { encodeOriginActorClaims, MQCHAIN_ACTOR_HEADER, MQCHAIN_REQUEST_ID_HEADER, MQCHAIN_SIGNATURE_HEADER, signOriginRequest } from "../contracts/request-signing";
 import type { OriginCatalogFile, OriginCatalogKey, OriginCatalogResponse } from "../contracts/catalog";
 import type { ResearchIntakeCreatedDto, ResearchPreflightReportDto } from "../contracts/research-intake";
+import type { RuntimeDictionaryDashboardDto } from "../contracts/runtime-dictionaries";
+import type { SourceJobApprovalCoverageDto } from "../contracts/source-approval-coverage";
 import { originClientErrorFromResponse } from "./errors";
 import { parseOriginJson, serializeOriginBody } from "./serialization";
 
@@ -110,6 +112,7 @@ export const listCandidates = (input?: unknown) => read<ServiceResult<typeof Can
 export const getCandidateDetail = (id: number) => read<ServiceResult<typeof CandidateContract.getCandidateDetail>>(`/v1/candidates/${id}`);
 export const listSourceJobs = (input?: unknown) => read<ServiceResult<typeof SourceContract.listSourceJobs>>("/v1/source-jobs", input);
 export const getSourceJob = (id: number) => read<ServiceResult<typeof SourceContract.getSourceJob>>(`/v1/source-jobs/${id}`);
+export const getSourceJobApprovalCoverage = (id: number) => employeeRequest<SourceJobApprovalCoverageDto>("candidate:review", `/v1/source-jobs/${id}/approval-coverage`);
 export const getSourceJobDeletionPreview = (id: number) => employeeRequest<ServiceResult<typeof SourceContract.getSourceJobDeletionPreview>>("intake:delete", `/v1/source-jobs/${id}/delete-preview`);
 export const deleteSourceJob = (id: number, confirmation: string) => mutate<ServiceResult<typeof SourceContract.deletePendingSourceJob>>("intake:delete", `/v1/source-jobs/${id}`, { confirmation }, "DELETE");
 export const getReviewWorkspace = (input?: unknown) => read<ServiceResult<typeof ReviewContract.getReviewWorkspace>>("/v1/review", input);
@@ -132,6 +135,7 @@ export const listProtocols = (input?: unknown) => read<ServiceResult<typeof Dict
 export const listCategories = (input?: unknown) => read<ServiceResult<typeof DictionaryContract.listCategories>>("/v1/dictionaries/categories", input);
 export const listRoles = (input?: unknown) => read<ServiceResult<typeof DictionaryContract.listRoles>>("/v1/dictionaries/roles", input);
 export const listKeyPrefixes = (input?: unknown) => read<ServiceResult<typeof DictionaryContract.listKeyPrefixes>>("/v1/dictionaries/key-prefixes", input);
+export const getRuntimeDictionaryDashboard = () => read<RuntimeDictionaryDashboardDto>("/v1/dictionaries/runtime-u1");
 export const listMetricGroups = (input?: unknown) => read<ServiceResult<typeof MetricContract.listMetricGroups>>("/v1/metric-groups", input);
 export const previewMetricGroupMembers = (metricGroupId: number, focusedRegistryId?: number | null) => read<ServiceResult<typeof MetricContract.previewMetricGroupMembers>>(`/v1/metric-groups/${metricGroupId}/members`, { focusedRegistryId });
 export const previewMetricGroupMembersByCode = (code: string, focusedRegistryId?: number | null) => read<ServiceResult<typeof MetricContract.previewMetricGroupMembersByCode>>(`/v1/metric-groups/${encodeURIComponent(code)}/members`, { focusedRegistryId, byCode: true });
