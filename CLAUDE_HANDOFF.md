@@ -1,5 +1,41 @@
 # MAMAKQUANTCHAIN U1 Claude Handoff
 
+## Canonical PostgreSQL-Compiled U1 to RocksDB Lifecycle (2026-07-22)
+
+Implementation commits in `C:\MAMAKQUANT\mamakquantchain\mqchain-console`:
+
+- `05d69de` canonical full KV request and transactional dictionary snapshot
+- `8b7e25a` database dictionaries and governed source-sheet bulk approval
+- `453b4de` exact PostgreSQL compiled U1 entries, lineage, validation, and activation gates
+- `7f23a18` deterministic real-RocksDB compiler and three-way byte parity
+- `7e0d033` dashboard parity-contract fixtures
+
+Start with `src/lib/mqchain/services/full-kv-build-service.ts`, `src/lib/mqchain/kv/compiled-records.ts`, `tools/kv-compiler/compiler.ts`, and additive migration `drizzle/0014_amusing_cardiac.sql`. The compile request now covers the complete serving universe and actual unique metric-group memberships. A compiled build links to its pending request through `mq_kv_builds.compile_request_build_id`. The compiler encodes one canonical sorted record stream, inserts it into `mq_kv_compiled_entries` in bounded batches, writes the same Buffers into three immutable RocksDB databases, reads both destinations back, persists three-way results in `mq_kv_validation_runs`, and only then marks the derived build compiled. Activation requires explicit expected counts, complete PostgreSQL compiled-entry accounting, and the latest persisted `three_way_u1_parity` validation to be passed. Activation remains manual.
+
+Runtime network/namespace/codec/component pages now read signed Origin PostgreSQL projections. Metric previews use the same evaluator as compilation. Sheet approval coverage freezes explicit sorted IDs, defaults to `eligible_only`, reports blocked IDs, and keeps batch creation separate. Codec compilation is fail-closed: only `production_ready` passes. Build 5 was not modified or deleted.
+
+The host loaded and exercised actual `rocksdb@5.2.1` successfully. This binding is deprecated and added npm audit findings; replace it only with another verified RocksDB implementation, never LevelDB or a fake backend. The binding lacks column-family support in this integration, so artifacts use three clearly named RocksDB databases.
+
+Verification completed:
+
+```text
+Vitest: 90 files passed, 1 skipped; 568 tests passed, 5 skipped
+TypeScript: passed
+ESLint: passed
+Next.js production build: passed
+Real RocksDB write/read test: passed
+Known warning: missing node_modules/typescript/lib/typescript.js.map
+```
+
+`MQCHAIN_TEST_DATABASE_URL` was unset. Therefore migration `0014` was not applied, no new pending or compiled build was created, no compiled-entry/validation row counts or semantic hashes exist from a database E2E run, and no production activation occurred. Do not use `.env.local` for destructive validation. Provision a disposable PostgreSQL database, set `MQCHAIN_TEST_DATABASE_URL`/a temporary `DATABASE_URL`, run migrations, then execute:
+
+```powershell
+npm.cmd run kv:request-full -- --triggering-batch-id <committed-batch-id>
+npm.cmd run kv:compile -- --build-id <new-request-id> --artifact-root D:\MAMAKQUANT_DATA\mqchain\rocksdb
+```
+
+Before production rollout, finish the remaining gaps: split `kv:verify`, `kv:register`, and `kv:parity` into independent artifact commands (they currently enter the compile orchestrator); move final registration behind the signed Origin route instead of the compiler's direct derived-table transaction; add disposable-PostgreSQL rollback/idempotency/retention tests; paginate the source-job candidate/evidence detail queries; and expose imported, MQCHAIN verification, and effective trust as separate fields. Do not claim the full end-to-end run until those steps produce real build IDs, per-index counts/hashes, a validation-run ID, and a clean activation preflight.
+
 ## Safe Pending Source-Job Deletion (2026-07-20)
 
 Owner/admin-only deletion of non-canonical source jobs is implemented in `C:\MAMAKQUANT\mamakquantchain\mqchain-console`. Start with:
