@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { loadAndValidateU1Catalog } from "@/lib/mqchain/catalog/u1";
+import { MAX_STABLE_DICTIONARY_ID } from "@/lib/mqchain/kv/contract";
 import { networkChangeProposalSchema, networkChangeReviewSchema } from "@/lib/mqchain/validators/network-support";
 
 function requiredString(values: Record<string, unknown>, key: string) {
@@ -161,6 +162,7 @@ export async function reviewNetworkChangeProposal(input: unknown) {
       const [range] = await tx.select().from(mqDictionaryIdRanges).where(eq(mqDictionaryIdRanges.rangeCode, "u1_networks")).limit(1);
       if (!range) throw new Error("Network allocation range is missing.");
       networkId = range.nextId;
+      if (networkId > MAX_STABLE_DICTIONARY_ID) throw new Error("dictionary_id_range_exhausted:network");
       const networkCode = requiredString(values, "networkCode");
       if (!/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(networkCode)) throw new Error("networkCode must be lowercase snake_case.");
       await tx.insert(mqChainNetworks).values({

@@ -12,9 +12,23 @@ import {
   buildSourceVerificationDecisionPayload,
   buildSourceJobVerificationRollup,
 } from "@/lib/mqchain/source-job";
+import { normalizeSourceJobDetailPagination } from "@/lib/mqchain/services/source-job-service";
 import { sourceVerificationSchema } from "@/lib/mqchain/validators/source-job";
 
 describe("source job rollups", () => {
+  it("normalizes independent candidate/evidence pages and clamps detail page size", () => {
+    expect(normalizeSourceJobDetailPagination({ candidatePage: "3", evidencePage: "7", pageSize: "250" })).toEqual({
+      candidatePage: 3,
+      evidencePage: 7,
+      pageSize: 100,
+    });
+    expect(normalizeSourceJobDetailPagination({ candidatePage: "0", evidencePage: "bad", pageSize: "-1" })).toEqual({
+      candidatePage: 1,
+      evidencePage: 1,
+      pageSize: 50,
+    });
+  });
+
   it("summarizes candidate status, chain, confidence, and evidence counts", () => {
     const rollup = buildSourceJobCandidateRollup([
       { candidateStatus: "pending_review", chainCode: "btc", confidenceScore: 90, evidenceCount: 2 },

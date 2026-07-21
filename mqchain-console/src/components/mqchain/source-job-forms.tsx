@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import type { SourceJobApprovalCoverageDto } from "@/lib/mqchain/contracts/source-approval-coverage";
 
 const initialState: SourceJobMutationState = null;
 
@@ -82,19 +83,20 @@ export function ArchiveSourceJobForm({
 
 export function SourceVerificationForm({
   defaultSourceUrl,
+  onApprovalCoverage,
+  returnApprovalCoverage = false,
   sourceJobId,
 }: {
   defaultSourceUrl?: string | null;
+  onApprovalCoverage?: (coverage: SourceJobApprovalCoverageDto) => void;
+  returnApprovalCoverage?: boolean;
   sourceJobId: number;
 }) {
-  const router = useRouter();
   const [state, formAction, pending] = useActionState(recordSourceVerificationResultAction, initialState);
 
   useEffect(() => {
-    if (state?.ok) {
-      router.refresh();
-    }
-  }, [router, state]);
+    if (state?.ok && state.data.approvalCoverage) onApprovalCoverage?.(state.data.approvalCoverage);
+  }, [onApprovalCoverage, state]);
 
   function fieldError(name: string) {
     return state?.ok === false ? state.fieldErrors?.[name]?.[0] : undefined;
@@ -117,6 +119,7 @@ export function SourceVerificationForm({
         </Alert>
       ) : null}
       <input type="hidden" name="sourceJobId" value={sourceJobId} />
+      <input type="hidden" name="returnApprovalCoverage" value={returnApprovalCoverage ? "true" : "false"} />
       <div className="grid gap-2">
         <Label>Scope</Label>
         <select

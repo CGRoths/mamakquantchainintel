@@ -24,14 +24,13 @@ import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { parseSourceJobListFilters, type SourceJobListFilters } from "../list-filters";
 import {
   buildSourceJobArchiveMetadata,
-  buildSourceJobCandidateRollup,
   buildSourceJobDocumentRollup,
   buildSourceJobDownstreamRollup,
-  buildSourceJobEvidenceRollup,
   buildSourceVerificationDecisionPayload,
   buildSourceJobVerificationRollup,
 } from "../source-job";
-import { candidateSourceSheetMatches, candidateSourceUrlMatches } from "../candidate-detail";
+import { buildCandidateSourceVerificationContext, candidateSourceSheetMatches, candidateSourceUrlMatches } from "../candidate-detail";
+import { buildEvidenceTrustDisplay } from "../trust";
 import { buildSourceJobDeletionPreview, SourceJobDeletionError, type SourceJobDeletionPreview } from "../source-job-deletion";
 import { isSourceJobDeleteConfirmation, sourceJobDeletionSchema, sourceJobArchiveSchema, sourceVerificationSchema } from "../validators/source-job";
 
@@ -104,17 +103,35 @@ export async function listSourceJobs(input?: unknown) {
   };
 }
 
-export async function getSourceJob(id: number) {
+export function normalizeSourceJobDetailPagination(input: unknown) {
+  const record = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : {};
+  const integer = (value: unknown, fallback: number, maximum = Number.MAX_SAFE_INTEGER) => {
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) && parsed > 0 ? Math.min(parsed, maximum) : fallback;
+  };
+  return { candidatePage: integer(record.candidatePage, 1), evidencePage: integer(record.evidencePage, 1), pageSize: integer(record.pageSize, 50, 100) };
+}
+
+function distribution(rows: Array<{ label: string | null; count: number }>) {
+  return rows.map(row => ({ label: row.label || "unknown", count: row.count })).sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
+}
+
+export async function getSourceJob(id: number, input: unknown = {}) {
   const db = getDb();
+  const pagination = normalizeSourceJobDetailPagination(input);
   const [sourceJob] = await db.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, id)).limit(1);
 
   if (!sourceJob) {
     return null;
   }
 
-  const [documents, candidates, downstreamBatches, verifications, downstreamRegistryRows] = await Promise.all([
+  const confidenceLabel = sql<string>`case when ${mqAddressCandidates.confidenceScore} >= 85 then '85-100' when ${mqAddressCandidates.confidenceScore} >= 70 then '70-84' when ${mqAddressCandidates.confidenceScore} >= 40 then '40-69' else '0-39' end`;
+  const [
+    documents, candidates, downstreamBatches, verifications, downstreamRegistryRows, candidateSummary,
+    candidateStatuses, candidateChains, candidateConfidences, evidenceSummary, evidenceTypes, evidenceTrusts,
+  ] = await Promise.all([
     db.select().from(mqSourceDocuments).where(eq(mqSourceDocuments.sourceJobId, id)),
-    db.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.sourceJobId, id)).orderBy(desc(mqAddressCandidates.createdAt)),
+    db.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.sourceJobId, id)).orderBy(desc(mqAddressCandidates.createdAt), desc(mqAddressCandidates.id)).limit(pagination.pageSize).offset((pagination.candidatePage - 1) * pagination.pageSize),
     db.select().from(mqLabelBatches).where(eq(mqLabelBatches.sourceJobId, id)).orderBy(desc(mqLabelBatches.createdAt)),
     db
       .select({
@@ -139,16 +156,44 @@ export async function getSourceJob(id: number) {
       .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
       .where(eq(mqAddressRegistry.primarySourceJobId, id))
       .orderBy(desc(mqAddressRegistry.createdAt)),
+    db.select({
+      totalCandidates: sql<number>`count(*)::int`,
+      evidenceCount: sql<number>`coalesce(sum(${mqAddressCandidates.evidenceCount}), 0)::int`,
+      approvedCount: sql<number>`count(*) filter (where ${mqAddressCandidates.candidateStatus} = 'approved')::int`,
+      pendingCount: sql<number>`count(*) filter (where ${mqAddressCandidates.candidateStatus} = 'pending_review')::int`,
+      duplicateCount: sql<number>`count(*) filter (where ${mqAddressCandidates.candidateStatus} = 'duplicate')::int`,
+      conflictCount: sql<number>`count(*) filter (where ${mqAddressCandidates.candidateStatus} = 'conflict_pending')::int`,
+    }).from(mqAddressCandidates).where(eq(mqAddressCandidates.sourceJobId, id)),
+    db.select({ label: mqAddressCandidates.candidateStatus, count: sql<number>`count(*)::int` }).from(mqAddressCandidates).where(eq(mqAddressCandidates.sourceJobId, id)).groupBy(mqAddressCandidates.candidateStatus),
+    db.select({ label: sql<string>`coalesce(${mqAddressCandidates.chainCode}, 'unknown')`, count: sql<number>`count(*)::int` }).from(mqAddressCandidates).where(eq(mqAddressCandidates.sourceJobId, id)).groupBy(mqAddressCandidates.chainCode),
+    db.select({ label: confidenceLabel, count: sql<number>`count(*)::int` }).from(mqAddressCandidates).where(eq(mqAddressCandidates.sourceJobId, id)).groupBy(confidenceLabel),
+    db.select({ totalEvidence: sql<number>`count(*)::int` }).from(mqAddressEvidence).innerJoin(mqAddressCandidates, eq(mqAddressEvidence.candidateId, mqAddressCandidates.id)).where(eq(mqAddressCandidates.sourceJobId, id)),
+    db.select({ label: mqAddressEvidence.evidenceType, count: sql<number>`count(*)::int` }).from(mqAddressEvidence).innerJoin(mqAddressCandidates, eq(mqAddressEvidence.candidateId, mqAddressCandidates.id)).where(eq(mqAddressCandidates.sourceJobId, id)).groupBy(mqAddressEvidence.evidenceType),
+    db.select({ label: mqAddressEvidence.trustTier, count: sql<number>`count(*)::int` }).from(mqAddressEvidence).innerJoin(mqAddressCandidates, eq(mqAddressEvidence.candidateId, mqAddressCandidates.id)).where(eq(mqAddressCandidates.sourceJobId, id)).groupBy(mqAddressEvidence.trustTier),
   ]);
 
-  const candidateIds = candidates.map((candidate) => candidate.id);
-  const evidence = candidateIds.length
-    ? await db
-        .select()
-        .from(mqAddressEvidence)
-        .where(inArray(mqAddressEvidence.candidateId, candidateIds))
-        .orderBy(desc(mqAddressEvidence.createdAt))
-    : [];
+  const evidenceRows = await db.select({
+    evidence: mqAddressEvidence,
+    candidateAddress: mqAddressCandidates.normalizedAddress,
+    candidateMetadata: mqAddressCandidates.metadata,
+    candidateSourceJobId: mqAddressCandidates.sourceJobId,
+    candidateSourceDocumentId: mqAddressCandidates.sourceDocumentId,
+  }).from(mqAddressEvidence)
+    .innerJoin(mqAddressCandidates, eq(mqAddressEvidence.candidateId, mqAddressCandidates.id))
+    .where(eq(mqAddressCandidates.sourceJobId, id))
+    .orderBy(desc(mqAddressEvidence.createdAt), desc(mqAddressEvidence.id))
+    .limit(pagination.pageSize)
+    .offset((pagination.evidencePage - 1) * pagination.pageSize);
+  const verificationRows = verifications.map(row => row.verification);
+  const evidence = evidenceRows.map(row => {
+    const verification = buildCandidateSourceVerificationContext({
+      candidate: { id: row.evidence.candidateId!, sourceJobId: row.candidateSourceJobId, sourceDocumentId: row.candidateSourceDocumentId, metadata: row.candidateMetadata },
+      verifications: verificationRows,
+    });
+    return { ...row.evidence, candidateAddress: row.candidateAddress, verificationStatus: verification.status, ...buildEvidenceTrustDisplay({ sourceType: sourceJob.sourceType, importedTrust: row.evidence.trustTier, verificationStatus: verification.status, verificationTrustTiers: verification.matchingTrustTiers ?? [] }) };
+  });
+  const candidateAggregate = candidateSummary[0] ?? { totalCandidates: 0, evidenceCount: 0, approvedCount: 0, pendingCount: 0, duplicateCount: 0, conflictCount: 0 };
+  const totalEvidence = evidenceSummary[0]?.totalEvidence ?? 0;
 
   return {
     sourceJob,
@@ -159,10 +204,17 @@ export async function getSourceJob(id: number) {
     downstreamBatches,
     downstreamRegistryRows,
     documentRollup: buildSourceJobDocumentRollup(documents),
-    candidateRollup: buildSourceJobCandidateRollup(candidates),
-    evidenceRollup: buildSourceJobEvidenceRollup(evidence),
+    candidateRollup: { ...candidateAggregate, statusDistribution: distribution(candidateStatuses), chainDistribution: distribution(candidateChains), confidenceDistribution: distribution(candidateConfidences) },
+    evidenceRollup: { totalEvidence, typeDistribution: distribution(evidenceTypes), trustDistribution: distribution(evidenceTrusts) },
     verificationRollup: buildSourceJobVerificationRollup(verifications.map((row) => row.verification)),
     downstreamRollup: buildSourceJobDownstreamRollup(downstreamBatches, downstreamRegistryRows.map((row) => row.registry)),
+    pagination: {
+      candidatePage: pagination.candidatePage,
+      candidateTotalPages: Math.max(1, Math.ceil(candidateAggregate.totalCandidates / pagination.pageSize)),
+      evidencePage: pagination.evidencePage,
+      evidenceTotalPages: Math.max(1, Math.ceil(totalEvidence / pagination.pageSize)),
+      pageSize: pagination.pageSize,
+    },
   };
 }
 

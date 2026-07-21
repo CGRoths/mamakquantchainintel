@@ -16,6 +16,7 @@ import {
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 
+import { MAX_STABLE_DICTIONARY_ID } from "../kv/contract";
 import { dictionaryProposalCreateSchema, dictionaryProposalReviewSchema, dictionaryReresolutionSchema } from "../validators/dictionary-proposal";
 import { hashJson, optionalNumber } from "./service-utils";
 import { getResearchDictionarySnapshot, recordDictionaryVersion } from "./dictionary-service";
@@ -31,7 +32,7 @@ async function allocateStableId(tx: Tx, dictionaryKind: string) {
     .where(and(eq(mqDictionaryIdRanges.dictionaryKind, dictionaryKind), eq(mqDictionaryIdRanges.status, "active")))
     .orderBy(asc(mqDictionaryIdRanges.id)).for("update");
   const range = ranges.find(value => value.rangeCode.startsWith("u1_")) ?? ranges[0];
-  if (!range || range.nextId > range.endId) throw new Error(`dictionary_id_range_exhausted:${dictionaryKind}`);
+  if (!range || range.nextId > range.endId || range.nextId > MAX_STABLE_DICTIONARY_ID) throw new Error(`dictionary_id_range_exhausted:${dictionaryKind}`);
   await tx.update(mqDictionaryIdRanges).set({ nextId: range.nextId + 1, updatedAt: new Date() }).where(eq(mqDictionaryIdRanges.id, range.id));
   return range.nextId;
 }

@@ -55,7 +55,8 @@ import {
   updateRegistryLabel,
 } from "@/lib/mqchain/origin-client/client";
 import { createSettingsUser, updateSettingsUserAccess } from "@/lib/mqchain/origin-client/client";
-import { archiveSourceJob, recordSourceVerification, rerunDictionaryResolution } from "@/lib/mqchain/origin-client/client";
+import { archiveSourceJob, getSourceJobApprovalCoverage, recordSourceVerification, rerunDictionaryResolution } from "@/lib/mqchain/origin-client/client";
+import type { SourceJobApprovalCoverageDto } from "@/lib/mqchain/contracts/source-approval-coverage";
 import { csvInputFromFormData } from "@/lib/mqchain/csv-upload";
 import { formValue, runAction } from "@/lib/mqchain/origin-client/action-utils";
 import type { ActionResult } from "@/lib/mqchain/types";
@@ -132,6 +133,7 @@ export type SourceJobMutationData = {
   archiveStorageUri?: string | null;
   candidatesInspected?: number;
   candidatesUpdated?: number;
+  approvalCoverage?: SourceJobApprovalCoverageDto;
   message: string;
 };
 
@@ -1950,11 +1952,17 @@ export async function recordSourceVerificationResultAction(
       verificationEvidenceJson: formValue(formData, "verificationEvidenceJson"),
     });
 
-    revalidateSourceJobPaths(verification.sourceJobId ?? undefined);
+    const sourceJobId = verification.sourceJobId ?? 0;
+    const approvalCoverage = formValue(formData, "returnApprovalCoverage") === "true" && sourceJobId
+      ? await getSourceJobApprovalCoverage(sourceJobId)
+      : undefined;
+    if (sourceJobId) revalidatePath(`/mqchain/source-jobs/${sourceJobId}`);
+    revalidatePath("/mqchain/audit-log");
     return {
-      sourceJobId: verification.sourceJobId ?? 0,
+      sourceJobId,
       sourceVerificationId: verification.id,
       status: verification.status,
+      approvalCoverage,
       message: `Source verification ${verification.id} recorded; candidates still require review and batch commit.`,
     };
   });

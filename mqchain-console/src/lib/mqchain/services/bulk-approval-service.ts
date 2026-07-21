@@ -93,11 +93,11 @@ export async function getSourceJobApprovalCoverage(input: unknown) {
   await assertPermission("candidate:review");
   const { id: sourceJobId } = idSchema.parse(input);
   const db = getDb();
-  const candidates = await db
-    .select()
+  const candidateRows = await db
+    .select({ id: mqAddressCandidates.id })
     .from(mqAddressCandidates)
     .where(eq(mqAddressCandidates.sourceJobId, sourceJobId));
-  const candidateIds = candidates.map(candidate => candidate.id).sort((left, right) => left - right);
+  const candidateIds = candidateRows.map(candidate => candidate.id).sort((left, right) => left - right);
   const snapshot = await getCanonicalDictionarySnapshot(db);
   const bundle = candidateIds.length
     ? await buildCandidateApprovalEvaluations({
@@ -110,7 +110,7 @@ export async function getSourceJobApprovalCoverage(input: unknown) {
     : null;
   const evaluationById = new Map(bundle?.evaluations.map(evaluation => [evaluation.candidateId, evaluation]) ?? []);
   const groups = new Map<string, number[]>();
-  for (const candidate of candidates) {
+  for (const candidate of bundle?.candidatesById.values() ?? []) {
     const sheets = extractCandidateSourceSheetNames(candidate.metadata);
     for (const sheet of sheets.length ? sheets : ["(unscoped)"]) {
       groups.set(sheet, [...(groups.get(sheet) ?? []), candidate.id]);

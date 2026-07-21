@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { TRUST_TIERS } from "@/lib/mqchain/constants";
-import { defaultEvidenceTrustTierForSource, normalizeEvidenceTrustTier } from "@/lib/mqchain/trust";
+import { buildEvidenceTrustDisplay, defaultEvidenceTrustTierForSource, normalizeEvidenceTrustTier } from "@/lib/mqchain/trust";
 import { candidateEvidenceSchema } from "@/lib/mqchain/validators/evidence";
 import { sourceVerificationSchema } from "@/lib/mqchain/validators/source-job";
 
@@ -28,5 +28,18 @@ describe("trust tier contract", () => {
     expect(defaultEvidenceTrustTierForSource("pdf")).toBe("verified_third_party");
     expect(defaultEvidenceTrustTierForSource("onchain_discovery")).toBe("inferred");
     expect(defaultEvidenceTrustTierForSource("csv_upload")).toBe("weak");
+  });
+
+  it("keeps imported trust immutable while presenting MQCHAIN and effective trust separately", () => {
+    expect(buildEvidenceTrustDisplay({ sourceType: "llm_cleaned_csv", importedTrust: "weak", verificationStatus: "source_sheet_verified", verificationTrustTiers: ["official"] })).toEqual({
+      importedTrust: "weak",
+      importedTrustLabel: "Unverified input (weak default)",
+      mqchainVerificationTrust: "official",
+      effectiveTrust: "official",
+    });
+  });
+
+  it("never upgrades rejected, revoked, or conflict verification", () => {
+    expect(buildEvidenceTrustDisplay({ sourceType: "llm_cleaned_csv", importedTrust: "weak", verificationStatus: "source_verification_blocked", verificationTrustTiers: ["official"] })).toMatchObject({ mqchainVerificationTrust: "conflict", effectiveTrust: "conflict" });
   });
 });

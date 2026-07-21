@@ -51,6 +51,7 @@ export type CandidateSourceVerificationContext = {
     | "source_document_verified"
     | "source_job_verified"
     | "source_url_verified"
+    | "source_verification_blocked"
     | "source_sheet_verification_missing"
     | "source_verification_missing";
   message: string;
@@ -163,7 +164,20 @@ export function buildCandidateSourceVerificationContext(
   const sourceUrls = extractCandidateSourceUrls(input.candidate.metadata);
   const matchingSheets = new Set(sheetNames.map((sheet) => sheet.toLowerCase()));
   const matchingSourceUrls = new Set(sourceUrls);
-  const verified = input.verifications.filter((verification) => verification.status === "verified");
+  const applicable = input.verifications.filter((verification) => {
+    if (verification.candidateId === input.candidate.id) return true;
+    if (input.candidate.sourceDocumentId && verification.sourceDocumentId === input.candidate.sourceDocumentId) return true;
+    if (verification.verificationScope === "source_sheet") {
+      const sheet = verification.sourceSheet?.trim().toLowerCase();
+      return Boolean(sheet && matchingSheets.has(sheet));
+    }
+    if (verification.verificationScope === "source_url") {
+      return Boolean(verification.sourceJobId === input.candidate.sourceJobId && verification.sourceUrl && matchingSourceUrls.has(verification.sourceUrl));
+    }
+    return verification.sourceJobId === input.candidate.sourceJobId;
+  });
+  const blocked = applicable.filter(verification => verification.status === "rejected" || verification.status === "revoked" || verification.sourceTrust === "conflict");
+  const verified = applicable.filter((verification) => verification.status === "verified" && verification.sourceTrust !== "conflict");
 
   const hasVerifiedCandidate = verified.some((verification) => verification.candidateId === input.candidate.id);
   const hasVerifiedSourceDocument = verified.some(
@@ -183,20 +197,26 @@ export function buildCandidateSourceVerificationContext(
   const hasVerifiedSourceJob = verified.some(
     (verification) => verification.verificationScope === "source_job" && verification.sourceJobId === input.candidate.sourceJobId,
   );
-  const matchingVerified = verified.filter((verification) => {
-    if (verification.candidateId === input.candidate.id) return true;
-    if (input.candidate.sourceDocumentId && verification.sourceDocumentId === input.candidate.sourceDocumentId) return true;
-    if (verification.verificationScope === "source_sheet") {
-      const sheet = verification.sourceSheet?.trim().toLowerCase();
-      return Boolean(sheet && matchingSheets.has(sheet));
-    }
-    if (verification.verificationScope === "source_url") {
-      return Boolean(verification.sourceJobId === input.candidate.sourceJobId && verification.sourceUrl && matchingSourceUrls.has(verification.sourceUrl));
-    }
-    return verification.sourceJobId === input.candidate.sourceJobId;
-  });
+  const matchingVerified = verified;
   const matchingVerifiedCount = matchingVerified.length;
   const matchingTrustTiers = [...new Set(matchingVerified.map(verification => verification.sourceTrust))].sort();
+
+  if (blocked.length) {
+    return {
+      sheetNames,
+      sourceUrls,
+      sheetVerificationRequired: sheetNames.length > 0,
+      hasVerifiedSourceJob: false,
+      hasVerifiedSourceDocument: false,
+      hasVerifiedSourceSheet: false,
+      hasVerifiedCandidate: false,
+      hasVerifiedSourceUrl: false,
+      matchingVerifiedCount: 0,
+      matchingTrustTiers: [...new Set(blocked.map(verification => verification.sourceTrust))].sort(),
+      status: "source_verification_blocked",
+      message: "A matching source verification is rejected, revoked, or marked conflict; approval fails closed.",
+    };
+  }
 
   if (hasVerifiedCandidate) {
     return {
@@ -302,7 +322,7 @@ export function buildCandidateSourceVerificationContext(
 }
 
 export function isCandidateSourceVerificationSatisfied(status: CandidateSourceVerificationStatus | null | undefined) {
-  return Boolean(status && !status.includes("missing"));
+  return Boolean(status && ["candidate_verified", "source_sheet_verified", "source_document_verified", "source_job_verified", "source_url_verified"].includes(status));
 }
 
 export function buildCandidateTraceWarnings(input: CandidateTraceWarningInput): CandidateTraceWarning[] {

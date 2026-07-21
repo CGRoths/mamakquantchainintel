@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 
 import { DbError } from "@/components/mqchain/db-error";
 import { DeleteSourceJobDialog } from "@/components/mqchain/delete-source-job-dialog";
-import { BulkApprovalPanel, type BulkApprovalRow } from "@/components/mqchain/bulk-approval-panel";
-import { ArchiveSourceJobForm, RerunDictionaryResolutionForm, SourceVerificationForm } from "@/components/mqchain/source-job-forms";
+import type { BulkApprovalRow } from "@/components/mqchain/bulk-approval-panel";
+import { SourceJobApprovalWorkflow } from "@/components/mqchain/source-job-approval-workflow";
+import { ArchiveSourceJobForm, RerunDictionaryResolutionForm } from "@/components/mqchain/source-job-forms";
 import { StatusBadge } from "@/components/mqchain/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,11 +73,19 @@ function formatBytes(value: number) {
   return `${size >= 10 || unitIndex === 0 ? Math.round(size) : size.toFixed(1)} ${units[unitIndex]}`;
 }
 
-export default async function SourceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
+function detailPageHref(id: string, input: Record<string, string | string[] | undefined>, key: "candidatePage" | "evidencePage", value: number) {
+  const query = new URLSearchParams();
+  for (const [name, raw] of Object.entries(input)) if (typeof raw === "string" && raw) query.set(name, raw);
+  query.set(key, String(value));
+  return `/mqchain/source-jobs/${id}?${query.toString()}`;
+}
+
+export default async function SourceJobDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { id } = await params;
+  const query = await searchParams;
 
   try {
-    const [detail, currentUser] = await Promise.all([getSourceJob(Number(id)), getCurrentUser()]);
+    const [detail, currentUser] = await Promise.all([getSourceJob(Number(id), query), getCurrentUser()]);
     if (!detail) {
       notFound();
     }
@@ -98,7 +107,7 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
     const archived = operationalSummary.archived;
     const candidateAddresses = candidateAddressById(detail.candidates);
     const bulkApprovalRows: BulkApprovalRow[] = detail.candidates
-      .filter(candidate => candidate.candidateStatus === "pending")
+      .filter(candidate => candidate.candidateStatus === "pending_review")
       .map(candidate => ({
         candidateId: candidate.id,
         normalizedAddress: candidate.normalizedAddress,
@@ -246,34 +255,19 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
             </CardContent>
           </Card>
         ) : null}
-        {canVerifySource ? (
-          <Card className="rounded-lg">
-            <CardHeader><CardTitle>Record source verification</CardTitle></CardHeader>
-            <CardContent>
-              <SourceVerificationForm defaultSourceUrl={detail.sourceJob.sourceUrl} sourceJobId={detail.sourceJob.id} />
-            </CardContent>
-          </Card>
-        ) : null}
+        <SourceJobApprovalWorkflow
+          canVerifySource={canVerifySource}
+          defaultSourceUrl={detail.sourceJob.sourceUrl}
+          initialCoverage={approvalCoverage}
+          rows={bulkApprovalRows}
+          sourceJobId={detail.sourceJob.id}
+        />
         {canEditDictionary ? (
           <Card className="rounded-lg">
             <CardHeader><CardTitle>Dictionary resolution</CardTitle></CardHeader>
             <CardContent><RerunDictionaryResolutionForm sourceJobId={detail.sourceJob.id} /></CardContent>
           </Card>
         ) : null}
-        {approvalCoverage ? (<>
-          <Card className="rounded-lg">
-            <CardHeader><CardTitle>Verification coverage and approval</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <Table>
-                <TableHeader><TableRow><TableHead>Sheet</TableHead><TableHead>Candidates</TableHead><TableHead>Verification</TableHead><TableHead>Eligible</TableHead><TableHead>Blocked</TableHead></TableRow></TableHeader>
-                <TableBody>{approvalCoverage.sheets.map(sheet => (
-                  <TableRow key={sheet.sourceSheet}><TableCell>{sheet.sourceSheet}</TableCell><TableCell className="font-mono">{sheet.candidateCount}</TableCell><TableCell><StatusBadge status={sheet.verification} /></TableCell><TableCell className="font-mono">{sheet.eligibleCount}</TableCell><TableCell className="font-mono">{sheet.blockedCount}</TableCell></TableRow>
-                ))}</TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-          <BulkApprovalPanel rows={bulkApprovalRows} selectionGroups={approvalCoverage.sheets.map(sheet => ({ label: sheet.sourceSheet, candidateIds: sheet.candidateIds, eligibleCount: sheet.eligibleCount, blockedCount: sheet.blockedCount }))} />
-        </>) : null}
         <section className="grid gap-4 xl:grid-cols-3">
           <Card className="rounded-lg"><CardHeader><CardTitle>Chains</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.candidateRollup.chainDistribution} emptyLabel="No chains." /></CardContent></Card>
           <Card className="rounded-lg"><CardHeader><CardTitle>Confidence</CardTitle></CardHeader><CardContent><DistributionTable rows={detail.candidateRollup.confidenceDistribution} emptyLabel="No confidence data." /></CardContent></Card>
@@ -377,6 +371,13 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
                 ) : null}
               </TableBody>
             </Table>
+            <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
+              <span>Candidate page {detail.pagination.candidatePage} of {detail.pagination.candidateTotalPages}</span>
+              <div className="flex gap-2">
+                <Button asChild size="sm" variant="outline" disabled={detail.pagination.candidatePage <= 1}><Link href={detailPageHref(id, query, "candidatePage", Math.max(1, detail.pagination.candidatePage - 1))}>Previous</Link></Button>
+                <Button asChild size="sm" variant="outline" disabled={detail.pagination.candidatePage >= detail.pagination.candidateTotalPages}><Link href={detailPageHref(id, query, "candidatePage", Math.min(detail.pagination.candidateTotalPages, detail.pagination.candidatePage + 1))}>Next</Link></Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
         <Card className="rounded-lg">
@@ -390,7 +391,9 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
                   <TableHead>ID</TableHead>
                   <TableHead>Candidate</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Trust</TableHead>
+                  <TableHead>Imported evidence trust</TableHead>
+                  <TableHead>MQCHAIN verification trust</TableHead>
+                  <TableHead>Effective trust</TableHead>
                   <TableHead>Delta</TableHead>
                   <TableHead>Summary</TableHead>
                   <TableHead>Source</TableHead>
@@ -405,12 +408,14 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
                     <TableCell className="max-w-64 truncate font-mono text-xs">
                       {evidence.candidateId ? (
                         <Link className="text-primary hover:underline" href={`/mqchain/candidates/${evidence.candidateId}`}>
-                          #{evidence.candidateId} {candidateAddresses.get(evidence.candidateId) ?? ""}
+                          #{evidence.candidateId} {evidence.candidateAddress ?? candidateAddresses.get(evidence.candidateId) ?? ""}
                         </Link>
                       ) : "-"}
                     </TableCell>
                     <TableCell>{evidence.evidenceType}</TableCell>
-                    <TableCell>{evidence.trustTier}</TableCell>
+                    <TableCell>{evidence.importedTrustLabel}</TableCell>
+                    <TableCell>{evidence.mqchainVerificationTrust?.replace(/_/g, " ") ?? "Not verified"}</TableCell>
+                    <TableCell><StatusBadge status={evidence.effectiveTrust} /></TableCell>
                     <TableCell className="font-mono">{evidence.confidenceDelta}</TableCell>
                     <TableCell className="max-w-96">{evidence.summary ?? "-"}</TableCell>
                     <TableCell className="max-w-64 break-all text-xs">
@@ -431,13 +436,20 @@ export default async function SourceJobDetailPage({ params }: { params: Promise<
                 ))}
                 {!detail.evidence.length ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-sm text-muted-foreground">
+                    <TableCell colSpan={11} className="text-sm text-muted-foreground">
                       No evidence rows are linked to candidates from this source.
                     </TableCell>
                   </TableRow>
                 ) : null}
               </TableBody>
             </Table>
+            <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
+              <span>Evidence page {detail.pagination.evidencePage} of {detail.pagination.evidenceTotalPages}</span>
+              <div className="flex gap-2">
+                <Button asChild size="sm" variant="outline" disabled={detail.pagination.evidencePage <= 1}><Link href={detailPageHref(id, query, "evidencePage", Math.max(1, detail.pagination.evidencePage - 1))}>Previous</Link></Button>
+                <Button asChild size="sm" variant="outline" disabled={detail.pagination.evidencePage >= detail.pagination.evidenceTotalPages}><Link href={detailPageHref(id, query, "evidencePage", Math.min(detail.pagination.evidenceTotalPages, detail.pagination.evidencePage + 1))}>Next</Link></Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
         <Card className="rounded-lg">

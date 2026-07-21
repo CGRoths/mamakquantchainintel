@@ -167,7 +167,7 @@ async function employeeRoute(method: string, pathname: string, url: URL, body: R
   match = pathname.match(/^\/v1\/source-jobs\/(\d+)\/delete-preview$/);
   if (method === "GET" && match) return authorized(actor, "intake:delete", () => getSourceJobDeletionPreview(Number(match![1])));
   match = pathname.match(/^\/v1\/source-jobs\/(\d+)$/);
-  if (method === "GET" && match) return authorized(actor, "view", () => getSourceJob(Number(match![1])));
+  if (method === "GET" && match) return authorized(actor, "view", () => getSourceJob(Number(match![1]), query));
   if (method === "GET" && pathname === "/v1/review") return authorized(actor, "view", () => getReviewWorkspace(query));
   if (method === "GET" && pathname === "/v1/review/groups") return authorized(actor, "view", () => getReviewGroupsWorkspace(query));
   match = pathname.match(/^\/v1\/review\/groups\/([^/]+)$/);

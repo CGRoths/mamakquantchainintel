@@ -33,7 +33,7 @@ export declare function listSourceJobs(input?: unknown): Promise<{
     pageSize: number;
     totalPages: number;
 }>;
-export declare function getSourceJob(id: number): Promise<{
+export declare function getSourceJob(id: number, input?: unknown): Promise<{
     sourceJob: {
         id: number;
         sourceType: string;
@@ -132,6 +132,12 @@ export declare function getSourceJob(id: number): Promise<{
         payload: Record<string, unknown>;
         createdBy: string | null;
         createdAt: Date;
+        candidateAddress: string;
+        verificationStatus: string;
+        importedTrust: "official" | "verified_third_party" | "inferred" | "weak" | "conflict";
+        importedTrustLabel: string;
+        mqchainVerificationTrust: "official" | "verified_third_party" | "inferred" | "weak" | "conflict" | null;
+        effectiveTrust: "official" | "verified_third_party" | "inferred" | "weak" | "conflict";
     }[];
     downstreamBatches: {
         id: number;
@@ -246,6 +252,13 @@ export declare function getSourceJob(id: number): Promise<{
         activeRegistryRows: number;
         inactiveRegistryRows: number;
         batchStatusDistribution: import("../../batch-detail").DistributionRow[];
+    };
+    pagination: {
+        candidatePage: number;
+        candidateTotalPages: number;
+        evidencePage: number;
+        evidenceTotalPages: number;
+        pageSize: number;
     };
 } | null>;
 export declare function recordSourceVerification(input: unknown): Promise<{

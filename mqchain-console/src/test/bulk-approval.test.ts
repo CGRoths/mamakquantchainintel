@@ -317,6 +317,8 @@ describe("bulk approval evaluation", () => {
 
 describe("bulk approval lifecycle boundaries", () => {
   const service = read("src/lib/mqchain/services/bulk-approval-service.ts");
+  const sourcePage = read("src/app/mqchain/source-jobs/[id]/page.tsx");
+  const workflow = read("src/components/mqchain/source-job-approval-workflow.tsx");
 
   it("never creates a batch, registry row or KV build", () => {
     expect(service).not.toMatch(/insert\(mqLabelBatches\)|insert\(mqLabelBatchCandidates\)/);
@@ -356,6 +358,14 @@ describe("bulk approval lifecycle boundaries", () => {
     expect(origin).toContain('authorized(actor, "candidate:review", () => previewBulkCandidateApproval(body))');
     expect(origin).toContain('authorized(actor, "candidate:review", () => executeBulkCandidateApproval(body))');
     expect(origin).toContain("BODY_LIMITS.bulkApproval");
+  });
+
+  it("keeps select-all matching independent from the paginated visible rows", () => {
+    expect(service).toContain("select({ id: mqAddressCandidates.id })");
+    expect(service).not.toContain("limit(pagination.pageSize)");
+    expect(sourcePage).toContain("rows={bulkApprovalRows}");
+    expect(workflow).toContain("candidateIds: sheet.candidateIds");
+    expect(workflow).toContain("rows={rows}");
   });
 
   it("keeps the Next.js proxy routes free of database access", () => {

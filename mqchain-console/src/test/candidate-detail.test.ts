@@ -201,6 +201,27 @@ describe("candidate detail trace warnings", () => {
     });
   });
 
+  it.each(["rejected", "revoked"])("fails closed when a matching sheet verification is %s", (status) => {
+    const context = buildCandidateSourceVerificationContext({
+      candidate: { id: 31, sourceJobId: 12, sourceDocumentId: 13, metadata: { sourceSheet: "Ethereum" } },
+      verifications: [
+        { id: 1, sourceJobId: 12, verificationScope: "source_sheet", sourceSheet: "Ethereum", sourceTrust: "official", status: "verified", createdAt: new Date("2026-07-04T01:00:00Z") },
+        { id: 2, sourceJobId: 12, verificationScope: "source_sheet", sourceSheet: "Ethereum", sourceTrust: "official", status, createdAt: new Date("2026-07-04T02:00:00Z") },
+      ],
+    });
+    expect(context.status).toBe("source_verification_blocked");
+    expect(isCandidateSourceVerificationSatisfied(context.status)).toBe(false);
+  });
+
+  it("fails closed when matching verification trust is conflict", () => {
+    const context = buildCandidateSourceVerificationContext({
+      candidate: { id: 31, sourceJobId: 12, metadata: {} },
+      verifications: [{ id: 3, sourceJobId: 12, verificationScope: "source_job", sourceTrust: "conflict", status: "verified", createdAt: new Date() }],
+    });
+    expect(context.status).toBe("source_verification_blocked");
+    expect(isCandidateSourceVerificationSatisfied(context.status)).toBe(false);
+  });
+
   it("requires source-url verification to match the candidate source URL", () => {
     const candidate = {
       id: 31,
