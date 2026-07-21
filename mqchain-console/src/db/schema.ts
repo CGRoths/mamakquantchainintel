@@ -4,6 +4,7 @@ import {
   bigserial,
   boolean,
   check,
+  customType,
   foreignKey,
   index,
   integer,
@@ -45,6 +46,12 @@ import {
 function sqlStringList(values: readonly string[]) {
   return sql.raw(values.map((value) => `'${value.replace(/'/g, "''")}'`).join(", "));
 }
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 export const mqUsers = pgTable(
   "mq_users",
@@ -1104,6 +1111,7 @@ export const mqKvBuilds = pgTable(
     buildKind: text("build_kind").notNull().default("base"),
     baseBuildId: bigint("base_build_id", { mode: "number" }),
     deltaParentBuildId: bigint("delta_parent_build_id", { mode: "number" }),
+    compileRequestBuildId: bigint("compile_request_build_id", { mode: "number" }),
     lastCommittedBatchId: bigint("last_committed_batch_id", { mode: "number" }).references(() => mqLabelBatches.id),
     status: text("status").notNull().default("pending"),
     rowCount: integer("row_count").notNull().default(0),
@@ -1115,13 +1123,86 @@ export const mqKvBuilds = pgTable(
   },
   (table) => [
     index("idx_mq_kv_builds_status").on(table.status),
+    index("idx_mq_kv_builds_compile_request").on(table.compileRequestBuildId),
     uniqueIndex("uq_mq_kv_builds_one_active").on(table.status).where(sql`${table.status} = 'active'`),
     foreignKey({ columns: [table.baseBuildId], foreignColumns: [table.id], name: "fk_mq_kv_builds_base" }),
     foreignKey({ columns: [table.deltaParentBuildId], foreignColumns: [table.id], name: "fk_mq_kv_builds_delta_parent" }),
+    foreignKey({ columns: [table.compileRequestBuildId], foreignColumns: [table.id], name: "fk_mq_kv_builds_compile_request" }),
     check("ck_mq_kv_builds_status", sql`${table.status} in (${sqlStringList(KV_ARTIFACT_STATUSES)})`),
     check("ck_mq_kv_builds_row_count_non_negative", sql`${table.rowCount} >= 0`),
     check("ck_mq_kv_builds_kind", sql`${table.buildKind} in (${sqlStringList(U1_BUILD_KINDS)})`),
     check("ck_mq_kv_builds_parent_shape", sql`(${table.buildKind} = 'base' and ${table.baseBuildId} is null and ${table.deltaParentBuildId} is null) or (${table.buildKind} = 'delta' and ((${table.baseBuildId} is not null)::int + (${table.deltaParentBuildId} is not null)::int) = 1)`),
+  ],
+);
+
+export const mqKvCompiledEntries = pgTable(
+  "mq_kv_compiled_entries",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    buildId: bigint("build_id", { mode: "number" }).notNull().references(() => mqKvBuilds.id),
+    indexName: text("index_name").notNull(),
+    ordinal: integer("ordinal").notNull(),
+    keyBytes: bytea("key_bytes").notNull(),
+    valueBytes: bytea("value_bytes").notNull(),
+    keyHash: text("key_hash").notNull(),
+    recordHash: text("record_hash").notNull(),
+    registryId: bigint("registry_id", { mode: "number" }).references(() => mqAddressRegistry.id),
+    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqMetricGroups.id),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
+    addressCodecId: integer("address_codec_id").references(() => mqAddressCodecs.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_mq_kv_compiled_entries_build_index_key").on(table.buildId, table.indexName, table.keyBytes),
+    uniqueIndex("uq_mq_kv_compiled_entries_build_index_ordinal").on(table.buildId, table.indexName, table.ordinal),
+    index("idx_mq_kv_compiled_entries_build_index_hash").on(table.buildId, table.indexName, table.keyHash),
+    index("idx_mq_kv_compiled_entries_registry").on(table.registryId),
+    index("idx_mq_kv_compiled_entries_metric_group").on(table.metricGroupId),
+    index("idx_mq_kv_compiled_entries_namespace_codec").on(table.namespaceId, table.addressCodecId),
+    check("ck_mq_kv_compiled_entries_index", sql`${table.indexName} in ('address_label_current', 'address_label_timeline', 'metric_group_membership')`),
+    check("ck_mq_kv_compiled_entries_ordinal", sql`${table.ordinal} >= 0`),
+    check("ck_mq_kv_compiled_entries_key_nonempty", sql`octet_length(${table.keyBytes}) > 0`),
+    check("ck_mq_kv_compiled_entries_value_nonempty", sql`octet_length(${table.valueBytes}) > 0`),
+    check("ck_mq_kv_compiled_entries_key_hash", sql`${table.keyHash} ~ '^[0-9a-f]{64}$'`),
+    check("ck_mq_kv_compiled_entries_record_hash", sql`${table.recordHash} ~ '^[0-9a-f]{64}$'`),
+    check("ck_mq_kv_compiled_entries_value_length", sql`(${table.indexName} = 'address_label_current' and octet_length(${table.valueBytes}) = 56) or (${table.indexName} = 'address_label_timeline' and octet_length(${table.valueBytes}) = 64) or (${table.indexName} = 'metric_group_membership' and octet_length(${table.valueBytes}) = 24)`),
+  ],
+);
+
+export const mqKvValidationRuns = pgTable(
+  "mq_kv_validation_runs",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    buildId: bigint("build_id", { mode: "number" }).notNull().references(() => mqKvBuilds.id),
+    compileRequestBuildId: bigint("compile_request_build_id", { mode: "number" }).notNull().references(() => mqKvBuilds.id),
+    validationType: text("validation_type").notNull(),
+    status: text("status").notNull(),
+    dictionaryVersion: text("dictionary_version").notNull(),
+    registrySnapshotHash: text("registry_snapshot_hash").notNull(),
+    canonicalRowCount: integer("canonical_row_count").notNull(),
+    postgresCompiledRowCount: integer("postgres_compiled_row_count").notNull(),
+    rocksDbRowCount: integer("rocksdb_row_count").notNull(),
+    missingInPostgresCompiled: integer("missing_in_postgres_compiled").notNull().default(0),
+    extraInPostgresCompiled: integer("extra_in_postgres_compiled").notNull().default(0),
+    postgresValueMismatchCount: integer("postgres_value_mismatch_count").notNull().default(0),
+    missingInRocksDb: integer("missing_in_rocksdb").notNull().default(0),
+    extraInRocksDb: integer("extra_in_rocksdb").notNull().default(0),
+    rocksDbValueMismatchCount: integer("rocksdb_value_mismatch_count").notNull().default(0),
+    duplicateKeyCount: integer("duplicate_key_count").notNull().default(0),
+    semanticHashMismatchCount: integer("semantic_hash_mismatch_count").notNull().default(0),
+    reportHash: text("report_hash").notNull(),
+    report: jsonb("report").$type<Record<string, unknown>>().notNull().default({}),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_mq_kv_validation_runs_build").on(table.buildId, table.createdAt),
+    index("idx_mq_kv_validation_runs_request").on(table.compileRequestBuildId, table.createdAt),
+    index("idx_mq_kv_validation_runs_status").on(table.status),
+    check("ck_mq_kv_validation_runs_status", sql`${table.status} in ('running', 'passed', 'failed')`),
+    check("ck_mq_kv_validation_runs_report_hash", sql`${table.reportHash} ~ '^[0-9a-f]{64}$'`),
+    check("ck_mq_kv_validation_runs_counts", sql`${table.canonicalRowCount} >= 0 and ${table.postgresCompiledRowCount} >= 0 and ${table.rocksDbRowCount} >= 0 and ${table.missingInPostgresCompiled} >= 0 and ${table.extraInPostgresCompiled} >= 0 and ${table.postgresValueMismatchCount} >= 0 and ${table.missingInRocksDb} >= 0 and ${table.extraInRocksDb} >= 0 and ${table.rocksDbValueMismatchCount} >= 0 and ${table.duplicateKeyCount} >= 0 and ${table.semanticHashMismatchCount} >= 0`),
   ],
 );
 

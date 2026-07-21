@@ -39,6 +39,8 @@ function joinedRow(id: number, chainCode = "ethereum_mainnet"): JoinedRow {
     protocol: null,
     role: { roleCode: "cex_hot_wallet" } as JoinedRow["role"],
     category: { categoryCode: "cex_hot_cold" } as JoinedRow["category"],
+    namespace: { id: 2, addressCodecId: 1, isActive: true } as JoinedRow["namespace"],
+    codec: { id: 1, status: "production_ready", payloadRule: "exact:20" } as JoinedRow["codec"],
   };
 }
 

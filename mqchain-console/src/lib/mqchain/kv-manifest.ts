@@ -549,6 +549,14 @@ export function buildKvManifestActivationPreflight(build: KvBuildActivationCandi
     const indexes = isRecord(manifest.indexes) ? manifest.indexes : null;
     const expectedCounts = isRecord(manifest.expectedCounts) ? manifest.expectedCounts : null;
     checks.push({
+      key: "expectedCounts",
+      label: "Expected index counts",
+      status: expectedCounts && REQUIRED_KV_INDEXES.every(required => numberFromManifest(expectedCounts, required.key) !== null) ? "pass" : "fail",
+      detail: expectedCounts && REQUIRED_KV_INDEXES.every(required => numberFromManifest(expectedCounts, required.key) !== null)
+        ? "All required expectedCounts fields are present."
+        : "Manifest must explicitly declare a non-negative expected count for every production index.",
+    });
+    checks.push({
       key: "indexesDeclared",
       label: "Serving indexes declared",
       status: indexes ? "pass" : "fail",
@@ -574,6 +582,7 @@ export function buildKvManifestActivationPreflight(build: KvBuildActivationCandi
         if (!indexManifest) problems.push("index missing");
         if (indexManifest && rowCount === null) problems.push("rowCount missing");
         if (indexManifest && indexHash === null) problems.push("content hash missing");
+        if (expectedCount === null) problems.push(`expectedCounts.${required.key} missing`);
         if (indexManifest && rowCount !== null && expectedCount !== null && rowCount !== expectedCount) {
           problems.push(`rowCount ${rowCount} does not match expectedCounts.${required.key} ${expectedCount}`);
         }
@@ -588,6 +597,16 @@ export function buildKvManifestActivationPreflight(build: KvBuildActivationCandi
         });
       }
     }
+
+    const validation = isRecord(manifest.validation) ? manifest.validation : null;
+    checks.push({
+      key: "threeWayValidation",
+      label: "Three-way parity validation",
+      status: validation?.status === "passed" && positiveInteger(validation.validationRunId) !== null && hasText(validation.reportHash) ? "pass" : "fail",
+      detail: validation?.status === "passed"
+        ? "Canonical, PostgreSQL-compiled, and RocksDB parity validation passed."
+        : "Activation requires a persisted passing three-way parity validation run.",
+    });
 
     if (manifest.filterSupport === true) {
       const filters = isRecord(manifest.filters) ? manifest.filters : null;

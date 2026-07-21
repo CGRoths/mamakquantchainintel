@@ -540,6 +540,8 @@ export type U1AddressKeyContext = {
 export type U1AddressKeyBlocker =
   | "missing_namespace_id"
   | "missing_address_codec_id"
+  | "namespace_id_out_of_range"
+  | "address_codec_id_out_of_range"
   | "missing_payload_hex"
   | "invalid_payload_hex"
   | "unknown_namespace"
@@ -549,7 +551,7 @@ export type U1AddressKeyBlocker =
   | "inactive_codec"
   | "payload_length_mismatch";
 
-const INACTIVE_CODEC_STATUSES = new Set(["unsupported", "disabled"]);
+const PRODUCTION_READY_CODEC_STATUS = "production_ready";
 
 /**
  * Validate a candidate/registry U1 identity. Returns every blocker found;
@@ -567,6 +569,8 @@ export function validateU1AddressKey(
 
   if (namespaceId === null || namespaceId < MIN_STABLE_DICTIONARY_ID) blockers.push("missing_namespace_id");
   if (addressCodecId === null || addressCodecId < MIN_STABLE_DICTIONARY_ID) blockers.push("missing_address_codec_id");
+  if (namespaceId !== null && namespaceId > MAX_STABLE_DICTIONARY_ID) blockers.push("namespace_id_out_of_range");
+  if (addressCodecId !== null && addressCodecId > MAX_STABLE_DICTIONARY_ID) blockers.push("address_codec_id_out_of_range");
   if (payloadHex === null) {
     blockers.push("missing_payload_hex");
   } else if (!/^[0-9a-f]+$/.test(payloadHex) || payloadHex.length % 2 !== 0) {
@@ -588,7 +592,7 @@ export function validateU1AddressKey(
     if (!context.codec) {
       blockers.push("unknown_codec");
     } else {
-      if (INACTIVE_CODEC_STATUSES.has(context.codec.status)) blockers.push("inactive_codec");
+      if (context.codec.status !== PRODUCTION_READY_CODEC_STATUS) blockers.push("inactive_codec");
       const exactBytes = /^exact:(\d+)$/.exec(context.codec.payloadRule)?.[1];
       if (exactBytes && payloadHex !== null && payloadHex.length !== Number(exactBytes) * 2) {
         blockers.push("payload_length_mismatch");

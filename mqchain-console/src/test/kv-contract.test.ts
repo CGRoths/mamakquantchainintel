@@ -283,6 +283,8 @@ describe("U1 address key validation", () => {
   it("fails closed on inactive namespaces, inactive codecs and mismatched pairs", () => {
     expect(validateU1AddressKey(validKey, { namespace: { ...namespace, isActive: false }, codec })).toContain("inactive_namespace");
     expect(validateU1AddressKey(validKey, { namespace, codec: { ...codec, status: "disabled" } })).toContain("inactive_codec");
+    expect(validateU1AddressKey(validKey, { namespace, codec: { ...codec, status: "planned" } })).toContain("inactive_codec");
+    expect(validateU1AddressKey(validKey, { namespace, codec: { ...codec, status: "catalogued" } })).toContain("inactive_codec");
     expect(validateU1AddressKey(validKey, { namespace: { ...namespace, addressCodecId: 2 }, codec })).toContain("namespace_codec_mismatch");
     expect(validateU1AddressKey(validKey, { namespace: null, codec })).toContain("unknown_namespace");
     expect(validateU1AddressKey(validKey, { namespace, codec: null })).toContain("unknown_codec");

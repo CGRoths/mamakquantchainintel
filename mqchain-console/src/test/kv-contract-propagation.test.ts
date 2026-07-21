@@ -254,9 +254,9 @@ describe("batch lifecycle gate", () => {
   it("builds the pending KV handoff from immutable content only", () => {
     const commit = batchService.slice(batchService.indexOf("export async function commitBatch"));
 
-    expect(commit).toContain("computeRegistrySnapshotHash(committedRegistryRows)");
-    expect(commit).toContain("computePendingKvBuildHash(pendingKvManifest)");
-    expect(commit).toContain("expectedCounts:");
+    expect(commit).toContain("createFullKvBuildRequest(tx");
+    expect(commit).toContain("fullRequest.buildHash");
+    expect(commit).toContain("fullRequest.snapshot.registryIds.length");
     // No timestamp may participate in the deterministic build hash.
     expect(commit).not.toContain("hashJson({ ...pendingKvManifest, createdAt");
   });

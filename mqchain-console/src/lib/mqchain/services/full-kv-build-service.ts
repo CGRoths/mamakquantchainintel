@@ -3,6 +3,8 @@ import { asc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
   mqAddressRegistry,
+  mqAddressCodecs,
+  mqAddressNamespaces,
   mqCategoryDict,
   mqEntities,
   mqKvRoleDict,
@@ -45,10 +47,12 @@ type FullKvJoinedRow = {
   protocol: typeof mqProtocols.$inferSelect | null;
   role: typeof mqKvRoleDict.$inferSelect | null;
   category: typeof mqCategoryDict.$inferSelect | null;
+  namespace: typeof mqAddressNamespaces.$inferSelect | null;
+  codec: typeof mqAddressCodecs.$inferSelect | null;
 };
 
-function hasCompilableU1Identity(row: typeof mqAddressRegistry.$inferSelect) {
-  return validateU1AddressKey(row).length === 0 && row.entityId !== null && row.roleId !== null;
+function hasCompilableU1Identity(row: FullKvJoinedRow) {
+  return validateU1AddressKey(row.registry, { namespace: row.namespace, codec: row.codec }).length === 0 && row.registry.entityId !== null && row.registry.roleId !== null;
 }
 
 function isCurrentServingRow(row: typeof mqAddressRegistry.$inferSelect) {
@@ -66,7 +70,7 @@ export function assembleFullKvCompilationSnapshot(input: {
   activeGroups: Array<typeof mqMetricGroups.$inferSelect>;
   activeRules: Array<typeof mqMetricGroupRules.$inferSelect>;
 }): FullKvCompilationSnapshot {
-  const compilableRows = input.joinedRows.filter(row => hasCompilableU1Identity(row.registry));
+  const compilableRows = input.joinedRows.filter(hasCompilableU1Identity);
   const currentRows = compilableRows.filter(row => isCurrentServingRow(row.registry));
   const timelineRows = compilableRows.filter(row => isTimelineServingRow(row.registry));
   const rulesByGroup = new Map<number, MetricGroupRule[]>();
@@ -129,12 +133,16 @@ export async function loadFullKvCompilationSnapshot(source: FullKvSnapshotSource
         protocol: mqProtocols,
         role: mqKvRoleDict,
         category: mqCategoryDict,
+        namespace: mqAddressNamespaces,
+        codec: mqAddressCodecs,
       })
       .from(mqAddressRegistry)
       .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
       .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
       .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
       .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId))
+      .leftJoin(mqAddressNamespaces, eq(mqAddressRegistry.namespaceId, mqAddressNamespaces.id))
+      .leftJoin(mqAddressCodecs, eq(mqAddressRegistry.addressCodecId, mqAddressCodecs.id))
       .orderBy(asc(mqAddressRegistry.id)),
     source.select().from(mqMetricGroups).where(eq(mqMetricGroups.isActive, true)).orderBy(asc(mqMetricGroups.id)),
   ]);

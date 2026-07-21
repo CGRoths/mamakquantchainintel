@@ -35,6 +35,7 @@ function productionManifest(overrides: Record<string, unknown> = {}) {
     rowCount: 2,
     registryIds: [11, 12],
     expectedCounts: { addressLabelCurrent: 2, addressLabelTimeline: 1, metricGroupMembership: 1 },
+    validation: { validationRunId: 99, status: "passed", reportHash: "a".repeat(64) },
     indexes: {
       addressLabelCurrent: { indexName: "address_label_current", rowCount: 2, hash: "current-hash" },
       addressLabelTimeline: { indexName: "address_label_timeline", rowCount: 1, hash: "timeline-hash" },
@@ -758,6 +759,7 @@ describe("KV build manifest validation", () => {
             "registrySnapshotHash",
             "rowCount",
             "timelineSchemaVersion",
+            "validation",
             "valueSchemaVersion",
           ],
           declaredIndexes: {

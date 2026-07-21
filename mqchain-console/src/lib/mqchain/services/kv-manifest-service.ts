@@ -5,8 +5,10 @@ import {
   mqAddressRegistry,
   mqAuditLog,
   mqKvBuilds,
+  mqKvCompiledEntries,
   mqKvIndexManifests,
   mqKvIndexShards,
+  mqKvValidationRuns,
   mqMetricGroupMembers,
   mqMetricGroupMembershipSnapshots,
 } from "@/db/schema";
@@ -291,6 +293,28 @@ export async function activateKvBuildManifest(input: unknown) {
     const preflight = buildKvManifestActivationPreflight(build);
     if (!preflight.canActivate) {
       throw new Error(`KV build manifest failed activation preflight. ${preflight.blockers.join(" ")}`);
+    }
+    const [latestValidation] = await tx
+      .select()
+      .from(mqKvValidationRuns)
+      .where(eq(mqKvValidationRuns.buildId, parsed.buildId))
+      .orderBy(desc(mqKvValidationRuns.createdAt), desc(mqKvValidationRuns.id))
+      .limit(1)
+      .for("update");
+    if (!latestValidation || latestValidation.status !== "passed" || latestValidation.validationType !== "three_way_u1_parity") {
+      throw new Error("KV build activation requires the latest three-way parity validation to be passed.");
+    }
+    const [{ compiledCount }] = await tx
+      .select({ compiledCount: sql<number>`count(*)::int` })
+      .from(mqKvCompiledEntries)
+      .where(eq(mqKvCompiledEntries.buildId, parsed.buildId));
+    const manifest = build.manifest as Record<string, unknown>;
+    const reference = manifest.postgresCompiledReference;
+    const expectedCompiledCount = reference && typeof reference === "object" && !Array.isArray(reference)
+      ? (reference as Record<string, unknown>).rowCount
+      : null;
+    if (typeof expectedCompiledCount !== "number" || expectedCompiledCount !== compiledCount) {
+      throw new Error("KV build activation requires complete PostgreSQL compiled-entry accounting.");
     }
 
     await tx
