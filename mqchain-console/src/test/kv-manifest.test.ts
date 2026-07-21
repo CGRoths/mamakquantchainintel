@@ -17,7 +17,44 @@ import {
   KV_BUILD_REGISTRATION_API_CONTRACT,
   KV_SERVING_MANIFEST_API_CONTRACT,
 } from "@/lib/mqchain/kv-serving-api";
+import { MQCHAIN_KV_CONTRACT_SCHEMA_VERSIONS } from "@/lib/mqchain/kv/contract";
+import { computePendingKvBuildHash } from "@/lib/mqchain/kv-manifest";
 import { createKvBuildManifestSchema, kvBuildRegistrationApiRequestSchema } from "@/lib/mqchain/validators/kv-manifest";
+
+/**
+ * A complete production artifact manifest as an external RocksDB compiler is
+ * expected to register it. Individual tests override one field to prove the
+ * corresponding activation gate.
+ */
+function productionManifest(overrides: Record<string, unknown> = {}) {
+  return {
+    artifactType: "rocksdb",
+    ...MQCHAIN_KV_CONTRACT_SCHEMA_VERSIONS,
+    dictionaryVersion: "dict-123",
+    registrySnapshotHash: "registry-snapshot-123",
+    rowCount: 2,
+    registryIds: [11, 12],
+    expectedCounts: { addressLabelCurrent: 2, addressLabelTimeline: 1, metricGroupMembership: 1 },
+    indexes: {
+      addressLabelCurrent: { indexName: "address_label_current", rowCount: 2, hash: "current-hash" },
+      addressLabelTimeline: { indexName: "address_label_timeline", rowCount: 1, hash: "timeline-hash" },
+      metricGroupMembership: { indexName: "metric_group_membership", rowCount: 1, hash: "metric-hash" },
+    },
+    ...overrides,
+  };
+}
+
+function compiledBuild(manifestOverrides: Record<string, unknown> = {}, buildOverrides: Record<string, unknown> = {}) {
+  return {
+    status: "compiled",
+    buildHash: "hash-123",
+    dictionaryVersion: "dict-123",
+    rowCount: 2,
+    storageUri: "s3://mqchain/builds/hash-123",
+    manifest: productionManifest(manifestOverrides),
+    ...buildOverrides,
+  };
+}
 
 describe("KV build manifest validation", () => {
   it("parses external compiler manifests", () => {
@@ -79,54 +116,70 @@ describe("KV build manifest validation", () => {
     expect(() => kvBuildRegistrationApiRequestSchema.parse({ rowCount: 1 })).toThrow("Provide either manifest or manifestJson");
   });
 
-  it("builds pending batch commit handoff manifests with dictionary version", () => {
+  it("builds pending batch commit handoff manifests with the frozen contract versions", () => {
     expect(
       buildPendingBatchKvManifest({
         batchId: 7,
-        registryIds: [11, 12],
+        registryIds: [12, 11],
+        registrySnapshotHash: "registry-snapshot-abc",
         dictionaryVersion: "abc123",
+        expectedCounts: { addressLabelCurrent: 2, addressLabelTimeline: 1, metricGroupMembership: 1 },
       }),
     ).toEqual({
       reason: "batch_commit",
       batchId: 7,
       registryIds: [11, 12],
+      registrySnapshotHash: "registry-snapshot-abc",
       dictionaryVersion: "abc123",
+      dictionarySchemaVersion: "MQD-U1",
+      keySchemaVersion: "MQK-U1",
+      valueSchemaVersion: "MQV-U1",
+      timelineSchemaVersion: "MQT-U1",
+      metricSchemaVersion: "MQG-U1",
+      expectedCounts: { addressLabelCurrent: 2, addressLabelTimeline: 1, metricGroupMembership: 1 },
       artifactType: "rocksdb",
       artifactStatus: "pending_external_compile",
       note: "RocksDB compilation is external; this manifest is the Vercel control-plane handoff.",
     });
   });
 
-  it("passes activation preflight for compiled external artifacts", () => {
-    const preflight = buildKvManifestActivationPreflight({
-      status: "compiled",
-      buildHash: "hash-123",
-      dictionaryVersion: "dict-123",
-      rowCount: 2,
-      storageUri: "s3://mqchain/builds/hash-123",
-      manifest: {
-        artifactType: "rocksdb",
-        rowCount: 2,
-        registryIds: [11, 12],
-      },
-    });
+  it("derives a reproducible pending build hash from immutable content only", () => {
+    const input = {
+      batchId: 7,
+      registryIds: [11, 12],
+      registrySnapshotHash: "registry-snapshot-abc",
+      dictionaryVersion: "abc123",
+      expectedCounts: { addressLabelCurrent: 2, addressLabelTimeline: 1, metricGroupMembership: 1 },
+    };
+    const first = computePendingKvBuildHash(buildPendingBatchKvManifest(input));
+    const second = computePendingKvBuildHash(buildPendingBatchKvManifest({ ...input, registryIds: [12, 11] }));
 
-    expect(preflight.canActivate).toBe(true);
+    // Registry ID ordering is normalized, so the hash is stable across input order.
+    expect(first).toBe(second);
+
+    // A timestamp in the manifest object must never reach the hash input.
+    expect(computePendingKvBuildHash({ ...buildPendingBatchKvManifest(input), note: "changed note" } as never)).toBe(first);
+
+    // Registry content changes must change the hash.
+    expect(
+      computePendingKvBuildHash(
+        buildPendingBatchKvManifest({ ...input, registrySnapshotHash: "registry-snapshot-xyz" }),
+      ),
+    ).not.toBe(first);
+    expect(
+      computePendingKvBuildHash(buildPendingBatchKvManifest({ ...input, registryIds: [11, 12, 13] })),
+    ).not.toBe(first);
+  });
+
+  it("passes activation preflight for a complete compiled production artifact", () => {
+    const preflight = buildKvManifestActivationPreflight(compiledBuild());
+
     expect(preflight.blockers).toEqual([]);
+    expect(preflight.canActivate).toBe(true);
   });
 
   it("reports active serving artifacts as healthy but not re-activatable", () => {
-    const preflight = buildKvManifestActivationPreflight({
-      status: "active",
-      buildHash: "hash-123",
-      dictionaryVersion: "dict-123",
-      rowCount: 1,
-      storageUri: "D:/mqchain-artifacts/kv/hash-123",
-      manifest: {
-        artifactType: "jsonl-kv-preview",
-        rowCount: 1,
-      },
-    });
+    const preflight = buildKvManifestActivationPreflight(compiledBuild({}, { status: "active" }));
 
     expect(preflight.canActivate).toBe(false);
     expect(preflight.blockers).toEqual([]);
@@ -136,33 +189,110 @@ describe("KV build manifest validation", () => {
     });
   });
 
-  it("passes activation preflight when multi-index row counts agree", () => {
-    const preflight = buildKvManifestActivationPreflight({
-      status: "compiled",
-      buildHash: "hash-123",
-      dictionaryVersion: "dict-123",
-      rowCount: 6,
-      storageUri: "D:/mqchain-artifacts/kv/hash-123",
-      manifest: {
-        artifactType: "jsonl-kv-preview",
-        rowCount: 6,
-        indexes: {
-          addressLabelCurrent: { rowCount: 2, hash: "current" },
-          addressLabelTimeline: { rowCount: 3, hash: "timeline" },
-          metricGroupMembership: { rowCount: 1, hash: "metric" },
+  it("validates each required index against its own expected count, never a summed total", () => {
+    // Counts differ per index and deliberately do not sum to the build rowCount.
+    const preflight = buildKvManifestActivationPreflight(
+      compiledBuild(
+        {
+          rowCount: 2,
+          expectedCounts: { addressLabelCurrent: 2, addressLabelTimeline: 5, metricGroupMembership: 3 },
+          indexes: {
+            addressLabelCurrent: { indexName: "address_label_current", rowCount: 2, hash: "current-hash" },
+            addressLabelTimeline: { indexName: "address_label_timeline", rowCount: 5, hash: "timeline-hash" },
+            metricGroupMembership: { indexName: "metric_group_membership", rowCount: 3, hash: "metric-hash" },
+          },
         },
-      },
-    });
+        { rowCount: 2 },
+      ),
+    );
 
+    expect(preflight.blockers).toEqual([]);
     expect(preflight.canActivate).toBe(true);
-    expect(preflight.checks.find((check) => check.key === "indexRowCounts")).toMatchObject({
-      status: "pass",
-      detail: "Index row counts sum to 6 for database row count 6.",
-    });
-    expect(preflight.checks.find((check) => check.key === "requiredIndexes")).toMatchObject({
-      status: "pass",
-      detail: "Manifest declares 3 required serving indexes.",
-    });
+    // The removed "sum all index rowCounts and compare to rowCount" check must not come back.
+    expect(preflight.checks.some((check) => check.key === "indexRowCounts")).toBe(false);
+  });
+
+  it("blocks activation when one index disagrees with its own expected count", () => {
+    const preflight = buildKvManifestActivationPreflight(
+      compiledBuild({
+        indexes: {
+          addressLabelCurrent: { indexName: "address_label_current", rowCount: 2, hash: "current-hash" },
+          addressLabelTimeline: { indexName: "address_label_timeline", rowCount: 9, hash: "timeline-hash" },
+          metricGroupMembership: { indexName: "metric_group_membership", rowCount: 1, hash: "metric-hash" },
+        },
+      }),
+    );
+
+    expect(preflight.canActivate).toBe(false);
+    expect(preflight.blockers.join(" ")).toContain("Address label timeline index");
+    expect(preflight.blockers.join(" ")).toContain("expectedCounts.addressLabelTimeline 1");
+  });
+
+  it("blocks activation when a required index is missing its content hash", () => {
+    const preflight = buildKvManifestActivationPreflight(
+      compiledBuild({
+        indexes: {
+          addressLabelCurrent: { indexName: "address_label_current", rowCount: 2 },
+          addressLabelTimeline: { indexName: "address_label_timeline", rowCount: 1, hash: "timeline-hash" },
+          metricGroupMembership: { indexName: "metric_group_membership", rowCount: 1, hash: "metric-hash" },
+        },
+      }),
+    );
+
+    expect(preflight.canActivate).toBe(false);
+    expect(preflight.blockers.join(" ")).toContain("content hash missing");
+  });
+
+  it("blocks production activation when the manifest declares no indexes object", () => {
+    const manifest = productionManifest();
+    delete (manifest as Record<string, unknown>).indexes;
+    const preflight = buildKvManifestActivationPreflight({ ...compiledBuild(), manifest });
+
+    expect(preflight.canActivate).toBe(false);
+    expect(preflight.blockers.join(" ")).toContain("Serving indexes declared");
+  });
+
+  it("blocks activation when a frozen schema version is missing or wrong", () => {
+    const missing = buildKvManifestActivationPreflight(compiledBuild({ valueSchemaVersion: undefined }));
+    expect(missing.canActivate).toBe(false);
+    expect(missing.blockers.join(" ")).toContain("Value schema version is missing");
+
+    const wrong = buildKvManifestActivationPreflight(compiledBuild({ keySchemaVersion: "MQK-V1" }));
+    expect(wrong.canActivate).toBe(false);
+    expect(wrong.blockers.join(" ")).toContain("Key schema version is MQK-V1");
+  });
+
+  it("blocks activation when the manifest dictionary version disagrees with the build", () => {
+    const preflight = buildKvManifestActivationPreflight(compiledBuild({ dictionaryVersion: "dict-other" }));
+
+    expect(preflight.canActivate).toBe(false);
+    expect(preflight.blockers.join(" ")).toContain("Dictionary version agreement");
+  });
+
+  it("blocks activation when the registry snapshot hash is absent", () => {
+    const manifest = productionManifest();
+    delete (manifest as Record<string, unknown>).registrySnapshotHash;
+    const preflight = buildKvManifestActivationPreflight({ ...compiledBuild(), manifest });
+
+    expect(preflight.canActivate).toBe(false);
+    expect(preflight.blockers.join(" ")).toContain("Registry snapshot hash");
+  });
+
+  it("never activates a preview or partial artifact as the production serving artifact", () => {
+    const preview = buildKvManifestActivationPreflight(compiledBuild({ artifactType: "jsonl-kv-preview" }));
+    expect(preview.canActivate).toBe(false);
+    expect(preview.blockers.join(" ")).toContain("Production build kind");
+
+    const partial = buildKvManifestActivationPreflight(compiledBuild({ partial: true }));
+    expect(partial.canActivate).toBe(false);
+    expect(partial.blockers.join(" ")).toContain("Production build kind");
+  });
+
+  it("blocks activation when filter support is enabled without filter manifests", () => {
+    const preflight = buildKvManifestActivationPreflight(compiledBuild({ filterSupport: true }));
+
+    expect(preflight.canActivate).toBe(false);
+    expect(preflight.blockers.join(" ")).toContain("Filter manifests");
   });
 
   it("summarizes required serving indexes by key or declared index name", () => {
@@ -391,14 +521,9 @@ describe("KV build manifest validation", () => {
   });
 
   it("blocks activation without external artifact and dictionary provenance", () => {
-    const preflight = buildKvManifestActivationPreflight({
-      status: "compiled",
-      buildHash: "hash-123",
-      dictionaryVersion: null,
-      rowCount: 1,
-      storageUri: null,
-      manifest: { artifactType: "rocksdb", rowCount: 1 },
-    });
+    const preflight = buildKvManifestActivationPreflight(
+      compiledBuild({}, { dictionaryVersion: null, storageUri: null }),
+    );
 
     expect(preflight.canActivate).toBe(false);
     expect(preflight.blockers.join(" ")).toContain("Dictionary version");
@@ -406,67 +531,26 @@ describe("KV build manifest validation", () => {
   });
 
   it("blocks activation when manifest row accounting disagrees with the database row", () => {
-    const preflight = buildKvManifestActivationPreflight({
-      status: "compiled",
-      buildHash: "hash-123",
-      dictionaryVersion: "dict-123",
-      rowCount: 3,
-      storageUri: "D:/mqchain-artifacts/kv/hash-123",
-      manifest: {
-        artifactType: "jsonl-kv-preview",
-        rowCount: 2,
-        registryIds: [11, 12],
-      },
-    });
+    const preflight = buildKvManifestActivationPreflight(compiledBuild({}, { rowCount: 3 }));
 
     expect(preflight.canActivate).toBe(false);
     expect(preflight.blockers.join(" ")).toContain("Row count agreement");
     expect(preflight.blockers.join(" ")).toContain("Registry ID accounting");
   });
 
-  it("blocks activation when multi-index row counts disagree with the database row", () => {
-    const preflight = buildKvManifestActivationPreflight({
-      status: "compiled",
-      buildHash: "hash-123",
-      dictionaryVersion: "dict-123",
-      rowCount: 6,
-      storageUri: "D:/mqchain-artifacts/kv/hash-123",
-      manifest: {
-        artifactType: "jsonl-kv-preview",
-        rowCount: 6,
-        indexes: {
-          addressLabelCurrent: { rowCount: 2 },
-          addressLabelTimeline: { rowCount: 3 },
-          metricGroupMembership: { rowCount: 2 },
-        },
-      },
-    });
-
-    expect(preflight.canActivate).toBe(false);
-    expect(preflight.blockers.join(" ")).toContain("Index row counts");
-    expect(preflight.blockers.join(" ")).toContain("sum to 7");
-  });
-
   it("blocks activation when a declared multi-index artifact is missing a required serving index", () => {
-    const preflight = buildKvManifestActivationPreflight({
-      status: "compiled",
-      buildHash: "hash-123",
-      dictionaryVersion: "dict-123",
-      rowCount: 5,
-      storageUri: "D:/mqchain-artifacts/kv/hash-123",
-      manifest: {
-        artifactType: "jsonl-kv-preview",
-        rowCount: 5,
+    const preflight = buildKvManifestActivationPreflight(
+      compiledBuild({
         indexes: {
-          addressLabelCurrent: { indexName: "address_label_current", rowCount: 2 },
-          addressLabelTimeline: { indexName: "address_label_timeline", rowCount: 3 },
+          addressLabelCurrent: { indexName: "address_label_current", rowCount: 2, hash: "current-hash" },
+          addressLabelTimeline: { indexName: "address_label_timeline", rowCount: 1, hash: "timeline-hash" },
         },
-      },
-    });
+      }),
+    );
 
     expect(preflight.canActivate).toBe(false);
-    expect(preflight.blockers.join(" ")).toContain("Required serving indexes");
-    expect(preflight.blockers.join(" ")).toContain("Metric group membership");
+    expect(preflight.blockers.join(" ")).toContain("Metric group membership index");
+    expect(preflight.blockers.join(" ")).toContain("index missing");
   });
 
   it("serializes the active external KV serving manifest for MamakQuantNode", () => {
@@ -608,11 +692,13 @@ describe("KV build manifest validation", () => {
           status: "compiled",
           rowCount: 6,
           storageUri: "s3://mqchain/kv/hash-compiled",
-          manifest: {
-            artifactType: "jsonl-kv-preview",
+          manifest: productionManifest({
             artifactStatus: "compiled",
+            dictionaryVersion: "dict-compiled",
             rowCount: 6,
+            registryIds: [11, 12, 13, 14, 15, 16],
             privateCompilerNote: "full manifest body should stay on detail endpoint",
+            expectedCounts: { addressLabelCurrent: 2, addressLabelTimeline: 3, metricGroupMembership: 1 },
             indexes: {
               addressLabelCurrent: {
                 indexName: "address_label_current",
@@ -630,7 +716,7 @@ describe("KV build manifest validation", () => {
                 hash: "metric-hash",
               },
             },
-          },
+          }),
           createdAt: new Date("2026-07-04T01:00:00.000Z"),
           activatedAt: null,
         },
@@ -655,10 +741,25 @@ describe("KV build manifest validation", () => {
           status: "compiled",
           rowCount: 6,
           storageUri: "s3://mqchain/kv/hash-compiled",
-          artifactType: "jsonl-kv-preview",
+          artifactType: "rocksdb",
           artifactStatus: "compiled",
           manifestRowCount: 6,
-          manifestKeys: ["artifactStatus", "artifactType", "indexes", "privateCompilerNote", "rowCount"],
+          manifestKeys: [
+            "artifactStatus",
+            "artifactType",
+            "dictionarySchemaVersion",
+            "dictionaryVersion",
+            "expectedCounts",
+            "indexes",
+            "keySchemaVersion",
+            "metricSchemaVersion",
+            "privateCompilerNote",
+            "registryIds",
+            "registrySnapshotHash",
+            "rowCount",
+            "timelineSchemaVersion",
+            "valueSchemaVersion",
+          ],
           declaredIndexes: {
             hasIndexes: true,
             missingRequired: [],
@@ -698,26 +799,31 @@ describe("KV build manifest validation", () => {
         status: "compiled",
         rowCount: 6,
         storageUri: "s3://mqchain/kv/hash-compiled",
-        manifest: {
-          artifactType: "jsonl-kv-preview",
+        manifest: productionManifest({
           artifactStatus: "compiled",
+          dictionaryVersion: "dict-compiled",
           rowCount: 6,
+          registryIds: [11, 12, 13, 14, 15, 16],
           privateCompilerNote: "full compiler note is only summarized here",
+          expectedCounts: { addressLabelCurrent: 2, addressLabelTimeline: 3, metricGroupMembership: 1 },
           indexes: {
             addressLabelCurrent: {
               indexName: "address_label_current",
               rowCount: 2,
+              hash: "current-hash",
             },
             addressLabelTimeline: {
               indexName: "address_label_timeline",
               rowCount: 3,
+              hash: "timeline-hash",
             },
             metricGroupMembership: {
               indexName: "metric_group_membership",
               rowCount: 1,
+              hash: "metric-hash",
             },
           },
-        },
+        }),
         createdAt: new Date("2026-07-04T01:00:00.000Z"),
         activatedAt: null,
       },
@@ -734,7 +840,7 @@ describe("KV build manifest validation", () => {
         buildHash: "hash-compiled",
         dictionaryVersion: "dict-compiled",
         status: "compiled",
-        artifactType: "jsonl-kv-preview",
+        artifactType: "rocksdb",
         activationPreflight: {
           canActivate: true,
           blockerCount: 0,
@@ -776,9 +882,11 @@ describe("KV build manifest validation", () => {
         status: "compiled",
         rowCount: 6,
         storageUri: "s3://mqchain/kv/hash-compiled",
-        manifest: {
-          artifactType: "jsonl-kv-preview",
+        manifest: productionManifest({
+          dictionaryVersion: "dict-compiled",
           rowCount: 6,
+          registryIds: [11, 12, 13, 14, 15, 16],
+          expectedCounts: { addressLabelCurrent: 2, addressLabelTimeline: 3, metricGroupMembership: 1 },
           indexes: {
             addressLabelCurrent: {
               indexName: "address_label_current",
@@ -799,7 +907,7 @@ describe("KV build manifest validation", () => {
               path: "metric.jsonl",
             },
           },
-        },
+        }),
         createdAt: new Date("2026-07-04T01:00:00.000Z"),
         activatedAt: null,
       },

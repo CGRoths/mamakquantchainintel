@@ -60,6 +60,8 @@ export type PreparedCsvIntakeRow = CsvIntakeRow & {
     protocolId: number | null;
     roleId: number | null;
     roleCode: string | null;
+    componentId?: number | null;
+    categoryId?: number | null;
   };
 };
 
@@ -403,6 +405,8 @@ export async function createCandidatesFromRows(
       const suggestedProtocolId = row.preflightResolution?.protocolId ?? hints?.protocol?.id;
       const suggestedRoleId = row.preflightResolution?.roleId ?? hints?.role?.roleId;
       const suggestedRoleCode = row.preflightResolution?.roleCode ?? hints?.role?.roleCode;
+      const suggestedComponentId = row.preflightResolution?.componentId ?? null;
+      const suggestedCategoryId = row.preflightResolution?.categoryId ?? null;
 
       const confidenceScore = Math.max(0, Math.min(100, Number(row.confidence ?? 50) || 50));
       const qualityTier = Math.max(QUALITY_TIER_MIN, Math.min(QUALITY_TIER_MAX, Number(row.quality_tier ?? 1) || 1));
@@ -421,6 +425,8 @@ export async function createCandidatesFromRows(
           chainCode: normalized.chainCode,
           addressFamily: normalized.addressFamily,
           prefixCode: normalized.prefixCode,
+          namespaceId: normalized.namespaceId,
+          addressCodecId: normalized.addressCodecId,
           payloadHex: normalized.payloadHex,
           entityHint: row.entity || source.entityHint,
           protocolHint: row.protocol || source.protocolHint,
@@ -428,6 +434,7 @@ export async function createCandidatesFromRows(
           suggestedEntityId,
           suggestedProtocolId,
           suggestedRoleId,
+          suggestedComponentId,
           confidenceScore,
           qualityTier,
           candidateStatus,
@@ -448,6 +455,7 @@ export async function createCandidatesFromRows(
             normalizationStatus: row.normalization_status,
             identifierKind: row.identifier_kind,
             componentHint: row.component,
+            suggestedCategoryId,
             tagHints: row.tags,
             notes: row.notes,
             metricEligible: row.metric_eligible,

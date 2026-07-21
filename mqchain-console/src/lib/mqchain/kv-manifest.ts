@@ -1,7 +1,20 @@
+import {
+  MQCHAIN_KV_CONTRACT_SCHEMA_VERSIONS,
+  REQUIRED_KV_INDEXES,
+  type RequiredKvIndexKey,
+} from "./kv/contract";
+import { hashJson } from "./contracts/hash";
+
+export { REQUIRED_KV_INDEXES };
+
+export type PendingKvExpectedCounts = Record<RequiredKvIndexKey, number>;
+
 export type PendingBatchKvManifestInput = {
   batchId: number;
   registryIds: number[];
+  registrySnapshotHash: string;
   dictionaryVersion: string;
+  expectedCounts: PendingKvExpectedCounts;
 };
 
 export type KvBuildActivationCandidate = {
@@ -102,12 +115,6 @@ export type PersistedKvIndexSummary = {
   missingRequired: string[];
   statusCounts: Record<string, number>;
 };
-
-export const REQUIRED_KV_INDEXES = [
-  { key: "addressLabelCurrent", indexName: "address_label_current", label: "Address label current" },
-  { key: "addressLabelTimeline", indexName: "address_label_timeline", label: "Address label timeline" },
-  { key: "metricGroupMembership", indexName: "metric_group_membership", label: "Metric group membership" },
-] as const;
 
 function hasText(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -310,38 +317,67 @@ export function summarizeKvManifestIndexes(manifest: Record<string, unknown> | n
   };
 }
 
-function indexRowCountSummary(indexes: unknown) {
-  if (!isRecord(indexes)) {
-    return null;
-  }
-
-  let total = 0;
-  const missing: string[] = [];
-  for (const [indexName, indexManifest] of Object.entries(indexes)) {
-    if (!isRecord(indexManifest)) {
-      missing.push(indexName);
-      continue;
-    }
-    const rowCount = numberFromManifest(indexManifest, "rowCount");
-    if (rowCount === null) {
-      missing.push(indexName);
-      continue;
-    }
-    total += rowCount;
-  }
-
-  return { total, missing };
-}
-
 export function buildPendingBatchKvManifest(input: PendingBatchKvManifestInput) {
   return {
     reason: "batch_commit",
     batchId: input.batchId,
-    registryIds: input.registryIds,
+    registryIds: [...input.registryIds].sort((left, right) => left - right),
+    registrySnapshotHash: input.registrySnapshotHash,
     dictionaryVersion: input.dictionaryVersion,
+    ...MQCHAIN_KV_CONTRACT_SCHEMA_VERSIONS,
+    expectedCounts: {
+      addressLabelCurrent: input.expectedCounts.addressLabelCurrent,
+      addressLabelTimeline: input.expectedCounts.addressLabelTimeline,
+      metricGroupMembership: input.expectedCounts.metricGroupMembership,
+    },
     artifactType: "rocksdb",
     artifactStatus: "pending_external_compile",
     note: "RocksDB compilation is external; this manifest is the Vercel control-plane handoff.",
+  };
+}
+
+/**
+ * Deterministic hash of the pending KV build request. Uses immutable content
+ * only — never timestamps. Same registry snapshot in, same hash out.
+ */
+export function computePendingKvBuildHash(manifest: ReturnType<typeof buildPendingBatchKvManifest>) {
+  return hashJson({
+    reason: manifest.reason,
+    batchId: manifest.batchId,
+    registryIds: manifest.registryIds,
+    registrySnapshotHash: manifest.registrySnapshotHash,
+    dictionaryVersion: manifest.dictionaryVersion,
+    dictionarySchemaVersion: manifest.dictionarySchemaVersion,
+    keySchemaVersion: manifest.keySchemaVersion,
+    valueSchemaVersion: manifest.valueSchemaVersion,
+    timelineSchemaVersion: manifest.timelineSchemaVersion,
+    metricSchemaVersion: manifest.metricSchemaVersion,
+    expectedCounts: manifest.expectedCounts,
+    artifactType: manifest.artifactType,
+  });
+}
+
+const PREVIEW_ARTIFACT_TYPES = new Set(["jsonl-kv-preview", "preview", "partial"]);
+
+function isPreviewOrPartialArtifact(manifest: Record<string, unknown>) {
+  if (manifest.preview === true || manifest.partial === true) return true;
+  if (hasText(manifest.buildKind) && ["preview", "partial", "test"].includes(manifest.buildKind)) return true;
+  return hasText(manifest.artifactType) && PREVIEW_ARTIFACT_TYPES.has(manifest.artifactType);
+}
+
+function schemaVersionCheck(manifest: Record<string, unknown>, key: keyof typeof MQCHAIN_KV_CONTRACT_SCHEMA_VERSIONS, label: string): KvManifestPreflightCheck {
+  const expected = MQCHAIN_KV_CONTRACT_SCHEMA_VERSIONS[key];
+  const declared = manifest[key];
+  const matches = declared === expected;
+  return {
+    key,
+    label,
+    status: matches ? "pass" : "fail",
+    detail: matches
+      ? `${label} is ${expected}.`
+      : hasText(declared)
+        ? `${label} is ${declared}; production activation requires ${expected}.`
+        : `${label} is missing; production activation requires ${expected}.`,
   };
 }
 
@@ -391,11 +427,53 @@ export function buildKvManifestActivationPreflight(build: KvBuildActivationCandi
   });
 
   if (manifest) {
+    const isProductionArtifact = manifest.artifactType === "rocksdb";
     checks.push({
       key: "artifactType",
       label: "Artifact type",
-      status: hasText(manifest.artifactType) ? "pass" : "fail",
-      detail: hasText(manifest.artifactType) ? manifest.artifactType : "Manifest must name the artifact type, such as rocksdb or jsonl-kv-preview.",
+      status: isProductionArtifact ? "pass" : "fail",
+      detail: hasText(manifest.artifactType)
+        ? isProductionArtifact
+          ? "Artifact type is rocksdb."
+          : `Artifact type ${manifest.artifactType} cannot be activated as the production serving artifact.`
+        : "Manifest must declare artifactType rocksdb for production activation.",
+    });
+
+    checks.push({
+      key: "notPreviewBuild",
+      label: "Production build kind",
+      status: isPreviewOrPartialArtifact(manifest) ? "fail" : "pass",
+      detail: isPreviewOrPartialArtifact(manifest)
+        ? "Preview, partial, or test artifacts must never be activated as the production serving artifact."
+        : "Artifact is a full production build.",
+    });
+
+    checks.push(schemaVersionCheck(manifest, "dictionarySchemaVersion", "Dictionary schema version"));
+    checks.push(schemaVersionCheck(manifest, "keySchemaVersion", "Key schema version"));
+    checks.push(schemaVersionCheck(manifest, "valueSchemaVersion", "Value schema version"));
+    checks.push(schemaVersionCheck(manifest, "timelineSchemaVersion", "Timeline schema version"));
+    checks.push(schemaVersionCheck(manifest, "metricSchemaVersion", "Metric schema version"));
+
+    const manifestDictionaryVersion = hasText(manifest.dictionaryVersion) ? manifest.dictionaryVersion : null;
+    checks.push({
+      key: "dictionaryVersionMatch",
+      label: "Dictionary version agreement",
+      status: manifestDictionaryVersion !== null && manifestDictionaryVersion === build.dictionaryVersion ? "pass" : "fail",
+      detail:
+        manifestDictionaryVersion === null
+          ? "Manifest must declare the dictionary version of the compiled snapshot."
+          : manifestDictionaryVersion === build.dictionaryVersion
+            ? "Manifest dictionary version matches the compiled snapshot."
+            : `Manifest dictionary version ${manifestDictionaryVersion} does not match build dictionary version ${build.dictionaryVersion ?? "unset"}.`,
+    });
+
+    checks.push({
+      key: "registrySnapshotHash",
+      label: "Registry snapshot hash",
+      status: hasText(manifest.registrySnapshotHash) ? "pass" : "fail",
+      detail: hasText(manifest.registrySnapshotHash)
+        ? "Manifest declares the registry snapshot hash."
+        : "Manifest must declare the deterministic registry snapshot hash used for compilation.",
     });
 
     const manifestRowCount = numberFromManifest(manifest, "rowCount");
@@ -420,37 +498,63 @@ export function buildKvManifestActivationPreflight(build: KvBuildActivationCandi
           : `Manifest lists ${registryIds.length} registry IDs for ${build.rowCount} rows.`,
     });
 
-    const indexes = indexRowCountSummary(manifest.indexes);
-    const requiredIndexes = summarizeKvManifestIndexes(manifest);
+    // Each required index validates on its own: presence, its own rowCount, its
+    // own content hash, and its own expected count. Unrelated index
+    // cardinalities are never summed against a single top-level row count.
+    const indexes = isRecord(manifest.indexes) ? manifest.indexes : null;
+    const expectedCounts = isRecord(manifest.expectedCounts) ? manifest.expectedCounts : null;
     checks.push({
-      key: "indexRowCounts",
-      label: "Index row counts",
-      status: !manifest.indexes || (indexes !== null && indexes.missing.length === 0 && indexes.total === build.rowCount) ? "pass" : "fail",
-      detail: !manifest.indexes
-        ? "Manifest does not declare per-index row counts."
-        : indexes === null
-          ? "Manifest indexes must be an object keyed by index name."
-          : indexes.missing.length
-            ? `Missing rowCount for indexes: ${indexes.missing.join(", ")}.`
-            : `Index row counts sum to ${indexes.total} for database row count ${build.rowCount}.`,
+      key: "indexesDeclared",
+      label: "Serving indexes declared",
+      status: indexes ? "pass" : "fail",
+      detail: indexes
+        ? "Manifest declares its serving indexes."
+        : "Manifest is missing the indexes object; production activation requires every required serving index.",
     });
 
-    checks.push({
-      key: "requiredIndexes",
-      label: "Required serving indexes",
-      status:
-        !requiredIndexes.hasIndexes ||
-        (requiredIndexes.missingRequired.length === 0 && requiredIndexes.rowCountMissing.length === 0)
-          ? "pass"
-          : "fail",
-      detail: !requiredIndexes.hasIndexes
-        ? "Manifest does not declare serving indexes."
-        : requiredIndexes.missingRequired.length
-          ? `Missing required indexes: ${requiredIndexes.missingRequired.join(", ")}.`
-          : requiredIndexes.rowCountMissing.length
-            ? `Missing rowCount for required indexes: ${requiredIndexes.rowCountMissing.join(", ")}.`
-            : `Manifest declares ${requiredIndexes.rows.length} required serving indexes.`,
-    });
+    if (indexes) {
+      for (const required of REQUIRED_KV_INDEXES) {
+        const indexManifest = findIndexManifest(indexes, required.key, required.indexName);
+        const rowCount = indexManifest ? numberFromManifest(indexManifest, "rowCount") : null;
+        const indexHash = indexManifest
+          ? hasText(indexManifest.hash)
+            ? indexManifest.hash
+            : hasText(indexManifest.manifestHash)
+              ? indexManifest.manifestHash
+              : null
+          : null;
+        const expectedCount = expectedCounts ? numberFromManifest(expectedCounts, required.key) : null;
+
+        const problems: string[] = [];
+        if (!indexManifest) problems.push("index missing");
+        if (indexManifest && rowCount === null) problems.push("rowCount missing");
+        if (indexManifest && indexHash === null) problems.push("content hash missing");
+        if (indexManifest && rowCount !== null && expectedCount !== null && rowCount !== expectedCount) {
+          problems.push(`rowCount ${rowCount} does not match expectedCounts.${required.key} ${expectedCount}`);
+        }
+
+        checks.push({
+          key: `index:${required.key}`,
+          label: `${required.label} index`,
+          status: problems.length ? "fail" : "pass",
+          detail: problems.length
+            ? `${required.indexName}: ${problems.join("; ")}.`
+            : `${required.indexName} present with rowCount ${rowCount}${expectedCount !== null ? ` matching expected ${expectedCount}` : ""} and content hash.`,
+        });
+      }
+    }
+
+    if (manifest.filterSupport === true) {
+      const filters = isRecord(manifest.filters) ? manifest.filters : null;
+      checks.push({
+        key: "filterManifests",
+        label: "Filter manifests",
+        status: filters && Object.keys(filters).length ? "pass" : "fail",
+        detail: filters && Object.keys(filters).length
+          ? "Filter manifests are declared for the filter-enabled artifact."
+          : "Filter support is enabled but the manifest declares no filter manifests.",
+      });
+    }
   }
 
   if (build.rowCount === 0) {

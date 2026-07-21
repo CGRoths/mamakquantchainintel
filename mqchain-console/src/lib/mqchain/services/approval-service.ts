@@ -4,10 +4,13 @@ import { getDb } from "@/db/client";
 import { mqAddressCandidates, mqAddressEvidence, mqAddressRegistry, mqApprovalEvents, mqAuditLog, mqKvRoleDict, mqSourceVerifications } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { buildCandidateSourceVerificationContext, isCandidateSourceVerificationSatisfied } from "../candidate-detail";
+import { CANDIDATE_APPROVAL_BLOCKER_LABELS } from "../candidate-approval";
 import { LABEL_STATUS } from "../constants";
-import { FLAG_BITS, applyMetricEligibilityToFlags, clearFlag, hasFlag, markHistoricalOnlyFlags } from "../flags";
+import { FLAG_BITS, applyMetricEligibilityToFlags, clearFlag, markHistoricalOnlyFlags } from "../flags";
 import { validateMetricEligibility } from "../metric-eligibility";
 import { buildCandidateReviewAuditPayload } from "../review";
+import { buildCandidateApprovalEvaluations } from "./candidate-approval-evaluation";
+import { getCanonicalDictionarySnapshot } from "./dictionary-service";
 import {
   approvalEditSchema,
   candidateHistoricalOnlySchema,
@@ -204,44 +207,29 @@ export async function approveCandidateAsSuggested(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [candidate] = await tx.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, parsed.candidateId)).limit(1);
+    // Individual quick approval and bulk approval share one rule set; see
+    // candidate-approval.ts. Never re-implement eligibility here.
+    const snapshot = await getCanonicalDictionarySnapshot(tx);
+    const bundle = await buildCandidateApprovalEvaluations({
+      reader: tx,
+      candidateIds: [parsed.candidateId],
+      dictionaryVersion: snapshot.versionHash,
+      lockRows: true,
+    });
+    const evaluation = bundle.evaluations[0];
+    const candidate = bundle.candidatesById.get(parsed.candidateId);
 
     if (!candidate) {
       throw new Error("Candidate not found.");
     }
-    await assertCandidateHasAttachedEvidence(tx, candidate.id);
-    const sourceVerification = await assertCandidateSourceVerified(tx, candidate);
 
-    if (!candidate.suggestedEntityId || !candidate.suggestedRoleId) {
-      throw new Error("Candidate needs suggested entity and role before quick approval.");
+    if (!evaluation.eligible || !evaluation.draft) {
+      const labels = evaluation.blockers.map((blocker) => CANDIDATE_APPROVAL_BLOCKER_LABELS[blocker]);
+      throw new Error(`Candidate ${parsed.candidateId} cannot be approved as suggested: ${labels.join(", ")}.`);
     }
 
-    const [role] = await tx.select().from(mqKvRoleDict).where(eq(mqKvRoleDict.roleId, candidate.suggestedRoleId)).limit(1);
-    if (!role) throw new Error("Resolved role not found.");
-    const requestedMetricEligible = hasFlag(role.defaultFlags, FLAG_BITS.metricEligible);
-    const metricEligibility = validateMetricEligibility({
-      requested: requestedMetricEligible,
-      roleCode: role.roleCode,
-      roleMetricUsageDefault: role.metricUsageDefault,
-      confidenceScore: candidate.confidenceScore,
-      labelStatus: LABEL_STATUS.activeCurrent,
-      identifierKind: typeof candidate.metadata?.identifierKind === "string" ? candidate.metadata.identifierKind : "wallet_address",
-      sourceVerificationSatisfied: true,
-      matchingTrustTiers: sourceVerification.matchingTrustTiers ?? [],
-    });
     const approvalDraft = {
-      entityId: candidate.suggestedEntityId,
-      protocolId: candidate.suggestedProtocolId ?? null,
-      roleId: candidate.suggestedRoleId,
-      confidenceScore: candidate.confidenceScore,
-      qualityTier: candidate.qualityTier,
-      labelStatus: LABEL_STATUS.activeCurrent,
-      flags: applyMetricEligibilityToFlags(role.defaultFlags, metricEligibility.eligible),
-      metricEligible: metricEligibility.eligible,
-      validFromBlock: null,
-      validToBlock: null,
-      firstSeenBlock: candidate.firstSeenBlock,
-      lastSeenBlock: candidate.lastSeenBlock,
+      ...evaluation.draft,
       notes: parsed.reason || "Approved as suggested from review queue.",
     };
 

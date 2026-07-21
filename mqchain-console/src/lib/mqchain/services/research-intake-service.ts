@@ -97,6 +97,8 @@ export async function createResearchIntake(input: unknown) {
       protocolId: record.protocolId,
       roleId: record.roleId,
       roleCode: record.roleId ? roles.get(record.roleId)?.code ?? null : null,
+      componentId: record.componentId,
+      categoryId: record.categoryId,
     },
   }));
 

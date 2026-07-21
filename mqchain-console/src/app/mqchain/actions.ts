@@ -15,6 +15,7 @@ import {
   rejectCandidate,
 } from "@/lib/mqchain/origin-client/client";
 import { approveBatch, commitBatch, createBatchFromCandidates, failBatch, supersedeBatch } from "@/lib/mqchain/origin-client/client";
+import { executeBulkCandidateApproval, previewBulkCandidateApproval } from "@/lib/mqchain/origin-client/client";
 import {
   createAiCleanedCsvIntake,
   createCsvIntake,
@@ -83,6 +84,11 @@ export type CandidateMutationData = {
 };
 
 export type CandidateMutationState = ActionResult<CandidateMutationData> | null;
+
+export type BulkApprovalPreviewData = Awaited<ReturnType<typeof previewBulkCandidateApproval>>;
+export type BulkApprovalPreviewState = ActionResult<BulkApprovalPreviewData> | null;
+export type BulkApprovalResultData = Awaited<ReturnType<typeof executeBulkCandidateApproval>>;
+export type BulkApprovalResultState = ActionResult<BulkApprovalResultData> | null;
 
 export type BatchMutationData = {
   batchId: number;
@@ -873,6 +879,58 @@ export async function approveCandidateAsSuggestedResultAction(
 
     revalidateReviewPaths(candidate.id, returnTo);
     return { candidateId: candidate.id, status: candidate.candidateStatus, message: "Candidate approved as suggested." };
+  });
+}
+
+function bulkApprovalSelectionFromFormData(formData: FormData) {
+  const candidateIds = formData
+    .getAll("candidateId")
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
+  const mode = formValue(formData, "mode") === "strict" ? "strict" : "eligible_only";
+  return { candidateIds, mode } as const;
+}
+
+export async function previewBulkCandidateApprovalResultAction(
+  _previousState: BulkApprovalPreviewState,
+  formData: FormData,
+): Promise<BulkApprovalPreviewState> {
+  return runAction(async () => {
+    const selection = bulkApprovalSelectionFromFormData(formData);
+    if (!selection.candidateIds.length) {
+      throw new Error("Select at least one candidate to preview.");
+    }
+
+    const preview = await previewBulkCandidateApproval(selection);
+    // Preview writes nothing, but it reports the server's current view of the
+    // queue; drop stale cached renders so the operator confirms against the
+    // same state the preview was computed from.
+    revalidatePath("/mqchain/review");
+    return preview;
+  });
+}
+
+export async function executeBulkCandidateApprovalResultAction(
+  _previousState: BulkApprovalResultState,
+  formData: FormData,
+): Promise<BulkApprovalResultState> {
+  return runAction(async () => {
+    const selection = bulkApprovalSelectionFromFormData(formData);
+    if (!selection.candidateIds.length) {
+      throw new Error("Select at least one candidate to approve.");
+    }
+
+    const result = await executeBulkCandidateApproval({
+      ...selection,
+      expectedDictionaryVersion: formValue(formData, "expectedDictionaryVersion"),
+      expectedPreviewHash: formValue(formData, "expectedPreviewHash"),
+      reason: formValue(formData, "reason"),
+    });
+
+    revalidateCandidatePaths(undefined);
+    revalidatePath("/mqchain/source-jobs");
+    return result;
   });
 }
 

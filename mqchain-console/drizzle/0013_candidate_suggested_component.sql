@@ -1,0 +1,3 @@
+ALTER TABLE "mq_address_candidates" ADD COLUMN "suggested_component_id" bigint;--> statement-breakpoint
+ALTER TABLE "mq_address_candidates" ADD CONSTRAINT "mq_address_candidates_suggested_component_id_mq_protocol_components_component_id_fk" FOREIGN KEY ("suggested_component_id") REFERENCES "public"."mq_protocol_components"("component_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_mq_candidates_component" ON "mq_address_candidates" USING btree ("suggested_component_id");

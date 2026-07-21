@@ -67,11 +67,19 @@ describe("dashboard rollups", () => {
         activatedAt: null,
         manifest: {
           artifactType: "rocksdb",
+          dictionarySchemaVersion: "MQD-U1",
+          keySchemaVersion: "MQK-U1",
+          valueSchemaVersion: "MQV-U1",
+          timelineSchemaVersion: "MQT-U1",
+          metricSchemaVersion: "MQG-U1",
+          dictionaryVersion: "dict-v1",
+          registrySnapshotHash: "registry-snapshot-v1",
           rowCount: 3,
+          expectedCounts: { addressLabelCurrent: 1, addressLabelTimeline: 1, metricGroupMembership: 1 },
           indexes: {
-            addressLabelCurrent: { indexName: "address_label_current", rowCount: 1 },
-            addressLabelTimeline: { indexName: "address_label_timeline", rowCount: 1 },
-            metricGroupMembership: { indexName: "metric_group_membership", rowCount: 1 },
+            addressLabelCurrent: { indexName: "address_label_current", rowCount: 1, hash: "current-hash" },
+            addressLabelTimeline: { indexName: "address_label_timeline", rowCount: 1, hash: "timeline-hash" },
+            metricGroupMembership: { indexName: "metric_group_membership", rowCount: 1, hash: "metric-hash" },
           },
         },
       }),
@@ -115,7 +123,11 @@ describe("dashboard rollups", () => {
       requiredIndexesPresent: 1,
       requiredIndexesTotal: 3,
       servingIndexesReady: false,
-      blockerCount: 5,
+      // Not compiled, plus missing build hash, dictionary version, storage URI,
+      // all five frozen schema versions, dictionary-version agreement, registry
+      // snapshot hash, the current index's content hash, the timeline index and
+      // the metric-group index.
+      blockerCount: 14,
     });
   });
 });

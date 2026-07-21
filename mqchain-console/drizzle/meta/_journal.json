@@ -92,6 +92,13 @@
       "when": 1784561960429,
       "tag": "0012_wet_jazinda",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1784643388246,
+      "tag": "0013_candidate_suggested_component",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,7 @@ import type { OriginActorClaims } from "../contracts/origin";
 export type { IntakeSummary } from "../contracts/domain";
 import type * as AuditContract from "../contracts/dto/audit-service";
 import type * as BatchContract from "../contracts/dto/batch-service";
+import type * as BulkApprovalContract from "../contracts/dto/bulk-approval-service";
 import type * as CandidateContract from "../contracts/dto/candidate-service";
 import type * as CexContract from "../contracts/dto/cex-flow-service";
 import type * as DashboardContract from "../contracts/dto/dashboard-origin-service";
@@ -175,6 +176,8 @@ export const markCandidateDuplicate = (input: unknown) => candidateReview("dupli
 export const markCandidateSupersedesRegistry = (input: unknown) => candidateReview("supersedes_registry", input);
 export const markCandidateHistoricalOnly = (input: unknown) => candidateReview("historical_only", input);
 export const markCandidateMetricIneligible = (input: unknown) => candidateReview("metric_ineligible", input);
+export const previewBulkCandidateApproval = (input: unknown) => mutate<ServiceResult<typeof BulkApprovalContract.previewBulkCandidateApproval>>("candidate:review", "/v1/candidates/bulk-approval/preview", input);
+export const executeBulkCandidateApproval = (input: unknown) => mutate<ServiceResult<typeof BulkApprovalContract.executeBulkCandidateApproval>>("candidate:review", "/v1/candidates/bulk-approval", input);
 export const addCandidateEvidence = (input: unknown) => mutate("candidate:evidence", `/v1/candidates/${inputId(input, "candidateId")}/evidence`, input);
 export const addRegistryEvidence = (input: unknown) => mutate("registry:edit", `/v1/registry/${inputId(input, "registryId")}/evidence`, input);
 

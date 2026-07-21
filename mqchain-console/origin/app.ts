@@ -16,6 +16,7 @@ import { runWithOriginActor } from "../src/lib/mqchain/origin-only/actor-context
 import { serializeOriginBody } from "../src/lib/mqchain/origin-client/serialization";
 import { listAuditTimeline } from "../src/lib/mqchain/services/audit-service";
 import { approveCandidate, approveCandidateAsSuggested, markCandidateConflict, markCandidateDuplicate, markCandidateHistoricalOnly, markCandidateMetricIneligible, markCandidateNeedsMoreEvidence, markCandidateSupersedesRegistry, rejectCandidate } from "../src/lib/mqchain/services/approval-service";
+import { BulkApprovalError, executeBulkCandidateApproval, previewBulkCandidateApproval } from "../src/lib/mqchain/services/bulk-approval-service";
 import { approveBatch, commitBatch, createBatchFromCandidates, failBatch, getBatchDetail, listBatches, supersedeBatch } from "../src/lib/mqchain/services/batch-service";
 import { createAiCleanedCsvIntake, createCsvIntake, createDeploymentSourceIntake, createJsonEvidenceIntake, createManualIntake, createUrlIntake, getCandidateDetail, listCandidatesFromDatabase } from "../src/lib/mqchain/services/candidate-service";
 import { classifyCexTransactionFlow } from "../src/lib/mqchain/services/cex-flow-service";
@@ -41,6 +42,8 @@ const BODY_LIMITS = {
   standard: 64 * 1024,
   manifest: 1024 * 1024,
   intake: 1024 * 1024 + 64 * 1024,
+  // Up to 10,000 candidate IDs plus mode, hashes and reason.
+  bulkApproval: 512 * 1024,
 } as const;
 const replayWindow = new OriginReplayWindow();
 
@@ -60,6 +63,7 @@ function bodyLimitFor(method: string, pathname: string) {
   if (method === "GET" || method === "HEAD") return 0;
   if (pathname === "/v1/auth/credentials") return BODY_LIMITS.credentials;
   if (pathname === "/v1/intake" || pathname.startsWith("/v1/intake/")) return BODY_LIMITS.intake;
+  if (pathname === "/v1/candidates/bulk-approval" || pathname === "/v1/candidates/bulk-approval/preview") return BODY_LIMITS.bulkApproval;
   if (pathname === "/v1/kv-builds" || /^\/v1\/discovery\/jobs\/\d+\/complete$/.test(pathname)) return BODY_LIMITS.manifest;
   return BODY_LIMITS.standard;
 }
@@ -223,6 +227,8 @@ async function employeeRoute(method: string, pathname: string, url: URL, body: R
   if (method === "POST" && pathname === "/v1/dictionary-proposals") return authorized(actor, "intake:create", () => createDictionaryProposal(body));
   if (method === "PATCH" && /^\/v1\/dictionary-proposals\/\d+$/.test(pathname)) return authorized(actor, "dictionary:edit", () => reviewDictionaryProposal(body));
   if (method === "POST" && pathname === "/v1/dictionary-resolution/rerun") return authorized(actor, "dictionary:edit", () => rerunDictionaryResolution(body));
+  if (method === "POST" && pathname === "/v1/candidates/bulk-approval/preview") return authorized(actor, "candidate:review", () => previewBulkCandidateApproval(body));
+  if (method === "POST" && pathname === "/v1/candidates/bulk-approval") return authorized(actor, "candidate:review", () => executeBulkCandidateApproval(body));
   match = pathname.match(/^\/v1\/candidates\/\d+\/review$/);
   if (method === "POST" && match) return authorized(actor, "candidate:review", () => {
     const functions: Record<string, (input: unknown) => Promise<unknown>> = { approve: approveCandidate, approve_suggested: approveCandidateAsSuggested, reject: rejectCandidate, needs_more_evidence: markCandidateNeedsMoreEvidence, conflict: markCandidateConflict, duplicate: markCandidateDuplicate, supersedes_registry: markCandidateSupersedesRegistry, historical_only: markCandidateHistoricalOnly, metric_ineligible: markCandidateMetricIneligible };
@@ -293,7 +299,11 @@ export async function handleOriginRequest(request: IncomingMessage, response: Se
     const result = await employeeRoute(method, url.pathname, url, body, actor);
     sendJson(response, method === "POST" && ["/v1/intake", "/v1/batches", "/v1/discovery/jobs", "/v1/kv-builds", "/v1/metric-groups", "/v1/settings/users", "/v1/network-proposals"].includes(url.pathname) ? 201 : 200, result, requestId);
   } catch (error) {
-    const domainError = error instanceof OriginHttpError || error instanceof SourceJobDeletionError || error instanceof ResearchIntakeError;
+    const domainError =
+      error instanceof OriginHttpError ||
+      error instanceof SourceJobDeletionError ||
+      error instanceof ResearchIntakeError ||
+      error instanceof BulkApprovalError;
     const status = domainError ? error.status : error instanceof ZodError ? 400 : 500;
     const code = domainError ? error.code : error instanceof ZodError ? "validation_failed" : "internal_error";
     const message = domainError ? error.message : error instanceof ZodError ? "Validation failed." : "Internal server error.";

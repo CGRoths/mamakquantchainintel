@@ -164,6 +164,7 @@ export declare function getRegistryDetail(id: number): Promise<{
         suggestedEntityId: number | null;
         suggestedProtocolId: number | null;
         suggestedRoleId: number | null;
+        suggestedComponentId: number | null;
         confidenceScore: number;
         qualityTier: number;
         candidateStatus: string;
@@ -209,6 +210,7 @@ export declare function getRegistryDetail(id: number): Promise<{
         suggestedEntityId: number | null;
         suggestedProtocolId: number | null;
         suggestedRoleId: number | null;
+        suggestedComponentId: number | null;
         confidenceScore: number;
         qualityTier: number;
         candidateStatus: string;

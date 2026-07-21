@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import Papa from "papaparse";
 
 import { loadAndValidateU1Catalog } from "./catalog/u1";
+import { MQCHAIN_KV_CONTRACT_SCHEMA_VERSIONS } from "./kv/contract";
 import { exportResearchCsv } from "./research-normalization";
 import { getResearchDictionarySnapshot, listDictionaries } from "./services/dictionary-service";
 
@@ -17,7 +18,10 @@ export type DictionaryBundleFile = Readonly<{
 }>;
 
 export type DictionaryBundle = Readonly<{
+  /** Canonical MQD-U1 governed dictionary version. Use this in CSV `dictionary_version` cells. */
   dictionaryVersion: string;
+  /** Integrity hash of the exported bundle packaging. Never valid as a CSV dictionary version. */
+  bundleHash: string;
   generatedAt: string;
   files: readonly DictionaryBundleFile[];
   manifest: string;
@@ -76,18 +80,24 @@ export async function buildDictionaryBundle(now = new Date()): Promise<Dictionar
   }
   files.sort((left, right) => left.name.localeCompare(right.name));
 
-  const dictionaryVersion = sha256(JSON.stringify({
+  // dictionaryVersion is the canonical MQD-U1 governed dictionary version and
+  // is what research preflight accepts. bundleHash covers the exported file
+  // packaging and changes whenever export content changes; it must never be
+  // placed in a CSV dictionary_version cell.
+  const dictionaryVersion = snapshot.dictionaryVersion;
+  const bundleHash = sha256(JSON.stringify({
     schema: MQCHAIN_DICTIONARY_BUNDLE_SCHEMA,
-    databaseDictionaryVersion: snapshot.dictionaryVersion,
+    dictionaryVersion,
     catalogVersion: catalog.dictionaryVersion,
     files: files.map(file => ({ name: file.name, contentHash: file.contentHash, rowCount: file.rowCount })),
   }));
   const generatedAt = now.toISOString();
   const manifestObject = {
     schemaVersion: MQCHAIN_DICTIONARY_BUNDLE_SCHEMA,
+    ...MQCHAIN_KV_CONTRACT_SCHEMA_VERSIONS,
     dictionaryVersion,
+    bundleHash,
     generatedAt,
-    databaseDictionaryVersion: snapshot.dictionaryVersion,
     catalogVersion: catalog.dictionaryVersion,
     files: files.map(file => ({
       name: file.name,
@@ -99,6 +109,7 @@ export async function buildDictionaryBundle(now = new Date()): Promise<Dictionar
 
   return Object.freeze({
     dictionaryVersion,
+    bundleHash,
     generatedAt,
     files: Object.freeze(files),
     manifest: `${JSON.stringify(manifestObject, null, 2)}\n`,

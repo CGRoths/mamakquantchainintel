@@ -3,12 +3,10 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
   mqAddressCandidates,
-  mqAddressCodecs,
   mqAuditLog,
   mqCategoryDict,
   mqDictionaryIdRanges,
   mqDictionaryProposals,
-  mqDictionaryVersions,
   mqEntities,
   mqKvRoleDict,
   mqNameAliases,
@@ -20,7 +18,7 @@ import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 
 import { dictionaryProposalCreateSchema, dictionaryProposalReviewSchema, dictionaryReresolutionSchema } from "../validators/dictionary-proposal";
 import { hashJson, optionalNumber } from "./service-utils";
-import { getResearchDictionarySnapshot } from "./dictionary-service";
+import { getResearchDictionarySnapshot, recordDictionaryVersion } from "./dictionary-service";
 
 type Tx = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
 
@@ -39,23 +37,7 @@ async function allocateStableId(tx: Tx, dictionaryKind: string) {
 }
 
 async function recordTransactionalDictionaryVersion(tx: Tx, actorId: string, proposalId: number) {
-  const [entities, protocols, categories, roles, aliases, tags, components, codecs] = await Promise.all([
-    tx.select().from(mqEntities).orderBy(asc(mqEntities.id)),
-    tx.select().from(mqProtocols).orderBy(asc(mqProtocols.id)),
-    tx.select().from(mqCategoryDict).orderBy(asc(mqCategoryDict.categoryId)),
-    tx.select().from(mqKvRoleDict).orderBy(asc(mqKvRoleDict.roleId)),
-    tx.select().from(mqNameAliases).orderBy(asc(mqNameAliases.id)),
-    tx.select().from(mqTagDict).orderBy(asc(mqTagDict.id)),
-    tx.select().from(mqProtocolComponents).orderBy(asc(mqProtocolComponents.id)),
-    tx.select().from(mqAddressCodecs).orderBy(asc(mqAddressCodecs.id)),
-  ]);
-  const versionHash = hashJson({ entities, protocols, categories, roles, aliases, tags, components, codecs });
-  await tx.insert(mqDictionaryVersions).values({
-    versionHash,
-    summary: { reason: "dictionary_proposal_applied", proposalId },
-    createdBy: actorId,
-  }).onConflictDoNothing();
-  return versionHash;
+  return recordDictionaryVersion(actorId, `dictionary_proposal_applied:${proposalId}`, tx);
 }
 
 async function applyProposal(tx: Tx, proposal: typeof mqDictionaryProposals.$inferSelect) {

@@ -8,8 +8,10 @@ Use this skill to produce provenance-preserving CEX and protocol address dataset
 
    `npm.cmd run mqchain:dictionary-bundle -- --output <directory>`
 
-2. Read `manifest.json` and use its `dictionaryVersion` in every output row.
-3. Match entity, protocol, role, component, tag, network, namespace, and codec values exactly against the bundle. Approved aliases may resolve to their canonical subject. Unmatched values stay explicit and must never be guessed.
+2. Read `manifest.json` and use its `dictionaryVersion` — the canonical `MQD-U1` governed dictionary version — in the `dictionary_version` column of every output row. This is the only value research preflight accepts.
+3. The manifest also carries `bundleHash`, the integrity hash of the exported bundle files. Report it in the research summary. Never put `bundleHash` in `dictionary_version`; they are different values and preflight will reject a CSV that confuses them.
+4. Match entity, protocol, role, component, tag, network, namespace, and codec values exactly against the bundle. Only **active** dictionary records resolve. Approved active aliases may resolve to their canonical subject; inactive aliases and retired records do not, even though they remain present in the bundle so historical data stays decodable. Unmatched values stay explicit and must never be guessed.
+5. When a row names a protocol-specific contract, resolve `component` against the bundle's active components. A resolved component ID is carried through candidate approval into the registry and the KV value. An unresolved component stays a proposal in `proposed_component_code` and never invents an ID.
 
 ## Research Method
 
@@ -66,7 +68,8 @@ Return this summary beside the CSV:
   "unresolved_rows": 0,
   "invalid_rows": 0,
   "sources": [],
-  "dictionary_version": "...",
+  "dictionary_version": "<manifest.dictionaryVersion, canonical MQD-U1>",
+  "bundle_hash": "<manifest.bundleHash, bundle integrity only>",
   "warnings": []
 }
 ```

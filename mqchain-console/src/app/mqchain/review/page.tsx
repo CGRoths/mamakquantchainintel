@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, Boxes, CheckCircle2, CircleHelp, ListChecks } from "lucide-react";
 
+import { BulkApprovalPanel, type BulkApprovalRow } from "@/components/mqchain/bulk-approval-panel";
 import { DbError } from "@/components/mqchain/db-error";
 import { MetricCard } from "@/components/mqchain/metric-card";
 import { ReviewBatchSelectionForm, ReviewQuickActionForm, reviewQuickActions } from "@/components/mqchain/review-forms";
@@ -32,6 +33,28 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     const [workspace, currentUser] = await Promise.all([getReviewWorkspace(params), getCurrentUser()]);
     const canReview = roleCan(currentUser?.role, "candidate:review");
     const canAddEvidence = roleCan(currentUser?.role, "candidate:evidence");
+    const bulkApprovalRows: BulkApprovalRow[] = workspace.pendingRows.map(
+      ({ candidate, entityName, roleCode, sourceVerificationContext }) => {
+        const metadata = (candidate.metadata ?? {}) as Record<string, unknown>;
+        return {
+          candidateId: candidate.id,
+          normalizedAddress: candidate.normalizedAddress,
+          chainCode: candidate.chainCode,
+          entityLabel: entityName ?? candidate.entityHint ?? "-",
+          roleLabel: roleCode ?? candidate.roleHint ?? "-",
+          componentHint: typeof metadata.componentHint === "string" ? metadata.componentHint : null,
+          resolvedComponentId: candidate.suggestedComponentId ?? null,
+          proposedComponentCode:
+            typeof metadata.proposedComponentCode === "string" ? metadata.proposedComponentCode : null,
+          confidenceScore: candidate.confidenceScore,
+          qualityTier: candidate.qualityTier,
+          quickApprovable: buildReviewReadiness({
+            ...candidate,
+            sourceVerificationStatus: sourceVerificationContext.status,
+          }).canQuickApprove,
+        };
+      },
+    );
 
     return (
       <>
@@ -236,6 +259,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
             </CardContent>
           </Card>
         </section>
+        {canReview ? <BulkApprovalPanel rows={bulkApprovalRows} /> : null}
         {canReview ? (
         <Card className="rounded-lg">
           <CardHeader>

@@ -83,6 +83,7 @@ export declare function getSourceJob(id: number): Promise<{
         suggestedEntityId: number | null;
         suggestedProtocolId: number | null;
         suggestedRoleId: number | null;
+        suggestedComponentId: number | null;
         confidenceScore: number;
         qualityTier: number;
         candidateStatus: string;

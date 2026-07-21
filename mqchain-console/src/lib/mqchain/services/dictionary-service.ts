@@ -20,11 +20,19 @@ import {
   mqProtocolComponents,
   mqProtocols,
   mqTagDict,
+  mqTagsetDict,
+  mqTagsetMembers,
+  mqTokenStandards,
   mqUsers,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { buildDictionaryInventory } from "../dictionary-overview";
 import { buildDefaultFlags } from "../flags";
+import {
+  buildCanonicalDictionarySnapshot,
+  type CanonicalDictionaryRows,
+  type CanonicalDictionarySnapshot,
+} from "../kv/contract";
 import type { ResearchDictionaryItem, ResearchDictionarySnapshot } from "../research-normalization";
 import {
   categorySchema,
@@ -53,7 +61,7 @@ import {
   type ProtocolDictionaryListFilters,
   type RoleDictionaryListFilters,
 } from "../list-filters";
-import { hashJson, optionalNumber } from "./service-utils";
+import { optionalNumber } from "./service-utils";
 
 export async function listDictionaries() {
   const db = getDb();
@@ -461,20 +469,90 @@ export async function getDictionaryMaps() {
   return { ...dictionaries, entityByKey, protocolByKey, roleByKey };
 }
 
-export async function getResearchDictionarySnapshot(): Promise<ResearchDictionarySnapshot> {
-  const db = getDb();
-  const [dictionaries, networks, namespaces, codecs, chainAliases, nameAliases, components, tags] = await Promise.all([
-    listDictionaries(),
+type CanonicalRowsSource = Pick<ReturnType<typeof getDb>, "select">;
+
+/**
+ * Load every governed dictionary family, including inactive/retired rows, so
+ * the canonical MQD-U1 version covers historical decoding. Active-only
+ * filtering happens at resolution time only.
+ */
+export async function loadCanonicalDictionaryRows(source?: CanonicalRowsSource): Promise<CanonicalDictionaryRows> {
+  const db = source ?? getDb();
+  const [
+    networks,
+    chainAliases,
+    namespaces,
+    codecs,
+    keyPrefixes,
+    entities,
+    protocols,
+    categories,
+    roles,
+    components,
+    nameAliases,
+    tags,
+    tagsets,
+    tagsetMembers,
+    tokenStandards,
+    metricGroups,
+    metricGroupRules,
+  ] = await Promise.all([
     db.select().from(mqChainNetworks).orderBy(asc(mqChainNetworks.id)),
+    db.select().from(mqChainAliases).orderBy(asc(mqChainAliases.id)),
     db.select().from(mqAddressNamespaces).orderBy(asc(mqAddressNamespaces.id)),
     db.select().from(mqAddressCodecs).orderBy(asc(mqAddressCodecs.id)),
-    db.select().from(mqChainAliases).where(eq(mqChainAliases.status, "approved")).orderBy(asc(mqChainAliases.id)),
-    db.select().from(mqNameAliases).where(eq(mqNameAliases.isActive, true)).orderBy(asc(mqNameAliases.id)),
+    db.select().from(mqKvKeyPrefixDict).orderBy(asc(mqKvKeyPrefixDict.prefixCode)),
+    db.select().from(mqEntities).orderBy(asc(mqEntities.id)),
+    db.select().from(mqProtocols).orderBy(asc(mqProtocols.id)),
+    db.select().from(mqCategoryDict).orderBy(asc(mqCategoryDict.categoryId)),
+    db.select().from(mqKvRoleDict).orderBy(asc(mqKvRoleDict.roleId)),
     db.select().from(mqProtocolComponents).orderBy(asc(mqProtocolComponents.id)),
+    db.select().from(mqNameAliases).orderBy(asc(mqNameAliases.id)),
     db.select().from(mqTagDict).orderBy(asc(mqTagDict.id)),
+    db.select().from(mqTagsetDict).orderBy(asc(mqTagsetDict.id)),
+    db.select().from(mqTagsetMembers).orderBy(asc(mqTagsetMembers.tagsetId), asc(mqTagsetMembers.tagId)),
+    db.select().from(mqTokenStandards).orderBy(asc(mqTokenStandards.id)),
+    db.select().from(mqMetricGroups).orderBy(asc(mqMetricGroups.id)),
+    db.select().from(mqMetricGroupRules).orderBy(asc(mqMetricGroupRules.id)),
   ]);
 
-  const aliasesFor = (subjectKind: string, subjectId: number) => nameAliases
+  return {
+    networks,
+    chainAliases,
+    namespaces,
+    codecs,
+    keyPrefixes,
+    entities,
+    protocols,
+    categories,
+    roles,
+    components,
+    nameAliases,
+    tags,
+    tagsets,
+    tagsetMembers,
+    tokenStandards,
+    metricGroups,
+    metricGroupRules,
+  };
+}
+
+/** Canonical MQD-U1 dictionary snapshot for the current database state. */
+export async function getCanonicalDictionarySnapshot(source?: CanonicalRowsSource): Promise<CanonicalDictionarySnapshot> {
+  return buildCanonicalDictionarySnapshot(await loadCanonicalDictionaryRows(source));
+}
+
+export async function getResearchDictionarySnapshot(): Promise<ResearchDictionarySnapshot> {
+  const rows = await loadCanonicalDictionaryRows();
+  const snapshot = buildCanonicalDictionarySnapshot(rows);
+
+  // Research resolution matches active records only. Inactive/retired rows
+  // stay in the canonical snapshot (and its version) for historical decoding,
+  // but must never resolve a new research row.
+  const activeNameAliases = rows.nameAliases.filter(alias => alias.isActive);
+  const approvedChainAliases = rows.chainAliases.filter(alias => alias.status === "approved");
+
+  const aliasesFor = (subjectKind: string, subjectId: number) => activeNameAliases
     .filter(alias => alias.subjectKind === subjectKind && alias.subjectId === subjectId)
     .map(alias => alias.alias)
     .sort();
@@ -484,17 +562,17 @@ export async function getResearchDictionarySnapshot(): Promise<ResearchDictionar
     name,
     aliases: aliasesFor(subjectKind, id),
   });
-  const codecById = new Map(codecs.map(codec => [codec.id, codec]));
-  const networkById = new Map(networks.map(network => [network.id, network]));
+  const codecById = new Map(rows.codecs.map(codec => [codec.id, codec]));
+  const networkById = new Map(rows.networks.map(network => [network.id, network]));
   const aliasesByNetwork = new Map<number, string[]>();
-  for (const alias of chainAliases) {
+  for (const alias of approvedChainAliases) {
     if (alias.chainNetworkId === null) continue;
     const values = aliasesByNetwork.get(alias.chainNetworkId) ?? [];
     values.push(alias.rawChainName);
     aliasesByNetwork.set(alias.chainNetworkId, values);
   }
 
-  const networkProfiles = namespaces
+  const networkProfiles = rows.namespaces
     .filter(namespace => namespace.isActive)
     .flatMap(namespace => {
       const network = networkById.get(namespace.chainNetworkId);
@@ -517,19 +595,15 @@ export async function getResearchDictionarySnapshot(): Promise<ResearchDictionar
       }];
     });
 
-  const snapshotWithoutVersion = {
-    entities: dictionaries.entities.map(value => item("entity", value.id, value.entityCode, value.entityName)),
-    protocols: dictionaries.protocols.map(value => item("protocol", value.id, value.protocolCode, value.protocolName)),
-    roles: dictionaries.roles.map(value => item("role", value.roleId, value.roleCode, value.roleName)),
-    categories: dictionaries.categories.map(value => item("category", value.categoryId, value.categoryCode, value.categoryName)),
-    components: components.map(value => item("component", value.id, value.componentCode, value.componentName)),
-    tags: tags.map(value => item("tag", value.id, value.tagCode, value.tagName)),
-    networkProfiles,
-  };
-
   return {
-    dictionaryVersion: hashJson(snapshotWithoutVersion),
-    ...snapshotWithoutVersion,
+    dictionaryVersion: snapshot.versionHash,
+    entities: rows.entities.filter(value => value.isActive).map(value => item("entity", value.id, value.entityCode, value.entityName)),
+    protocols: rows.protocols.filter(value => value.isActive).map(value => item("protocol", value.id, value.protocolCode, value.protocolName)),
+    roles: rows.roles.filter(value => value.isActive).map(value => item("role", value.roleId, value.roleCode, value.roleName)),
+    categories: rows.categories.filter(value => value.isActive).map(value => item("category", value.categoryId, value.categoryCode, value.categoryName)),
+    components: rows.components.filter(value => value.isActive).map(value => item("component", value.id, value.componentCode, value.componentName)),
+    tags: rows.tags.filter(value => value.isActive).map(value => item("tag", value.id, value.tagCode, value.tagName)),
+    networkProfiles,
   };
 }
 
@@ -579,12 +653,9 @@ export async function getDashboardStats() {
   };
 }
 
-function versionHash(payload: unknown) {
-  return hashJson(payload);
-}
-
 type DictionarySnapshotForVersion = Awaited<ReturnType<typeof listDictionaries>>;
 
+/** @deprecated Superseded by the canonical MQD-U1 snapshot in kv/contract.ts. Kept only for inventory display payloads. */
 export function buildDictionaryVersionPayload(dictionaries: DictionarySnapshotForVersion) {
   return {
     categories: dictionaries.categories.map((item) => ({
@@ -667,33 +738,40 @@ function parseList(value?: string) {
     .filter(Boolean);
 }
 
-export async function recordDictionaryVersion(actorId?: string | null, reason = "dictionary_changed") {
-  const db = getDb();
-  const dictionaries = await listDictionaries();
-  const payload = buildDictionaryVersionPayload(dictionaries);
-  const hash = versionHash(payload);
+type DictionaryVersionWriter = Pick<ReturnType<typeof getDb>, "select" | "insert">;
+
+/**
+ * Record the canonical MQD-U1 dictionary version for the current governed
+ * dictionary state. This is the single dictionary-version algorithm shared by
+ * research preflight, dictionary bundles, proposal application, batch commit
+ * and KV build handoff. Historical version rows are never rewritten.
+ */
+export async function recordDictionaryVersion(
+  actorId?: string | null,
+  reason = "dictionary_changed",
+  writer?: DictionaryVersionWriter,
+) {
+  const db = writer ?? getDb();
+  const snapshot = await getCanonicalDictionarySnapshot(db);
 
   await db
     .insert(mqDictionaryVersions)
     .values({
-      versionHash: hash,
+      versionHash: snapshot.versionHash,
       summary: {
         reason,
-        counts: {
-          categories: dictionaries.categories.length,
-          entities: dictionaries.entities.length,
-          protocols: dictionaries.protocols.length,
-          prefixes: dictionaries.prefixes.length,
-          roles: dictionaries.roles.length,
-          metricGroups: dictionaries.metricGroups.length,
-          metricGroupRules: dictionaries.metricGroupRules.length,
-        },
+        dictionarySchemaVersion: snapshot.dictionarySchemaVersion,
+        keySchemaVersion: snapshot.keySchemaVersion,
+        valueSchemaVersion: snapshot.valueSchemaVersion,
+        timelineSchemaVersion: snapshot.timelineSchemaVersion,
+        metricSchemaVersion: snapshot.metricSchemaVersion,
+        components: snapshot.components,
       },
       createdBy: actorId,
     })
     .onConflictDoNothing();
 
-  return hash;
+  return snapshot.versionHash;
 }
 
 async function auditDictionaryChange(actorId: string, action: string, targetTable: string, targetId: string | number, payload: Record<string, unknown>) {

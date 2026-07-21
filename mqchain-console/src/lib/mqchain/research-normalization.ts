@@ -91,6 +91,8 @@ export type ResearchPreflightRecord = Readonly<{
   roleId: number | null;
   componentHint: string | null;
   componentId: number | null;
+  categoryHint: string | null;
+  categoryId: number | null;
   tagHints: readonly string[];
   tagIds: readonly number[];
   sourceUrl: string | null;
@@ -414,13 +416,14 @@ export function preflightResearchCsv(input: {
       addressCodecId: profile?.addressCodecId ?? null, prefixCode: profile?.prefixCode ?? null,
       addressFamily, identifierKind, entityHint, entityId: entity?.id ?? null,
       protocolHint, protocolId: protocol?.id ?? null, roleHint, roleId: role?.id ?? null,
-      componentHint, componentId: component?.id ?? null, tagHints: Object.freeze(tagHints),
+      componentHint, componentId: component?.id ?? null,
+      categoryHint, categoryId: category?.id ?? null, tagHints: Object.freeze(tagHints),
       tagIds: Object.freeze(tags.map(tag => tag.id)), sourceUrl, sourceSheet, sourceRow,
       sourceSection, sourceDocumentHash, retrievedAt, rawReference, metricEligibleRequested: parseBoolean(clean(row.metric_eligible)),
     }));
   }
 
-  const stableRecords = records.map(record => ({ rowNumber: record.rowNumber, status: record.status, chainNetworkId: record.chainNetworkId, namespaceId: record.namespaceId, addressCodecId: record.addressCodecId, payloadHex: record.payloadHex, entityId: record.entityId, protocolId: record.protocolId, roleId: record.roleId, componentId: record.componentId, tagIds: record.tagIds, blockers: record.blockers }));
+  const stableRecords = records.map(record => ({ rowNumber: record.rowNumber, status: record.status, chainNetworkId: record.chainNetworkId, namespaceId: record.namespaceId, addressCodecId: record.addressCodecId, payloadHex: record.payloadHex, entityId: record.entityId, protocolId: record.protocolId, roleId: record.roleId, componentId: record.componentId, categoryId: record.categoryId, tagIds: record.tagIds, blockers: record.blockers }));
   const inputHash = sha256(input.csvText);
   const preflightHash = sha256(JSON.stringify({ schema: RESEARCH_PREFLIGHT_SCHEMA_VERSION, inputHash, dictionaryVersion: input.dictionary.dictionaryVersion, records: stableRecords }));
   const resolved = records.filter(record => record.status === "resolved");

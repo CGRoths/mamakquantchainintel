@@ -37,6 +37,7 @@ export declare function listCandidatesFromDatabase(input?: unknown): Promise<{
             suggestedEntityId: number | null;
             suggestedProtocolId: number | null;
             suggestedRoleId: number | null;
+            suggestedComponentId: number | null;
             confidenceScore: number;
             qualityTier: number;
             candidateStatus: string;
@@ -96,6 +97,7 @@ export declare function getCandidateDetail(id: number): Promise<{
         suggestedEntityId: number | null;
         suggestedProtocolId: number | null;
         suggestedRoleId: number | null;
+        suggestedComponentId: number | null;
         confidenceScore: number;
         qualityTier: number;
         candidateStatus: string;
@@ -405,6 +407,7 @@ export declare function getCandidateDetail(id: number): Promise<{
         suggestedEntityId: number | null;
         suggestedProtocolId: number | null;
         suggestedRoleId: number | null;
+        suggestedComponentId: number | null;
         confidenceScore: number;
         qualityTier: number;
         candidateStatus: string;
@@ -436,6 +439,7 @@ export declare function getCandidateDetail(id: number): Promise<{
         suggestedEntityId: number | null;
         suggestedProtocolId: number | null;
         suggestedRoleId: number | null;
+        suggestedComponentId: number | null;
         confidenceScore: number;
         qualityTier: number;
         candidateStatus: string;
@@ -507,6 +511,7 @@ export declare function getCandidatesByIds(candidateIds: number[]): Promise<{
     suggestedEntityId: number | null;
     suggestedProtocolId: number | null;
     suggestedRoleId: number | null;
+    suggestedComponentId: number | null;
     confidenceScore: number;
     qualityTier: number;
     candidateStatus: string;

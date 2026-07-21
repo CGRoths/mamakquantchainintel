@@ -3,7 +3,9 @@ import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-o
 import { getDb } from "@/db/client";
 import {
   mqAddressCandidates,
+  mqAddressCodecs,
   mqAddressEvidence,
+  mqAddressNamespaces,
   mqAddressRegistry,
   mqApprovalEvents,
   mqAuditLog,
@@ -30,8 +32,9 @@ import { assertBatchCandidatesStillApproved, assertSelectedCandidatesApproved, t
 import { buildBatchSourceProvenance } from "../batch-source";
 import { buildCandidateSourceVerificationContext } from "../candidate-detail";
 import { LABEL_STATUS } from "../constants";
-import { markHistoricalOnlyFlags } from "../flags";
-import { buildPendingBatchKvManifest } from "../kv-manifest";
+import { FLAG_BITS, hasFlag, markHistoricalOnlyFlags } from "../flags";
+import { computeRegistrySnapshotHash, validateU1AddressKey } from "../kv/contract";
+import { buildPendingBatchKvManifest, computePendingKvBuildHash } from "../kv-manifest";
 import { parseBatchListFilters, type BatchListFilters } from "../list-filters";
 import {
   describeRegistryCommitTarget,
@@ -481,8 +484,13 @@ export async function commitBatch(input: unknown) {
       throw new Error("Batch not found.");
     }
 
-    if (!["approved", "pending_approval"].includes(batch.status)) {
-      throw new Error("Only pending or approved batches can be committed.");
+    // Batch approval and batch commit are two separate governed decisions and
+    // must produce two separate audit records. A pending_approval batch can
+    // never write registry or KV state.
+    if (batch.status !== "approved") {
+      throw new Error(
+        `Only approved batches can be committed; batch ${batch.id} is ${batch.status}. Approve the batch first.`,
+      );
     }
 
     const rows = await tx
@@ -512,6 +520,23 @@ export async function commitBatch(input: unknown) {
 
       if (!candidate.chainCode || !entityId || !roleId) {
         throw new Error(`Candidate ${candidate.id} is missing chain, entity, or role.`);
+      }
+
+      // Fail closed on the canonical U1 identity. Never reconstruct or guess a
+      // missing namespace/codec/payload during commit.
+      const [namespace] = candidate.namespaceId
+        ? await tx.select().from(mqAddressNamespaces).where(eq(mqAddressNamespaces.id, candidate.namespaceId)).limit(1)
+        : [null];
+      const [codec] = candidate.addressCodecId
+        ? await tx.select().from(mqAddressCodecs).where(eq(mqAddressCodecs.id, candidate.addressCodecId)).limit(1)
+        : [null];
+      const u1Blockers = validateU1AddressKey(candidate, { namespace: namespace ?? null, codec: codec ?? null });
+
+      if (u1Blockers.length) {
+        throw new Error(
+          `Candidate ${candidate.id} cannot be committed: invalid or incomplete U1 address key (${u1Blockers.join(", ")}). ` +
+            "Re-run research normalization so namespaceId, addressCodecId and payloadHex are resolved.",
+        );
       }
 
       let role = row.role;
@@ -603,10 +628,14 @@ export async function commitBatch(input: unknown) {
           rawAddress: candidate.rawAddress,
           chainCode: candidate.chainCode,
           prefixCode: candidate.prefixCode,
+          namespaceId: candidate.namespaceId,
+          addressCodecId: candidate.addressCodecId,
           payloadHex: candidate.payloadHex,
           entityId,
           protocolId: optionalNumber(draft.protocolId) ?? candidate.suggestedProtocolId,
+          categoryId: optionalNumber(draft.categoryId) ?? role?.categoryId ?? null,
           roleId,
+          componentId: optionalNumber(draft.componentId) ?? candidate.suggestedComponentId,
           confidenceScore: optionalNumber(draft.confidenceScore) ?? candidate.confidenceScore,
           labelStatus,
           qualityTier: optionalNumber(draft.qualityTier) ?? candidate.qualityTier,
@@ -711,12 +740,32 @@ export async function commitBatch(input: unknown) {
       });
     }
 
+    // The registry snapshot hash and the build hash are derived from immutable
+    // committed content only. No timestamps participate, so the same registry
+    // snapshot always reproduces the same build hash.
+    const committedRegistryRows = registryIds.length
+      ? await tx.select().from(mqAddressRegistry).where(inArray(mqAddressRegistry.id, registryIds))
+      : [];
+    const registrySnapshotHash = computeRegistrySnapshotHash(committedRegistryRows);
+    const timelineRowCount = committedRegistryRows.filter(
+      (registryRow) => registryRow.validFromBlock !== null || registryRow.validToBlock !== null,
+    ).length;
+    const metricEligibleRowCount = committedRegistryRows.filter((registryRow) =>
+      hasFlag(registryRow.flags, FLAG_BITS.metricEligible),
+    ).length;
+
     const pendingKvManifest = buildPendingBatchKvManifest({
       batchId: batch.id,
       registryIds,
+      registrySnapshotHash,
       dictionaryVersion,
+      expectedCounts: {
+        addressLabelCurrent: committedRegistryRows.filter((registryRow) => registryRow.isActive).length,
+        addressLabelTimeline: timelineRowCount,
+        metricGroupMembership: metricEligibleRowCount,
+      },
     });
-    const buildHash = hashJson({ ...pendingKvManifest, createdAt: new Date().toISOString() });
+    const buildHash = computePendingKvBuildHash(pendingKvManifest);
 
     const [kvBuild] = await tx
       .insert(mqKvBuilds)

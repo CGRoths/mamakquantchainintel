@@ -147,6 +147,7 @@ export declare function getBatchDetail(batchId: number): Promise<{
         suggestedEntityId: number | null;
         suggestedProtocolId: number | null;
         suggestedRoleId: number | null;
+        suggestedComponentId: number | null;
         confidenceScore: number;
         qualityTier: number;
         candidateStatus: string;
