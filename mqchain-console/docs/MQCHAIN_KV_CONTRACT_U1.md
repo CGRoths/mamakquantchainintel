@@ -174,6 +174,14 @@ The dictionary bundle manifest exposes both, and they are not interchangeable.
 
 ## Deterministic build handoff
 
+The external compiler rejects registry snapshots and compiled record sets above
+`MQCHAIN_COMPILER_MAX_RECORDS` (default 250,000) before materializing them. It
+fetches registry rows and writes RocksDB batches using
+`MQCHAIN_COMPILER_CHUNK_SIZE` (default 500); PostgreSQL compiled-entry persistence
+uses `MQCHAIN_COMPILED_ENTRY_CHUNK_SIZE`. This gives the current artifact format a
+hard memory ceiling and bounded database/write batches while keeping byte order
+and semantic hashes deterministic.
+
 `buildPendingBatchKvManifest()` emits the handoff manifest and
 `computePendingKvBuildHash()` hashes it. No timestamp participates — not
 `new Date()`, not `generatedAt`, not `controlPlaneCreatedAt`. Registry IDs are

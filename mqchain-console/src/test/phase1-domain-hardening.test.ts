@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { effectiveCategoryId } from "@/lib/mqchain/effective-category";
 import { assertUniqueMetricMembershipPairs } from "@/lib/mqchain/services/full-kv-build-service";
+import { compilerMemoryBounds } from "../../tools/kv-compiler/compiler";
 
 const read = (relative: string) => readFileSync(path.join(process.cwd(), relative), "utf8");
 
@@ -131,5 +132,17 @@ describe("Phase I canonical policies", () => {
     expect(writer).toContain("MQCHAIN_COMPILER_CHUNK_SIZE");
     expect(writer).toContain("operations.length >= chunkSize");
     expect(persistence).toContain("MQCHAIN_COMPILED_ENTRY_CHUNK_SIZE");
+  });
+
+  it("fails closed before an unbounded compiler snapshot or record vector", () => {
+    expect(compilerMemoryBounds({})).toEqual({ chunkSize: 500, maxRecords: 250_000 });
+    expect(compilerMemoryBounds({ MQCHAIN_COMPILER_CHUNK_SIZE: "64", MQCHAIN_COMPILER_MAX_RECORDS: "1000" }))
+      .toEqual({ chunkSize: 64, maxRecords: 1000 });
+    expect(() => compilerMemoryBounds({ MQCHAIN_COMPILER_CHUNK_SIZE: "0" })).toThrow("compiler_chunk_size_invalid");
+    expect(() => compilerMemoryBounds({ MQCHAIN_COMPILER_MAX_RECORDS: "5000001" })).toThrow("compiler_max_records_invalid");
+    const compiler = read("tools/kv-compiler/compiler.ts");
+    expect(compiler.indexOf("registryCount > bounds.maxRecords")).toBeLessThan(compiler.indexOf("loadFullKvCompilationSnapshot(tx)"));
+    expect(compiler).toContain("snapshot.registryIds.slice(offset, offset + bounds.chunkSize)");
+    expect(compiler).toContain("expectedRecordCount > bounds.maxRecords");
   });
 });

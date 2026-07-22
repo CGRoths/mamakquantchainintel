@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 
 import { getDb } from "../../src/db/client";
 import { mqRegistryAddressLabels, mqBuildKvBuilds, mqDictRoles } from "../../src/db/schema";
@@ -45,22 +45,38 @@ export function compiledArtifactHash(requestHash: string, summaries: ReturnType<
   return hash.digest("hex");
 }
 
+export function compilerMemoryBounds(env: Readonly<Record<string, string | undefined>> = process.env) {
+  const chunkSize = Number(env.MQCHAIN_COMPILER_CHUNK_SIZE ?? 500);
+  const maxRecords = Number(env.MQCHAIN_COMPILER_MAX_RECORDS ?? 250_000);
+  if (!Number.isSafeInteger(chunkSize) || chunkSize < 1 || chunkSize > 10_000) throw new Error("compiler_chunk_size_invalid");
+  if (!Number.isSafeInteger(maxRecords) || maxRecords < 1 || maxRecords > 5_000_000) throw new Error("compiler_max_records_invalid");
+  return { chunkSize, maxRecords } as const;
+}
+
 export async function compilePendingFullBuild(buildId: number, artifactRoot: string) {
   const db = getDb();
   const prepared = await db.transaction(async tx => {
+    const bounds = compilerMemoryBounds();
     const [requestBuild] = await tx.select().from(mqBuildKvBuilds).where(eq(mqBuildKvBuilds.id, buildId)).limit(1);
     if (!requestBuild) throw new Error(`compile_request_not_found:${buildId}`);
     const request = requireFullRequest(requestBuild);
     const requestHash = computeFullKvBuildRequestHash(request as never);
     if (requestHash !== requestBuild.buildHash) throw new Error("compile_request_hash_mismatch");
+    const [{ registryCount }] = await tx.select({ registryCount: sql<number>`count(*)::int` }).from(mqRegistryAddressLabels);
+    if (registryCount > bounds.maxRecords) throw new Error(`compiler_registry_limit_exceeded:${registryCount}:${bounds.maxRecords}`);
     const snapshot = await loadFullKvCompilationSnapshot(tx);
     assertRequestMatchesSnapshot(request, snapshot);
-    const rows = snapshot.registryIds.length ? await tx
-      .select({ registry: mqRegistryAddressLabels, resolvedCategoryId: mqDictRoles.categoryId })
-      .from(mqRegistryAddressLabels)
-      .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
-      .where(inArray(mqRegistryAddressLabels.id, [...snapshot.registryIds]))
-      .orderBy(asc(mqRegistryAddressLabels.id)) : [];
+    const expectedRecordCount = Object.values(snapshot.expectedCounts).reduce((sum, count) => sum + count, 0);
+    if (expectedRecordCount > bounds.maxRecords) throw new Error(`compiler_record_limit_exceeded:${expectedRecordCount}:${bounds.maxRecords}`);
+    const rows: Array<{ registry: typeof mqRegistryAddressLabels.$inferSelect; resolvedCategoryId: number | null }> = [];
+    for (let offset = 0; offset < snapshot.registryIds.length; offset += bounds.chunkSize) {
+      rows.push(...await tx
+        .select({ registry: mqRegistryAddressLabels, resolvedCategoryId: mqDictRoles.categoryId })
+        .from(mqRegistryAddressLabels)
+        .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+        .where(inArray(mqRegistryAddressLabels.id, [...snapshot.registryIds.slice(offset, offset + bounds.chunkSize)]))
+        .orderBy(asc(mqRegistryAddressLabels.id)));
+    }
     const records = compileU1RecordStream({
       rows: rows.map(row => ({ ...row.registry, resolvedCategoryId: row.resolvedCategoryId })),
       currentRegistryIds: snapshot.currentRegistryIds,
@@ -72,7 +88,7 @@ export async function compilePendingFullBuild(buildId: number, artifactRoot: str
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 
   const destination = compiledArtifactDirectory(artifactRoot, prepared.artifactHash);
-  const stagingDirectory = await writeRocksDbStagingArtifact({ artifactRoot, compileRequestHash: prepared.requestHash, records: prepared.records });
+  const stagingDirectory = await writeRocksDbStagingArtifact({ artifactRoot, compileRequestHash: prepared.requestHash, records: prepared.records, chunkSize: compilerMemoryBounds().chunkSize });
   const storageUri = pathToFileURL(destination).href;
   await writeCompiledArtifactPackage({
     artifactDirectory: stagingDirectory,
