@@ -41,13 +41,12 @@ research CSV → preflight → source job → source verification
 Request:
 
 ```json
-{ "candidateIds": [1, 2, 3], "mode": "strict" }
+{ "selectionType": "explicit_ids", "candidateIds": [1, 2, 3], "mode": "strict" }
 ```
 
-`sourceJobId` may be supplied alongside an explicit ID list, but execution always
-freezes the explicit sorted candidate-ID list from the preview. A source-job-only
-execution is not allowed, because candidates arriving after the preview must
-never be swept in.
+The server also accepts `source_sheet` with `sourceJobId` and `sourceSheet`, or
+`source_job` with `sourceJobId`. It expands the scope itself and freezes the exact
+sorted candidate-ID set. The browser never sends thousands of hidden IDs.
 
 Preview performs **no database writes**. For every candidate it evaluates:
 existence, `pending_review` status, attached evidence, source verification,
@@ -72,15 +71,18 @@ Response:
   "blockerSummary": [{ "blocker": "missing_evidence", "label": "Missing attached evidence", "count": 0 }],
   "sourceJobIds": [],
   "dictionaryVersion": "...",
+  "candidateSnapshotHash": "...",
+  "sourceVerificationSnapshotHash": "...",
   "previewHash": "...",
   "mode": "eligible_only"
 }
 ```
 
 `previewHash` is deterministic over sorted candidate IDs, each candidate's
-`updatedAt` and status, the relevant suggested IDs and U1 key fields, evidence
-count, the source-verification decision, the canonical dictionary version and the
-selected mode. No current timestamp participates.
+status, relevant suggested IDs and U1 key fields, evidence count, applicable
+source-verification rows, the canonical dictionary version, selection scope and
+mode. No current timestamp participates. Blocker detail is paginated while the
+summary covers the complete frozen selection.
 
 ## Execution
 
@@ -93,20 +95,29 @@ selected mode. No current timestamp participates.
   "mode": "eligible_only",
   "expectedDictionaryVersion": "...",
   "expectedPreviewHash": "...",
+  "expectedCandidateSnapshotHash": "...",
+  "expectedSourceVerificationSnapshotHash": "...",
+  "idempotencyKey": "optional-client-operation-key",
   "reason": "Approved official Kraken PoR source"
 }
 ```
 
 Execution order:
 
-1. sort and deduplicate candidate IDs (enforced by the Zod schema);
-2. open a transaction and lock the selected candidate rows (`FOR UPDATE`);
+1. re-expand the server selection and freeze sorted IDs;
+2. open a transaction and lock candidates, source jobs and applicable verification rows;
 3. recalculate the entire preview inside the transaction;
 4. reject with `409 dictionary_version_changed` if the dictionary version moved;
 5. reject with `409 preview_hash_mismatch` if candidate state moved;
 6. re-run evidence and source-verification checks;
 7. re-run metric eligibility;
-8. approve only currently eligible candidates.
+8. approve eligible candidates with one `UPDATE ... FROM` input relation;
+9. insert all candidate events with one `INSERT ... SELECT`;
+10. insert one bulk audit summary.
+
+An idempotency key is advisory-locked and persisted. An identical completed
+request replays its stored result; reusing a key for different input returns a
+conflict and never duplicates events.
 
 ## Modes
 
@@ -138,7 +149,9 @@ stable order: `candidate_not_found`, `status_not_pending_review`,
 `inactive_entity`, `unresolved_role`, `inactive_role`, `inactive_protocol`,
 `inactive_component`, `duplicate_candidate`, `invalid_candidate`,
 `unsupported_identifier`, `unresolved_role_proposal`,
-`required_component_unresolved`, `normalization_status_unresolved`,
+`required_component_unresolved`, `invalid_confidence`, `invalid_quality_tier`,
+`malformed_timeline`, `role_minimum_confidence_not_met`,
+`role_bulk_approval_disabled`, `normalization_status_unresolved`,
 `dictionary_version_mismatch`, `missing_source_provenance`,
 `conflicting_active_registry_label`.
 
@@ -181,13 +194,13 @@ independently.
 
 Every execution produces:
 
-- **one** bulk audit record in `mq_audit_log`, action `candidates_bulk_approved`,
+- **one** bulk audit record in `mq_audit_events`, action `candidates_bulk_approved`,
   keyed by a UUID bulk operation ID, recording actor, mode, selected/eligible/
   approved/blocked counts, source-job IDs, dictionary version, preview hash,
   reason, approved candidate IDs, blocked candidate IDs with blocker summaries,
   and explicit `batchCreated: false`, `registryRowsCreated: 0`,
   `kvBuildsCreated: 0`;
-- **one** `mq_approval_events` row per approved candidate, action
+- **one** `mq_workflow_approval_events` row per approved candidate, action
   `candidate_approved_as_suggested`, carrying the shared bulk operation ID,
   before/after status, entity, protocol, role, component, category, confidence,
   quality, flags, metric eligibility, source-verification status and reason.
@@ -208,8 +221,8 @@ Candidate-level audit events are never replaced by the summary record.
 
 Context loading is batched: one candidate query plus a fixed set of context
 queries regardless of selection size — never one query per candidate. Approval
-writes are per-row because each row receives a distinct `approvalDraft`, but the
-approval events are inserted in a single statement.
+writes use a JSON input relation: one set-based update and one set-based
+candidate-event insert.
 
 ## Running the PostgreSQL integration test
 

@@ -109,7 +109,7 @@ Audit log at `/mqchain/audit-log` merges approval events and system audit rows i
 
 ## Architecture Rules
 
-- Intake and discovery never write directly to `mq_address_registry`.
+- Intake and discovery never write directly to `mq_registry_address_labels`.
 - Candidates are staging records until reviewed.
 - Batch commit is the registry write boundary.
 - PostgreSQL is canonical truth.
@@ -117,9 +117,9 @@ Audit log at `/mqchain/audit-log` merges approval events and system audit rows i
 - Metric groups are countable universes and are separate from categories.
 - Protected mutations validate input, check role permissions, and write approval events where relevant.
 - New non-redirecting mutation forms should use `runAction()` and return `ActionResult<T>` so client surfaces can show structured success, validation, and operator-safe error states.
-- Owner-only settings mutations validate input, hash passwords, and write `mq_audit_log` rows without exposing password hashes.
-- `mq_approval_events` and `mq_audit_log` are append-only at the database boundary: migration `0003_audit_trail_immutability` installs triggers that reject update/delete attempts while keeping inserts available for approval and system events.
-- Source verification is explicit and actor-driven: `mq_source_verifications` records scoped source trust, gates approval readiness, and never replaces candidate review, evidence requirements, or the batch commit boundary.
+- Owner-only settings mutations validate input, hash passwords, and write `mq_audit_events` rows without exposing password hashes.
+- `mq_workflow_approval_events` and `mq_audit_events` are append-only at the database boundary: migration `0003_audit_trail_immutability` installs triggers that reject update/delete attempts while keeping inserts available for approval and system events.
+- Source verification is explicit and actor-driven: `mq_workflow_source_verifications` records scoped source trust, gates approval readiness, and never replaces candidate review, evidence requirements, or the batch commit boundary.
 
 ## Vercel Notes
 
@@ -129,11 +129,11 @@ Audit log at `/mqchain/audit-log` merges approval events and system audit rows i
 - Set `MQCHAIN_RESOLVER_BACKEND=postgres` for the Vercel control plane.
 - Run migrations before first production traffic.
 - Run the seed script once, then rotate the seeded owner password.
-- Do not compile RocksDB inside Vercel functions. Use `mq_kv_builds` manifests as worker/CLI handoff records.
+- Do not compile RocksDB inside Vercel functions. Use `mq_build_kv_builds` manifests as worker/CLI handoff records.
 
 ## KV Compiler Handoff
 
-`npm run kv:compile` reads batch-committed registry rows from PostgreSQL, emits a deterministic JSONL key/value preview under `build/mqchain-kv/<buildHash>/`, writes a manifest, and records the build in `mq_kv_builds`. Current-serving labels are limited to active current/sanctioned-current rows, timeline labels include committed historical serving statuses, and pending/conflict/do-not-use rows are excluded from compiled artifacts. Batch commits also queue a pending KV handoff manifest with the committed registry IDs and current dictionary version, giving the external compiler an auditable source batch and dictionary snapshot.
+`npm run kv:compile` reads batch-committed registry rows from PostgreSQL, emits a deterministic JSONL key/value preview under `build/mqchain-kv/<buildHash>/`, writes a manifest, and records the build in `mq_build_kv_builds`. Current-serving labels are limited to active current/sanctioned-current rows, timeline labels include committed historical serving statuses, and pending/conflict/do-not-use rows are excluded from compiled artifacts. Batch commits also queue a pending KV handoff manifest with the committed registry IDs and current dictionary version, giving the external compiler an auditable source batch and dictionary snapshot.
 Set `MQCHAIN_KV_ARTIFACT_ROOT` to change the default compiler output root, or pass `--out` for a one-off path.
 
 ```bash

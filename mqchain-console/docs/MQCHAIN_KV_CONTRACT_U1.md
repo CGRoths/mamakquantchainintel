@@ -101,7 +101,8 @@ produce the MQD-U1 version. The snapshot shape is:
 `networks`, `chainAliases`, `namespaces`, `codecs`, `keyPrefixes` (legacy prefix
 dictionary, still supported), `entities`, `protocols`, `categories`, `roles`,
 `components`, `nameAliases`, `tags`, `tagsets`, `tagsetMembers`,
-`tokenStandards`, `metricGroups`, `metricGroupRules`.
+`tokenStandards`, `metricGroups`, `metricGroupRules`, `labelStatuses`,
+`metricMembershipStatuses`, `assetStatuses`, `qualityTiers`, and `flagBits`.
 
 ### Deliberately excluded
 
@@ -126,7 +127,9 @@ pending KV build request, activation preflight, and the MQNODE-facing snapshot.
 There is exactly one JSON hash implementation; `services/service-utils.ts`
 re-exports it rather than defining a second one.
 
-Historical `mq_dictionary_versions` rows are never rewritten. Records created
+Physical SQL table names are excluded: family names and selected logical fields
+are hashed, so a rename-only migration leaves `dictionaryVersion` unchanged.
+Historical `mq_governance_dictionary_versions` rows are never rewritten. Records created
 after this change use the canonical MQD-U1 version.
 
 ## Active resolution versus historical decoding
