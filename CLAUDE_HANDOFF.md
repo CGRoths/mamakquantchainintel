@@ -1,40 +1,102 @@
 # MAMAKQUANTCHAIN U1 Claude Handoff
 
-## Canonical PostgreSQL-Compiled U1 to RocksDB Lifecycle (2026-07-22)
+## Canonical PostgreSQL to RocksDB U1 Lifecycle (2026-07-22)
 
-Implementation commits in `C:\MAMAKQUANT\mamakquantchain\mqchain-console`:
+The approved source-verification, governed approval, canonical registry, exact-byte compilation, parity, registration, retention, and serving tranche is implemented in `C:\MAMAKQUANT\mamakquantchain\mqchain-console`.
+
+Implementation commits:
 
 - `05d69de` canonical full KV request and transactional dictionary snapshot
 - `8b7e25a` database dictionaries and governed source-sheet bulk approval
 - `453b4de` exact PostgreSQL compiled U1 entries, lineage, validation, and activation gates
 - `7f23a18` deterministic real-RocksDB compiler and three-way byte parity
 - `7e0d033` dashboard parity-contract fixtures
+- `e29b026` source verification workflow and stable-ID hardening
+- `0ea49aa` split artifact registration, retention, resolvers, and RocksDB-only serving
 
-Start with `src/lib/mqchain/services/full-kv-build-service.ts`, `src/lib/mqchain/kv/compiled-records.ts`, `tools/kv-compiler/compiler.ts`, and additive migration `drizzle/0014_amusing_cardiac.sql`. The compile request now covers the complete serving universe and actual unique metric-group memberships. A compiled build links to its pending request through `mq_kv_builds.compile_request_build_id`. The compiler encodes one canonical sorted record stream, inserts it into `mq_kv_compiled_entries` in bounded batches, writes the same Buffers into three immutable RocksDB databases, reads both destinations back, persists three-way results in `mq_kv_validation_runs`, and only then marks the derived build compiled. Activation requires explicit expected counts, complete PostgreSQL compiled-entry accounting, and the latest persisted `three_way_u1_parity` validation to be passed. Activation remains manual.
+### Architecture
 
-Runtime network/namespace/codec/component pages now read signed Origin PostgreSQL projections. Metric previews use the same evaluator as compilation. Sheet approval coverage freezes explicit sorted IDs, defaults to `eligible_only`, reports blocked IDs, and keeps batch creation separate. Codec compilation is fail-closed: only `production_ready` passes. Build 5 was not modified or deleted.
+PostgreSQL remains canonical truth. A pending full compile request freezes sorted registry IDs, dictionary version, registry snapshot hash, triggering/last committed batch IDs, and expected counts for current, timeline, and metric indexes. `kv:compile` opens a repeatable-read, read-only transaction, compiles one deterministic sorted U1 record stream, writes those exact bytes to three real RocksDB databases, writes deterministic `manifest.json` and `compiled-records.json` registration sidecars, verifies the package, and atomically promotes it. The sidecar is registration evidence only; serving reads RocksDB.
 
-The host loaded and exercised actual `rocksdb@5.2.1` successfully. This binding is deprecated and added npm audit findings; replace it only with another verified RocksDB implementation, never LevelDB or a fake backend. The binding lacks column-family support in this integration, so artifacts use three clearly named RocksDB databases.
+The compiler does not insert, update, or delete database rows. Signed Origin parity re-verifies the package and RocksDB bytes, locks and validates the pending request against the current canonical snapshot, fails closed on per-index expected-count drift, writes exact artifact bytes into `mq_kv_compiled_entries` in bounded 500-row batches, and persists a three-way canonical/PostgreSQL/RocksDB validation. Signed registration requires the latest passing parity run, creates index manifests, and changes only the derived build from `pending` to `compiled`. Neither command activates a build.
 
-Verification completed:
+MQNODE lookup uses only the newest `active` build and `RocksDbResolver`; there is deliberately no PostgreSQL fallback. Canonical PostgreSQL, compiled PostgreSQL, and RocksDB resolvers share one decoded U1 model and support current, timeline-at-height, and metric-group lookups. Retention is dry-run first, plan-hash bound, protects active/newest-successful/previous-active builds, and deletes only derived `mq_kv_compiled_entries` rows.
 
-```text
-Vitest: 90 files passed, 1 skipped; 568 tests passed, 5 skipped
-TypeScript: passed
-ESLint: passed
-Next.js production build: passed
-Real RocksDB write/read test: passed
-Known warning: missing node_modules/typescript/lib/typescript.js.map
-```
+Source-job detail counts are SQL-aggregated and candidate/evidence rows are paginated. The console shows imported trust, MQCHAIN verification, and effective trust independently. Verification conflicts, rejected/revoked evidence, stale selections, and dictionary-ID exhaustion fail closed. Published IDs remain stable. Build 5 was not modified, deleted, registered, superseded, or activated.
 
-`MQCHAIN_TEST_DATABASE_URL` was unset. Therefore migration `0014` was not applied, no new pending or compiled build was created, no compiled-entry/validation row counts or semantic hashes exist from a database E2E run, and no production activation occurred. Do not use `.env.local` for destructive validation. Provision a disposable PostgreSQL database, set `MQCHAIN_TEST_DATABASE_URL`/a temporary `DATABASE_URL`, run migrations, then execute:
+### Files to Read
+
+- `src/lib/mqchain/services/full-kv-build-service.ts`
+- `src/lib/mqchain/kv/compiled-records.ts`
+- `src/lib/mqchain/kv/decoded-record.ts`
+- `src/lib/mqchain/services/compiled-artifact-service.ts`
+- `src/lib/mqchain/services/compiled-retention-service.ts`
+- `src/lib/mqchain/services/activated-artifact-resolver.ts`
+- `tools/kv-compiler/compiler.ts`
+- `tools/kv-compiler/artifact-package.ts`
+- `tools/kv-compiler/rocksdb-resolver.ts`
+- `scripts/run-disposable-u1-e2e.ts`
+- `drizzle/0014_amusing_cardiac.sql`
+
+### Commands and Origin Endpoints
 
 ```powershell
 npm.cmd run kv:request-full -- --triggering-batch-id <committed-batch-id>
-npm.cmd run kv:compile -- --build-id <new-request-id> --artifact-root D:\MAMAKQUANT_DATA\mqchain\rocksdb
+npm.cmd run kv:compile -- --build-id <pending-request-id> --artifact-root <artifact-root>
+npm.cmd run kv:verify -- --artifact-directory <artifact-directory>
+npm.cmd run kv:parity -- --artifact-directory <artifact-directory> --actor-id <employee-id> --actor-email <employee-email>
+npm.cmd run kv:register -- --artifact-directory <artifact-directory> --actor-id <employee-id> --actor-email <employee-email>
+npm.cmd run kv:retention -- --actor-id <employee-id> --actor-email <employee-email>
+npm.cmd run kv:retention -- --apply --actor-id <employee-id> --actor-email <employee-email>
+npm.cmd run test:u1-e2e
 ```
 
-Before production rollout, finish the remaining gaps: split `kv:verify`, `kv:register`, and `kv:parity` into independent artifact commands (they currently enter the compile orchestrator); move final registration behind the signed Origin route instead of the compiler's direct derived-table transaction; add disposable-PostgreSQL rollback/idempotency/retention tests; paginate the source-job candidate/evidence detail queries; and expose imported, MQCHAIN verification, and effective trust as separate fields. Do not claim the full end-to-end run until those steps produce real build IDs, per-index counts/hashes, a validation-run ID, and a clean activation preflight.
+- `POST /v1/kv-builds/compiled/parity` (`batch:commit`)
+- `POST /v1/kv-builds/compiled/register` (`batch:commit`)
+- `POST /v1/kv-builds/compiled/retention` (`batch:commit`)
+- `GET /v1/mqnode/u1/resolve` (`view`)
+
+Relevant environment variable names only: `DATABASE_URL`, `MQCHAIN_TEST_DATABASE_URL`, `MQCHAIN_ORIGIN_URL`, `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`, `MQCHAIN_REQUEST_AUDIENCE`, `MQCHAIN_REQUEST_SIGNING_SECRET`, `MQCHAIN_COMPILER_ACTOR_ID`, and `MQCHAIN_COMPILER_ACTOR_EMAIL`. Never print or copy their values into artifacts or reports.
+
+### Disposable End-to-End Evidence
+
+`npm.cmd run test:u1-e2e` derives credentials from configured `DATABASE_URL`, creates a uniquely named disposable database, applies the Drizzle journal through migration `0014`, executes source verification through signed Origin parity/registration against real RocksDB, and force-drops the disposable database in `finally`. It does not use or mutate production data.
+
+Final disposable evidence:
+
+```text
+compile request build: 1
+compiled build: 2
+validation run: 2 (passed)
+current/timeline/metric rows: 11 / 1 / 11 (23 exact records)
+artifact hash: d8380523f91674371e54db37da105cc901395426f64dd48b9abc23255edb0f03
+records hash: e081de4a70d157dc8e61eff344ed336692f8a3040a5647c87dc7640a61ca9d88
+current hash: 25b2d6ef593c5c77f07b8e4b5066db3406f8140b3323ceba37d4503187657790
+timeline hash: 6dee9b7f8527e49a04e6c18075ff9fcecb308fd2a98a06534e1d087a242d3649
+metric hash: 8924af06563c958ef89526a5c0cdde4fbbdd7f01dbc1796ae1f1f7b52320f59b
+activation preflight: passed
+active builds: 0
+```
+
+Parity retry reused compiled build 2 and restored the same 23 rows. Repeat registration returned `idempotent: true`. The artifact lived under a temporary test directory and was removed after the test; these IDs and hashes are disposable evidence, not production identifiers.
+
+Final verification:
+
+```text
+Vitest: 94 files passed, 1 skipped; 587 tests passed, 6 skipped
+Disposable PostgreSQL/Origin/RocksDB E2E: 1 file, 6 tests passed
+TypeScript: passed
+ESLint: passed
+Next.js production build: passed
+Known non-fatal warning: missing node_modules/typescript/lib/typescript.js.map
+Fresh-database notices: PostgreSQL identifier truncation and absent trigger drops only
+```
+
+### Rollout, Rollback, and Risks
+
+Activation remains a separate manual action through the existing activation service. Production rollout should compile to a durable local artifact root visible to Origin/MQNODE, run verify, signed parity, signed register, inspect activation preflight, and obtain explicit approval before activation. Never point retention at a production build without first reviewing the dry-run plan hash and exact build IDs.
+
+Rollback is build-level: manually reactivate the previous compatible immutable artifact using the existing activation transaction. Never delete canonical registry/history rows to roll back. Retention keeps the immediately previous active artifact's compiled PostgreSQL rows. The real `rocksdb@5.2.1` binding is deprecated and lacks column-family support, so this integration uses three named databases; any replacement must prove exact byte compatibility and must not substitute LevelDB or an emulated backend. The Origin replay cache remains process-local, and local `file:` artifact serving requires shared path consistency if Origin/MQNODE is horizontally replicated.
 
 ## Safe Pending Source-Job Deletion (2026-07-20)
 
