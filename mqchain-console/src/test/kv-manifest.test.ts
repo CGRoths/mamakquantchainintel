@@ -29,6 +29,7 @@ import { createKvBuildManifestSchema, kvBuildRegistrationApiRequestSchema } from
 function productionManifest(overrides: Record<string, unknown> = {}) {
   return {
     artifactType: "rocksdb",
+    compileScope: "full",
     ...MQCHAIN_KV_CONTRACT_SCHEMA_VERSIONS,
     dictionaryVersion: "dict-123",
     registrySnapshotHash: "registry-snapshot-123",
@@ -179,14 +180,14 @@ describe("KV build manifest validation", () => {
     expect(preflight.canActivate).toBe(true);
   });
 
-  it("reports active serving artifacts as healthy but not re-activatable", () => {
+  it("rejects re-activation of an already-active artifact", () => {
     const preflight = buildKvManifestActivationPreflight(compiledBuild({}, { status: "active" }));
 
     expect(preflight.canActivate).toBe(false);
-    expect(preflight.blockers).toEqual([]);
+    expect(preflight.blockers).toContain("Compiled status: Only compiled manifests can become active.");
     expect(preflight.checks.find((check) => check.key === "status")).toMatchObject({
-      status: "pass",
-      detail: "Manifest is the active serving artifact.",
+      status: "fail",
+      detail: "Only compiled manifests can become active.",
     });
   });
 
@@ -748,6 +749,7 @@ describe("KV build manifest validation", () => {
           manifestKeys: [
             "artifactStatus",
             "artifactType",
+            "compileScope",
             "dictionarySchemaVersion",
             "dictionaryVersion",
             "expectedCounts",

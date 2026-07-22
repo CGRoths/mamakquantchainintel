@@ -260,6 +260,49 @@ export type CanonicalDictionaryRows = {
     status: string;
     contentHash: string | null;
   }>;
+  labelStatuses?: Array<{
+    labelStatusCode: number;
+    stableCode: string;
+    displayName: string;
+    description: string;
+    isCurrent: boolean;
+    isHistorical: boolean;
+    isServing: boolean;
+    isActive: boolean;
+  }>;
+  metricMembershipStatuses?: Array<{
+    membershipStatusCode: number;
+    stableCode: string;
+    displayName: string;
+    isMember: boolean;
+    description: string;
+    isActive: boolean;
+  }>;
+  assetStatuses?: Array<{
+    assetStatusCode: number;
+    stableCode: string;
+    displayName: string;
+    isServing: boolean;
+    description: string;
+    isActive: boolean;
+  }>;
+  qualityTiers?: Array<{
+    qualityTier: number;
+    stableCode: string;
+    displayName: string;
+    description: string;
+    minimumEvidenceExpectation: string;
+    isActive: boolean;
+  }>;
+  flagBits?: Array<{
+    bitPosition: number;
+    bitMask: number;
+    flagCode: string;
+    displayName: string;
+    appliesTo: string;
+    description: string;
+    isActive: boolean;
+  }>;
 };
 
 export type CanonicalDictionaryFamily = keyof CanonicalDictionaryRows;
@@ -282,6 +325,11 @@ export const CANONICAL_DICTIONARY_FAMILIES = [
   "tokenStandards",
   "metricGroups",
   "metricGroupRules",
+  "labelStatuses",
+  "metricMembershipStatuses",
+  "assetStatuses",
+  "qualityTiers",
+  "flagBits",
 ] as const satisfies readonly CanonicalDictionaryFamily[];
 
 export type CanonicalDictionarySnapshot = {
@@ -486,6 +534,49 @@ export function normalizeCanonicalDictionaryRows(rows: CanonicalDictionaryRows) 
       ruleJson: row.ruleJson,
       status: row.status,
       contentHash: text(row.contentHash),
+    })),
+    labelStatuses: [...(rows.labelStatuses ?? [])].sort((left, right) => left.labelStatusCode - right.labelStatusCode).map((row) => ({
+      id: row.labelStatusCode,
+      code: row.stableCode,
+      name: row.displayName,
+      description: row.description,
+      current: bool(row.isCurrent),
+      historical: bool(row.isHistorical),
+      serving: bool(row.isServing),
+      active: bool(row.isActive),
+    })),
+    metricMembershipStatuses: [...(rows.metricMembershipStatuses ?? [])].sort((left, right) => left.membershipStatusCode - right.membershipStatusCode).map((row) => ({
+      id: row.membershipStatusCode,
+      code: row.stableCode,
+      name: row.displayName,
+      member: bool(row.isMember),
+      description: row.description,
+      active: bool(row.isActive),
+    })),
+    assetStatuses: [...(rows.assetStatuses ?? [])].sort((left, right) => left.assetStatusCode - right.assetStatusCode).map((row) => ({
+      id: row.assetStatusCode,
+      code: row.stableCode,
+      name: row.displayName,
+      serving: bool(row.isServing),
+      description: row.description,
+      active: bool(row.isActive),
+    })),
+    qualityTiers: [...(rows.qualityTiers ?? [])].sort((left, right) => left.qualityTier - right.qualityTier).map((row) => ({
+      id: row.qualityTier,
+      code: row.stableCode,
+      name: row.displayName,
+      description: row.description,
+      minimumEvidenceExpectation: row.minimumEvidenceExpectation,
+      active: bool(row.isActive),
+    })),
+    flagBits: [...(rows.flagBits ?? [])].sort((left, right) => left.bitPosition - right.bitPosition).map((row) => ({
+      bitPosition: row.bitPosition,
+      bitMask: row.bitMask,
+      code: row.flagCode,
+      name: row.displayName,
+      appliesTo: row.appliesTo,
+      description: row.description,
+      active: bool(row.isActive),
     })),
   };
 }

@@ -47,7 +47,7 @@ describe("research normalization workflow contracts", () => {
     expect(update).toContain("suggestedRoleId");
     expect(update).toContain("changes.push({ candidateId: candidate.id, before, after })");
     expect(update).not.toContain("candidateStatus:");
-    expect(update).not.toMatch(/delete\(mqAddressEvidence|update\(mqApprovalEvents/);
+    expect(update).not.toMatch(/delete\(mqWorkflowAddressEvidence|update\(mqWorkflowApprovalEvents/);
   });
 
   it("exports a versioned dictionary bundle and documents exact AI matching", () => {

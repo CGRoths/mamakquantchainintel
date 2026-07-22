@@ -33,6 +33,15 @@ export const createKvBuildManifestSchema = z.object({
 
 export const kvBuildIdSchema = z.object({
   buildId: z.coerce.number().int().positive(),
+  expectedBuildHash: z.string().trim().min(1),
+  expectedDictionaryVersion: z.string().trim().min(1),
+  expectedRegistrySnapshotHash: z.string().trim().length(64),
+  expectedCurrentActiveBuildId: z.preprocess(
+    (value) => value === "" || value === undefined ? null : value,
+    z.coerce.number().int().positive().nullable(),
+  ),
+  expectedValidationRunId: z.coerce.number().int().positive(),
+  expectedValidationReportHash: z.string().trim().length(64),
 });
 
 export const kvBuildRegistrationApiRequestSchema = z

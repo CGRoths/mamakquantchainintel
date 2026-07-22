@@ -3,6 +3,7 @@ import { LABEL_STATUS } from "./constants";
 import { applyMetricEligibilityToFlags, FLAG_BITS, hasFlag } from "./flags";
 import { NULL_DICTIONARY_ID, validateU1AddressKey, type U1AddressKeyContext } from "./kv/contract";
 import { validateMetricEligibility } from "./metric-eligibility";
+import { effectiveCategoryId } from "./effective-category";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -43,6 +44,11 @@ export const CANDIDATE_APPROVAL_BLOCKERS = [
   "unsupported_identifier",
   "unresolved_role_proposal",
   "required_component_unresolved",
+  "invalid_confidence",
+  "invalid_quality_tier",
+  "malformed_timeline",
+  "role_minimum_confidence_not_met",
+  "role_bulk_approval_disabled",
   "normalization_status_unresolved",
   "dictionary_version_mismatch",
   "missing_source_provenance",
@@ -81,6 +87,11 @@ export const CANDIDATE_APPROVAL_BLOCKER_LABELS: Record<CandidateApprovalBlocker,
   unsupported_identifier: "Unsupported identifier kind",
   unresolved_role_proposal: "Unresolved role proposal",
   required_component_unresolved: "Required component unresolved",
+  invalid_confidence: "Confidence is outside 0-100",
+  invalid_quality_tier: "Quality tier is outside 0-7",
+  malformed_timeline: "Timeline heights are malformed",
+  role_minimum_confidence_not_met: "Role minimum confidence is not met",
+  role_bulk_approval_disabled: "Role policy disallows bulk approval",
   normalization_status_unresolved: "Normalization status not resolved",
   dictionary_version_mismatch: "Dictionary version mismatch",
   missing_source_provenance: "Missing source provenance",
@@ -129,6 +140,11 @@ export type CandidateApprovalContext = {
   conflictingRegistryLabelId?: number | null;
   /** Policy switch: when true a `pending_component` normalization status blocks approval. */
   componentRequired?: boolean;
+  /** Role-policy confidence floor. Defaults to the legacy value of zero. */
+  minimumConfidence?: number;
+  /** False only blocks the bulk path; individual governed review remains available. */
+  allowBulkApproval?: boolean;
+  approvalKind?: "individual" | "bulk";
 };
 
 export type CandidateApprovalDraft = {
@@ -216,8 +232,7 @@ export function resolveApprovalCategoryId(
   const draft = metadata?.approvalDraft;
   const draftRecord = draft && typeof draft === "object" && !Array.isArray(draft) ? (draft as JsonRecord) : null;
   const override = metadataNumber(draftRecord, "categoryId") ?? metadataNumber(metadata, "suggestedCategoryId");
-  if (override !== null && override > NULL_DICTIONARY_ID) return override;
-  return role?.categoryId ?? null;
+  return effectiveCategoryId(override !== null && override > NULL_DICTIONARY_ID ? override : null, role?.categoryId);
 }
 
 export function evaluateCandidateApproval(
@@ -229,6 +244,19 @@ export function evaluateCandidateApproval(
   const componentRequired = context.componentRequired === true;
 
   if (candidate.candidateStatus !== "pending_review") blockers.add("status_not_pending_review");
+  if (!Number.isInteger(candidate.confidenceScore) || candidate.confidenceScore < 0 || candidate.confidenceScore > 100) {
+    blockers.add("invalid_confidence");
+  }
+  if (!Number.isInteger(candidate.qualityTier) || candidate.qualityTier < 0 || candidate.qualityTier > 7) {
+    blockers.add("invalid_quality_tier");
+  }
+  if (
+    (candidate.firstSeenBlock !== null && (!Number.isSafeInteger(candidate.firstSeenBlock) || candidate.firstSeenBlock < 0)) ||
+    (candidate.lastSeenBlock !== null && (!Number.isSafeInteger(candidate.lastSeenBlock) || candidate.lastSeenBlock < 0)) ||
+    (candidate.firstSeenBlock !== null && candidate.lastSeenBlock !== null && candidate.lastSeenBlock < candidate.firstSeenBlock)
+  ) {
+    blockers.add("malformed_timeline");
+  }
   if (context.evidenceCount < 1) blockers.add("missing_evidence");
   if (!isCandidateSourceVerificationSatisfied(context.sourceVerificationStatus)) blockers.add("missing_source_verification");
   if (!candidate.normalizedAddress) blockers.add("missing_normalized_address");
@@ -253,6 +281,8 @@ export function evaluateCandidateApproval(
   } else if (!context.role.isActive) {
     blockers.add("inactive_role");
   }
+  if (candidate.confidenceScore < (context.minimumConfidence ?? 0)) blockers.add("role_minimum_confidence_not_met");
+  if (context.approvalKind === "bulk" && context.allowBulkApproval === false) blockers.add("role_bulk_approval_disabled");
 
   if (candidate.suggestedProtocolId && context.protocol && !context.protocol.isActive) {
     blockers.add("inactive_protocol");

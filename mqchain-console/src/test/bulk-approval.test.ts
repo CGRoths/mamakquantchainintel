@@ -4,16 +4,16 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  mqAddressCandidates,
-  mqAddressCodecs,
-  mqAddressEvidence,
-  mqAddressNamespaces,
-  mqAddressRegistry,
-  mqEntities,
-  mqKvRoleDict,
-  mqProtocolComponents,
-  mqProtocols,
-  mqSourceVerifications,
+  mqWorkflowAddressCandidates,
+  mqDictAddressCodecs,
+  mqWorkflowAddressEvidence,
+  mqDictAddressNamespaces,
+  mqRegistryAddressLabels,
+  mqDictEntities,
+  mqDictRoles,
+  mqDictProtocolComponents,
+  mqDictProtocols,
+  mqWorkflowSourceVerifications,
 } from "@/db/schema";
 import { FLAG_BITS } from "@/lib/mqchain/flags";
 import { buildCandidateApprovalEvaluations } from "@/lib/mqchain/services/candidate-approval-evaluation";
@@ -57,7 +57,7 @@ function fakeReader(tables: TableRows) {
           const rows = tables.get(table) ?? [];
           // The only projected query in the evaluator is the evidence count roll-up.
           const result =
-            table === mqAddressEvidence && fields
+            table === mqWorkflowAddressEvidence && fields
               ? Object.entries(
                   rows.reduce<Record<string, number>>((counts, row) => {
                     const key = String(row.candidateId);
@@ -109,14 +109,14 @@ function candidateRow(overrides: Record<string, unknown> = {}) {
 
 function fixtureTables(candidates: Record<string, unknown>[], overrides: Partial<Record<string, unknown[]>> = {}) {
   const tables: TableRows = new Map();
-  tables.set(mqAddressCandidates, candidates);
+  tables.set(mqWorkflowAddressCandidates, candidates);
   tables.set(
-    mqAddressEvidence,
+    mqWorkflowAddressEvidence,
     (overrides.evidence as Record<string, unknown>[]) ??
       candidates.map((candidate) => ({ candidateId: candidate.id })),
   );
   tables.set(
-    mqSourceVerifications,
+    mqWorkflowSourceVerifications,
     // Candidates carry sheet-level provenance, so only a sheet-scoped
     // verification satisfies them; a source_job verification alone does not.
     (overrides.verifications as Record<string, unknown>[]) ?? [
@@ -134,10 +134,10 @@ function fixtureTables(candidates: Record<string, unknown>[], overrides: Partial
       },
     ],
   );
-  tables.set(mqEntities, (overrides.entities as Record<string, unknown>[]) ?? [{ id: 1, isActive: true, categoryId: 100 }]);
-  tables.set(mqProtocols, (overrides.protocols as Record<string, unknown>[]) ?? []);
+  tables.set(mqDictEntities, (overrides.entities as Record<string, unknown>[]) ?? [{ id: 1, isActive: true, categoryId: 100 }]);
+  tables.set(mqDictProtocols, (overrides.protocols as Record<string, unknown>[]) ?? []);
   tables.set(
-    mqKvRoleDict,
+    mqDictRoles,
     (overrides.roles as Record<string, unknown>[]) ?? [
       {
         roleId: 1002,
@@ -149,16 +149,16 @@ function fixtureTables(candidates: Record<string, unknown>[], overrides: Partial
       },
     ],
   );
-  tables.set(mqProtocolComponents, (overrides.components as Record<string, unknown>[]) ?? []);
+  tables.set(mqDictProtocolComponents, (overrides.components as Record<string, unknown>[]) ?? []);
   tables.set(
-    mqAddressNamespaces,
+    mqDictAddressNamespaces,
     (overrides.namespaces as Record<string, unknown>[]) ?? [{ id: 1, addressCodecId: 1, isActive: true }],
   );
   tables.set(
-    mqAddressCodecs,
+    mqDictAddressCodecs,
     (overrides.codecs as Record<string, unknown>[]) ?? [{ id: 1, payloadRule: "exact:20", status: "production_ready" }],
   );
-  tables.set(mqAddressRegistry, (overrides.registry as Record<string, unknown>[]) ?? []);
+  tables.set(mqRegistryAddressLabels, (overrides.registry as Record<string, unknown>[]) ?? []);
   return tables;
 }
 
@@ -206,6 +206,8 @@ describe("bulk approval request validation", () => {
         candidateIds: [2, 1],
         expectedDictionaryVersion: "d",
         expectedPreviewHash: "h",
+        expectedCandidateSnapshotHash: "c".repeat(64),
+        expectedSourceVerificationSnapshotHash: "v".repeat(64),
         reason: "Approved official Kraken PoR source",
       }),
     ).toMatchObject({ candidateIds: [1, 2], mode: "eligible_only" });
@@ -321,9 +323,9 @@ describe("bulk approval lifecycle boundaries", () => {
   const workflow = read("src/components/mqchain/source-job-approval-workflow.tsx");
 
   it("never creates a batch, registry row or KV build", () => {
-    expect(service).not.toMatch(/insert\(mqLabelBatches\)|insert\(mqLabelBatchCandidates\)/);
-    expect(service).not.toMatch(/insert\(mqAddressRegistry\)/);
-    expect(service).not.toMatch(/insert\(mqKvBuilds\)/);
+    expect(service).not.toMatch(/insert\(mqWorkflowLabelBatches\)|insert\(mqWorkflowLabelBatchCandidates\)/);
+    expect(service).not.toMatch(/insert\(mqRegistryAddressLabels\)/);
+    expect(service).not.toMatch(/insert\(mqBuildKvBuilds\)/);
     expect(service).toContain("batchCreated: false");
     expect(service).toContain("registryRowsCreated: 0");
     expect(service).toContain("kvBuildsCreated: 0");
@@ -338,7 +340,8 @@ describe("bulk approval lifecycle boundaries", () => {
 
   it("writes one bulk audit record plus one approval event per approved candidate", () => {
     expect(service).toContain("candidates_bulk_approved");
-    expect(service).toContain("insert(mqApprovalEvents).values(approvalEventRows)");
+    expect(service).toContain("insert into mq_workflow_approval_events");
+    expect(service).toContain("jsonb_to_recordset");
     expect(service).toContain("bulkOperationId");
   });
 
@@ -361,10 +364,14 @@ describe("bulk approval lifecycle boundaries", () => {
   });
 
   it("keeps select-all matching independent from the paginated visible rows", () => {
-    expect(service).toContain("select({ id: mqAddressCandidates.id })");
+    expect(service).toContain("select({ id: mqWorkflowAddressCandidates.id, metadata: mqWorkflowAddressCandidates.metadata })");
     expect(service).not.toContain("limit(pagination.pageSize)");
     expect(sourcePage).toContain("rows={bulkApprovalRows}");
-    expect(workflow).toContain("candidateIds: sheet.candidateIds");
+    expect(workflow).toContain("sourceJobId");
+    expect(workflow).toContain("sourceSheet: sheet.sourceSheet");
+    expect(workflow).not.toContain("candidateIds: sheet.candidateIds");
+    const panel = read("src/components/mqchain/bulk-approval-panel.tsx");
+    expect(panel).toContain('selectionType: group.sourceSheet ? "source_sheet" : "source_job"');
     expect(workflow).toContain("rows={rows}");
   });
 

@@ -6,7 +6,7 @@ import { asc, eq, sql } from "drizzle-orm";
 import { ZodError } from "zod";
 
 import { getDb } from "../src/db/client";
-import { mqKvBuilds, mqKvFilterManifests, mqUsers } from "../src/db/schema";
+import { mqBuildKvBuilds, mqBuildFilterManifests, mqUsers } from "../src/db/schema";
 import { ROLE_PERMISSIONS, type MqUserRole } from "../src/lib/mqchain/constants";
 import { CATALOG_KEY_TO_FILE, ORIGIN_CATALOG_KEYS, type OriginCatalogKey } from "../src/lib/mqchain/contracts/catalog";
 import type { VerifiedOriginActor } from "../src/lib/mqchain/contracts/origin";
@@ -28,7 +28,7 @@ import { addCandidateEvidence, addRegistryEvidence, listEvidenceLedger } from ".
 import { CompiledArtifactError, registerCompiledArtifact, runCompiledArtifactParity } from "../src/lib/mqchain/services/compiled-artifact-service";
 import { retainCompiledEntries } from "../src/lib/mqchain/services/compiled-retention-service";
 import { resolveActivatedArtifactU1 } from "../src/lib/mqchain/services/activated-artifact-resolver";
-import { activateKvBuildManifest, createKvBuildManifest, getActiveKvBuildDetail, getKvBuildDetail, listKvBuilds } from "../src/lib/mqchain/services/kv-manifest-service";
+import { activateKvBuildManifest, createKvBuildManifest, getActiveKvBuildDetail, getKvBuildDetail, KvActivationError, listKvBuilds } from "../src/lib/mqchain/services/kv-manifest-service";
 import { addMetricGroupRule, createMetricGroup, deactivateMetricGroup, listMetricGroups, previewMetricGroupMembers, previewMetricGroupMembersByCode } from "../src/lib/mqchain/services/metric-group-service";
 import { createNetworkChangeProposal, getNetworkCatalogDrift, listNetworkSupportMatrix, reviewNetworkChangeProposal } from "../src/lib/mqchain/services/network-support-service";
 import { addRegistrySecondaryRole, deactivateRegistryLabel, getRegistryDetail, listRegistry, markRegistryHistorical, supersedeRegistryLabel, updateRegistryLabel } from "../src/lib/mqchain/services/registry-service";
@@ -205,7 +205,7 @@ async function employeeRoute(method: string, pathname: string, url: URL, body: R
   if (method === "GET" && pathname === "/v1/kv-builds") return authorized(actor, "view", () => listKvBuilds(query));
   match = pathname.match(/^\/v1\/kv-builds\/(\d+)$/);
   if (method === "GET" && match) return authorized(actor, "view", () => getKvBuildDetail(Number(match![1])));
-  if (method === "GET" && pathname === "/v1/kv-filters") return authorized(actor, "view", () => getDb().select({ filter: mqKvFilterManifests, buildHash: mqKvBuilds.buildHash }).from(mqKvFilterManifests).leftJoin(mqKvBuilds, eq(mqKvFilterManifests.buildId, mqKvBuilds.id)).orderBy(asc(mqKvFilterManifests.id)));
+  if (method === "GET" && pathname === "/v1/kv-filters") return authorized(actor, "view", () => getDb().select({ filter: mqBuildFilterManifests, buildHash: mqBuildKvBuilds.buildHash }).from(mqBuildFilterManifests).leftJoin(mqBuildKvBuilds, eq(mqBuildFilterManifests.buildId, mqBuildKvBuilds.id)).orderBy(asc(mqBuildFilterManifests.id)));
   if (method === "GET" && pathname === "/v1/network-support/matrix") return authorized(actor, "view", listNetworkSupportMatrix);
   if (method === "GET" && pathname === "/v1/network-support/drift") return authorized(actor, "view", getNetworkCatalogDrift);
   match = pathname.match(/^\/v1\/catalog\/([^/]+)$/);
@@ -260,10 +260,10 @@ async function employeeRoute(method: string, pathname: string, url: URL, body: R
   if (method === "POST" && pathname === "/v1/discovery/jobs") return authorized(actor, "discovery:create", () => body.mode === "from_registry" ? createDiscoveryJobFromRegistry(body.input) : createDiscoveryJob(body.input));
   if (method === "POST" && /^\/v1\/discovery\/jobs\/\d+\/complete$/.test(pathname)) return authorized(actor, "discovery:create", () => completeDiscoveryJob(body));
   if (method === "POST" && pathname === "/v1/kv-builds") return authorized(actor, "batch:commit", () => createKvBuildManifest(body));
-  if (method === "POST" && pathname === "/v1/kv-builds/compiled/parity") return authorized(actor, "batch:commit", () => runCompiledArtifactParity(body));
-  if (method === "POST" && pathname === "/v1/kv-builds/compiled/register") return authorized(actor, "batch:commit", () => registerCompiledArtifact(body));
-  if (method === "POST" && pathname === "/v1/kv-builds/compiled/retention") return authorized(actor, "batch:commit", () => retainCompiledEntries(body));
-  if (method === "POST" && /^\/v1\/kv-builds\/\d+\/activate$/.test(pathname)) return authorized(actor, "batch:commit", () => activateKvBuildManifest(body));
+  if (method === "POST" && pathname === "/v1/kv-builds/compiled/parity") return authorized(actor, "kv:register", () => runCompiledArtifactParity(body));
+  if (method === "POST" && pathname === "/v1/kv-builds/compiled/register") return authorized(actor, "kv:register", () => registerCompiledArtifact(body));
+  if (method === "POST" && pathname === "/v1/kv-builds/compiled/retention") return authorized(actor, "kv:register", () => retainCompiledEntries(body));
+  if (method === "POST" && /^\/v1\/kv-builds\/\d+\/activate$/.test(pathname)) return authorized(actor, "kv:activate", () => activateKvBuildManifest(body));
   if (method === "POST" && pathname === "/v1/metric-groups") return authorized(actor, "dictionary:edit", () => createMetricGroup(body));
   if (method === "POST" && /^\/v1\/metric-groups\/\d+\/rules$/.test(pathname)) return authorized(actor, "dictionary:edit", () => addMetricGroupRule(body));
   if (method === "POST" && /^\/v1\/metric-groups\/\d+\/deactivate$/.test(pathname)) return authorized(actor, "dictionary:edit", () => deactivateMetricGroup(body));
@@ -315,6 +315,7 @@ export async function handleOriginRequest(request: IncomingMessage, response: Se
       error instanceof ResearchIntakeError ||
       error instanceof BulkApprovalError ||
       error instanceof CompiledArtifactError ||
+      error instanceof KvActivationError ||
       error instanceof BatchLifecycleError;
     const status = domainError ? error.status : error instanceof ZodError ? 400 : 500;
     const code = domainError ? error.code : error instanceof ZodError ? "validation_failed" : "internal_error";

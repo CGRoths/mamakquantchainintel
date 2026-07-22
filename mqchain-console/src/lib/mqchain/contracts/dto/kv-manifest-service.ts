@@ -127,6 +127,19 @@ export declare function getKvBuildDetail(id: number): Promise<{
         metadata: Record<string, unknown>;
         createdAt: Date;
     }[];
+    latestValidation: {
+        id: number;
+        buildId: number;
+        compileRequestBuildId: number;
+        validationType: string;
+        status: string;
+        dictionaryVersion: string;
+        registrySnapshotHash: string;
+        reportHash: string;
+        report: Record<string, unknown>;
+        createdAt: Date;
+    } | null;
+    currentActiveBuildId: number | null;
 } | null>;
 export declare function getActiveKvBuildDetail(): Promise<{
     build: {
@@ -208,6 +221,19 @@ export declare function getActiveKvBuildDetail(): Promise<{
         metadata: Record<string, unknown>;
         createdAt: Date;
     }[];
+    latestValidation: {
+        id: number;
+        buildId: number;
+        compileRequestBuildId: number;
+        validationType: string;
+        status: string;
+        dictionaryVersion: string;
+        registrySnapshotHash: string;
+        reportHash: string;
+        report: Record<string, unknown>;
+        createdAt: Date;
+    } | null;
+    currentActiveBuildId: number | null;
 } | null>;
 export declare function createKvBuildManifest(input: unknown): Promise<{
     id: number;

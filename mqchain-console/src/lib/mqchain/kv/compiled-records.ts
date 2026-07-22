@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { effectiveCategoryId } from "../effective-category";
 
 import type { MqAddressRegistryRow } from "@/db/schema";
 
@@ -55,7 +56,7 @@ function addressValue(row: CompilableRegistryRow) {
     confidenceScore: row.confidenceScore,
     entityId: row.entityId,
     protocolId: row.protocolId,
-    categoryId: row.categoryId ?? row.resolvedCategoryId ?? null,
+    categoryId: effectiveCategoryId(row.categoryId, row.resolvedCategoryId),
     roleId: row.roleId,
     componentId: row.componentId,
     tagsetId: row.tagsetId,
@@ -122,7 +123,7 @@ export function compileU1RecordStream(input: {
     return {
       indexName: "metric_group_membership" as const,
       keyBytes: Buffer.from(encodeU1MetricGroupKey({ ...addressKey(row), metricGroupId })),
-      valueBytes: Buffer.from(encodeU1MetricGroupValue({ membershipStatus: 1, confidenceScore: row.confidenceScore, entityId: row.entityId, categoryId: row.categoryId ?? row.resolvedCategoryId ?? null, roleId: row.roleId, flags: row.flags, tagsetId: row.tagsetId })),
+      valueBytes: Buffer.from(encodeU1MetricGroupValue({ membershipStatus: 1, confidenceScore: row.confidenceScore, entityId: row.entityId, categoryId: effectiveCategoryId(row.categoryId, row.resolvedCategoryId), roleId: row.roleId, flags: row.flags, tagsetId: row.tagsetId })),
       registryId, metricGroupId, namespaceId: row.namespaceId, addressCodecId: row.addressCodecId,
     };
   });

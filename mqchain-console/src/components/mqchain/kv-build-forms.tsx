@@ -155,9 +155,18 @@ export function CreateKvBuildManifestForm() {
 export function ActivateKvBuildManifestForm({
   buildId,
   canActivate,
+  expectations,
 }: {
   buildId: number;
   canActivate: boolean;
+  expectations: {
+    buildHash: string;
+    dictionaryVersion: string;
+    registrySnapshotHash: string;
+    currentActiveBuildId: number | null;
+    validationRunId: number;
+    validationReportHash: string;
+  };
 }) {
   return (
     <KvBuildFormShell
@@ -169,7 +178,17 @@ export function ActivateKvBuildManifestForm({
       className="grid gap-3"
       disabled={!canActivate}
     >
-      {() => <input type="hidden" name="buildId" value={buildId} />}
+      {() => (
+        <>
+          <input type="hidden" name="buildId" value={buildId} />
+          <input type="hidden" name="expectedBuildHash" value={expectations.buildHash} />
+          <input type="hidden" name="expectedDictionaryVersion" value={expectations.dictionaryVersion} />
+          <input type="hidden" name="expectedRegistrySnapshotHash" value={expectations.registrySnapshotHash} />
+          <input type="hidden" name="expectedCurrentActiveBuildId" value={expectations.currentActiveBuildId ?? ""} />
+          <input type="hidden" name="expectedValidationRunId" value={expectations.validationRunId} />
+          <input type="hidden" name="expectedValidationReportHash" value={expectations.validationReportHash} />
+        </>
+      )}
     </KvBuildFormShell>
   );
 }

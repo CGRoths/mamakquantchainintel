@@ -21,6 +21,7 @@
     "u1:reports": "tsx scripts/generate-u1-reports.ts",
     "u1:drift": "tsx --env-file=.env.local scripts/generate-u1-drift-report.ts",
     "mqchain:dictionary-bundle": "tsx --env-file=.env.local scripts/generate-dictionary-bundle.ts",
+    "mqchain:record-phase1-dictionary-version": "tsx --env-file=.env.local scripts/record-phase1-dictionary-version.ts",
     "test": "vitest run",
     "test:u1-e2e": "tsx --env-file=.env.local scripts/run-disposable-u1-e2e.ts",
     "origin:start": "tsx --env-file=.env.origin.local origin/server.ts",

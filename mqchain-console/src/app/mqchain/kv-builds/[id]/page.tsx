@@ -19,8 +19,10 @@ export default async function KvBuildDetailPage({ params }: { params: Promise<{ 
   try {
     const [detail, currentUser] = await Promise.all([getKvBuildDetail(Number(id)), getCurrentUser()]);
     if (!detail) notFound();
-    const canCommit = roleCan(currentUser?.role, "batch:commit");
-    const { build, indexManifests, indexShards, membershipSnapshots, membershipRows } = detail;
+    const canActivate = roleCan(currentUser?.role, "kv:activate");
+    const { build, indexManifests, indexShards, membershipSnapshots, membershipRows, latestValidation, currentActiveBuildId } = detail;
+    const registrySnapshotHash = typeof build.manifest.registrySnapshotHash === "string" ? build.manifest.registrySnapshotHash : "";
+    const activationExpectationsReady = Boolean(build.dictionaryVersion && registrySnapshotHash && latestValidation);
     const preflight = buildKvManifestActivationPreflight(build);
     const indexSummary = summarizeKvManifestIndexes(build.manifest);
     const persistedIndexSummary = summarizePersistedKvIndexRecords(indexManifests, indexShards);
@@ -38,10 +40,21 @@ export default async function KvBuildDetailPage({ params }: { params: Promise<{ 
           <CardHeader><CardTitle>Activation</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>Activation marks this manifest as the serving artifact for downstream MQCHAIN workers. The binary build itself remains external to Vercel.</p>
-            {canCommit ? (
-              <ActivateKvBuildManifestForm buildId={build.id} canActivate={preflight.canActivate} />
+            {canActivate ? (
+              <ActivateKvBuildManifestForm
+                buildId={build.id}
+                canActivate={preflight.canActivate && activationExpectationsReady}
+                expectations={{
+                  buildHash: build.buildHash,
+                  dictionaryVersion: build.dictionaryVersion ?? "",
+                  registrySnapshotHash,
+                  currentActiveBuildId,
+                  validationRunId: latestValidation?.id ?? 0,
+                  validationReportHash: latestValidation?.reportHash ?? "",
+                }}
+              />
             ) : (
-              <p className="rounded-md border bg-muted/40 p-3">Activation requires batch commit permission. This view is read-only for your role.</p>
+              <p className="rounded-md border bg-muted/40 p-3">Activation requires the separate KV activation permission. This view is read-only for your role.</p>
             )}
           </CardContent>
         </Card>

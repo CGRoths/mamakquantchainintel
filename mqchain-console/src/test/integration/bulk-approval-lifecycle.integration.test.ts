@@ -43,6 +43,12 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
   let sourceJobId = 0;
   let sourceDocumentId = 0;
   let pendingBuildId = 0;
+  let compiledBuildId = 0;
+  let compiledBuildHash = "";
+  let compiledDictionaryVersion = "";
+  let compiledRegistrySnapshotHash = "";
+  let compiledValidationRunId = 0;
+  let compiledValidationReportHash = "";
   let artifactRoot: string | null = null;
   let originServer: Server | null = null;
   let originUrl = "";
@@ -97,7 +103,12 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
         select 'truncate table ' || string_agg(format('%I.%I', schemaname, tablename), ', ') || ' restart identity cascade'
           into statement
           from pg_tables
-         where schemaname = 'public' and tablename like 'mq\\_%';
+         where schemaname = 'public' and tablename like 'mq\\_%'
+           and tablename not in (
+             'mq_dict_label_statuses', 'mq_dict_metric_membership_statuses',
+             'mq_dict_asset_statuses', 'mq_dict_quality_tiers',
+             'mq_dict_flag_bits', 'mq_contract_u1_versions'
+           );
         if statement is not null then execute statement; end if;
       end $$;
     `);
@@ -127,7 +138,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
       sourceName: "Integration source",
       sourceType: "official",
     });
-    await db.insert(schema.mqKvKeyPrefixDict).values({
+    await db.insert(schema.mqDictLegacyKeyPrefixes).values({
       prefixCode: 60,
       chainCode: `it_eth_${NETWORK_ID}`,
       chainName: "Integration Ethereum",
@@ -137,14 +148,14 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
       payloadLen: 20,
       evmChainId: 1,
     });
-    await db.insert(schema.mqChainNetworks).values({
+    await db.insert(schema.mqDictChainNetworks).values({
       id: NETWORK_ID,
       networkCode: `it_eth_${NETWORK_ID}`,
       networkName: "Integration Ethereum",
       chainFamily: "evm",
       environment: "mainnet",
     });
-    await db.insert(schema.mqAddressCodecs).values({
+    await db.insert(schema.mqDictAddressCodecs).values({
       id: CODEC_ID,
       codecCode: `it_evm20_${CODEC_ID}`,
       codecName: "Integration EVM20",
@@ -158,7 +169,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
       normalizerVersion: "v1",
       status: "production_ready",
     });
-    await db.insert(schema.mqAddressNamespaces).values({
+    await db.insert(schema.mqDictAddressNamespaces).values({
       id: NAMESPACE_ID,
       namespaceCode: `it_ns_${NAMESPACE_ID}`,
       namespaceName: "Integration namespace",
@@ -166,25 +177,25 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
       addressCodecId: CODEC_ID,
       addressType: "wallet_address",
     });
-    await db.insert(schema.mqCategoryDict).values({
+    await db.insert(schema.mqDictCategories).values({
       categoryId: CATEGORY_ID,
       categoryCode: `it_cex_${CATEGORY_ID}`,
       categoryName: "Integration CEX",
     });
-    await db.insert(schema.mqEntities).values({
+    await db.insert(schema.mqDictEntities).values({
       id: ENTITY_ID,
       entityCode: `it_kraken_${ENTITY_ID}`,
       entityName: "Integration Kraken",
       entityType: "cex",
       categoryId: CATEGORY_ID,
     });
-    await db.insert(schema.mqProtocols).values({
+    await db.insert(schema.mqDictProtocols).values({
       id: PROTOCOL_ID,
       entityId: ENTITY_ID,
       protocolCode: `it_custody_${PROTOCOL_ID}`,
       protocolName: "Integration custody",
     });
-    await db.insert(schema.mqKvRoleDict).values([
+    await db.insert(schema.mqDictRoles).values([
       {
         roleId: ROLE_ID,
         roleCode: `it_cex_reserve_${ROLE_ID}`,
@@ -204,7 +215,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
         isActive: false,
       },
     ]);
-    await db.insert(schema.mqProtocolComponents).values({
+    await db.insert(schema.mqDictProtocolComponents).values({
       id: COMPONENT_ID,
       protocolId: PROTOCOL_ID,
       componentCode: `it_vault_${COMPONENT_ID}`,
@@ -221,19 +232,19 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
     });
 
     const [sourceJob] = await db
-      .insert(schema.mqSourceJobs)
+      .insert(schema.mqWorkflowSourceJobs)
       .values({ sourceType: "csv_upload", sourceName: "Integration PoR", status: "candidate_created", submittedBy: actor.id })
       .returning();
     sourceJobId = sourceJob.id;
 
     const [document] = await db
-      .insert(schema.mqSourceDocuments)
+      .insert(schema.mqWorkflowSourceDocuments)
       .values({ sourceJobId, documentType: "csv", originalName: "por.csv", contentHash: "it-hash" })
       .returning();
     sourceDocumentId = document.id;
 
     // One verified official source scope covering the candidates' sheet.
-    await db.insert(schema.mqSourceVerifications).values({
+    await db.insert(schema.mqWorkflowSourceVerifications).values({
       sourceJobId,
       sourceDocumentId,
       verificationScope: "source_sheet",
@@ -246,7 +257,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
     // 10 eligible candidates; the first carries a resolved component.
     for (let index = 1; index <= 10; index += 1) {
       const [candidate] = await db
-        .insert(schema.mqAddressCandidates)
+        .insert(schema.mqWorkflowAddressCandidates)
         .values({
           sourceJobId,
           sourceDocumentId,
@@ -269,7 +280,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
         })
         .returning();
       eligibleCandidateIds.push(candidate.id);
-      await db.insert(schema.mqAddressEvidence).values({
+      await db.insert(schema.mqWorkflowAddressEvidence).values({
         candidateId: candidate.id,
         sourceDocumentId,
         evidenceType: "proof_of_reserve",
@@ -280,7 +291,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
 
     // 1 unresolved-role candidate (role exists but is retired/inactive).
     const [unresolvedRole] = await db
-      .insert(schema.mqAddressCandidates)
+      .insert(schema.mqWorkflowAddressCandidates)
       .values({
         sourceJobId,
         sourceDocumentId,
@@ -301,7 +312,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
       })
       .returning();
     blockedCandidateIds.push(unresolvedRole.id);
-    await db.insert(schema.mqAddressEvidence).values({
+    await db.insert(schema.mqWorkflowAddressEvidence).values({
       candidateId: unresolvedRole.id,
       sourceDocumentId,
       evidenceType: "proof_of_reserve",
@@ -311,7 +322,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
 
     // 1 duplicate candidate.
     const [duplicate] = await db
-      .insert(schema.mqAddressCandidates)
+      .insert(schema.mqWorkflowAddressCandidates)
       .values({
         sourceJobId,
         sourceDocumentId,
@@ -333,7 +344,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
       })
       .returning();
     blockedCandidateIds.push(duplicate.id);
-    await db.insert(schema.mqAddressEvidence).values({
+    await db.insert(schema.mqWorkflowAddressEvidence).values({
       candidateId: duplicate.id,
       sourceDocumentId,
       evidenceType: "proof_of_reserve",
@@ -362,7 +373,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
   }
 
   it("previews 10 eligible and 2 blocked candidates without writing state", async () => {
-    const before = await db.select({ value: sql<number>`count(*)::int` }).from(schema.mqApprovalEvents);
+    const before = await db.select({ value: sql<number>`count(*)::int` }).from(schema.mqWorkflowApprovalEvents);
 
     const preview = await runWithOriginActor(actor, () =>
       previewBulkCandidateApproval({ candidateIds: selection(), mode: "eligible_only" }),
@@ -377,7 +388,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
     );
     expect(preview.previewHash).toMatch(/^[0-9a-f]{64}$/);
 
-    const after = await db.select({ value: sql<number>`count(*)::int` }).from(schema.mqApprovalEvents);
+    const after = await db.select({ value: sql<number>`count(*)::int` }).from(schema.mqWorkflowApprovalEvents);
     expect(after[0].value).toBe(before[0].value);
   });
 
@@ -393,6 +404,8 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
           mode: "eligible_only",
           expectedDictionaryVersion: preview.dictionaryVersion,
           expectedPreviewHash: "0".repeat(64),
+          expectedCandidateSnapshotHash: preview.candidateSnapshotHash,
+          expectedSourceVerificationSnapshotHash: preview.sourceVerificationSnapshotHash,
           reason: "stale hash",
         }),
       ),
@@ -405,6 +418,8 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
           mode: "eligible_only",
           expectedDictionaryVersion: "0".repeat(64),
           expectedPreviewHash: preview.previewHash,
+          expectedCandidateSnapshotHash: preview.candidateSnapshotHash,
+          expectedSourceVerificationSnapshotHash: preview.sourceVerificationSnapshotHash,
           reason: "stale dictionary",
         }),
       ),
@@ -423,6 +438,8 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
           mode: "strict",
           expectedDictionaryVersion: preview.dictionaryVersion,
           expectedPreviewHash: preview.previewHash,
+          expectedCandidateSnapshotHash: preview.candidateSnapshotHash,
+          expectedSourceVerificationSnapshotHash: preview.sourceVerificationSnapshotHash,
           reason: "strict attempt",
         }),
       ),
@@ -430,8 +447,8 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
 
     const stillPending = await db
       .select({ value: sql<number>`count(*)::int` })
-      .from(schema.mqAddressCandidates)
-      .where(and(inArray(schema.mqAddressCandidates.id, selection()), eq(schema.mqAddressCandidates.candidateStatus, "pending_review")));
+      .from(schema.mqWorkflowAddressCandidates)
+      .where(and(inArray(schema.mqWorkflowAddressCandidates.id, selection()), eq(schema.mqWorkflowAddressCandidates.candidateStatus, "pending_review")));
     expect(stillPending[0].value).toBe(12);
   });
 
@@ -446,6 +463,8 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
         mode: "eligible_only",
         expectedDictionaryVersion: preview.dictionaryVersion,
         expectedPreviewHash: preview.previewHash,
+        expectedCandidateSnapshotHash: preview.candidateSnapshotHash,
+        expectedSourceVerificationSnapshotHash: preview.sourceVerificationSnapshotHash,
         reason: "Approved official Kraken PoR source",
       }),
     );
@@ -458,44 +477,44 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
 
     const approved = await db
       .select({ value: sql<number>`count(*)::int` })
-      .from(schema.mqAddressCandidates)
-      .where(and(inArray(schema.mqAddressCandidates.id, eligibleCandidateIds), eq(schema.mqAddressCandidates.candidateStatus, "approved")));
+      .from(schema.mqWorkflowAddressCandidates)
+      .where(and(inArray(schema.mqWorkflowAddressCandidates.id, eligibleCandidateIds), eq(schema.mqWorkflowAddressCandidates.candidateStatus, "approved")));
     expect(approved[0].value).toBe(10);
 
     const pending = await db
       .select({ value: sql<number>`count(*)::int` })
-      .from(schema.mqAddressCandidates)
-      .where(and(inArray(schema.mqAddressCandidates.id, blockedCandidateIds), eq(schema.mqAddressCandidates.candidateStatus, "pending_review")));
+      .from(schema.mqWorkflowAddressCandidates)
+      .where(and(inArray(schema.mqWorkflowAddressCandidates.id, blockedCandidateIds), eq(schema.mqWorkflowAddressCandidates.candidateStatus, "pending_review")));
     expect(pending[0].value).toBe(2);
 
     // One approval event per approved candidate, all sharing the bulk operation ID.
     const events = await db
       .select()
-      .from(schema.mqApprovalEvents)
-      .where(inArray(schema.mqApprovalEvents.candidateId, eligibleCandidateIds));
+      .from(schema.mqWorkflowApprovalEvents)
+      .where(inArray(schema.mqWorkflowApprovalEvents.candidateId, eligibleCandidateIds));
     expect(events).toHaveLength(10);
     expect(events.every((event) => (event.metadata as Record<string, unknown>).bulkOperationId === result.bulkOperationId)).toBe(true);
 
     // Exactly one bulk audit record.
     const auditRows = await db
       .select()
-      .from(schema.mqAuditLog)
-      .where(eq(schema.mqAuditLog.targetId, result.bulkOperationId));
+      .from(schema.mqAuditEvents)
+      .where(eq(schema.mqAuditEvents.targetId, result.bulkOperationId));
     expect(auditRows).toHaveLength(1);
     expect(auditRows[0].action).toBe("candidates_bulk_approved");
     expect((auditRows[0].payload as Record<string, unknown>).approvedCount).toBe(10);
 
     // No batch, registry row or KV build was created as a side effect.
-    const batches = await db.select({ value: sql<number>`count(*)::int` }).from(schema.mqLabelBatches);
+    const batches = await db.select({ value: sql<number>`count(*)::int` }).from(schema.mqWorkflowLabelBatches);
     expect(batches[0].value).toBe(0);
-    const registry = await db.select({ value: sql<number>`count(*)::int` }).from(schema.mqAddressRegistry);
+    const registry = await db.select({ value: sql<number>`count(*)::int` }).from(schema.mqRegistryAddressLabels);
     expect(registry[0].value).toBe(0);
-    const builds = await db.select({ value: sql<number>`count(*)::int` }).from(schema.mqKvBuilds);
+    const builds = await db.select({ value: sql<number>`count(*)::int` }).from(schema.mqBuildKvBuilds);
     expect(builds[0].value).toBe(0);
   });
 
   it("requires batch approval before commit, then preserves U1 identity and the frozen KV contract", async () => {
-    const [priorBatch] = await db.insert(schema.mqLabelBatches).values({
+    const [priorBatch] = await db.insert(schema.mqWorkflowLabelBatches).values({
       sourceName: "Prior committed batch",
       status: "committed",
       createdBy: actor.id,
@@ -503,7 +522,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
       approvedAt: new Date(),
       committedAt: new Date(),
     }).returning();
-    const [priorRegistry] = await db.insert(schema.mqAddressRegistry).values({
+    const [priorRegistry] = await db.insert(schema.mqRegistryAddressLabels).values({
       normalizedAddress: `0x${payloadFor(999)}`,
       chainCode: `it_eth_${NETWORK_ID}`,
       prefixCode: 60,
@@ -521,7 +540,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
       isActive: true,
       validFromBlock: 1,
     }).returning();
-    const [metricGroup] = await db.insert(schema.mqMetricGroups).values({
+    const [metricGroup] = await db.insert(schema.mqDictMetricGroups).values({
       metricGroupCode: `it_cex_flow_${NETWORK_ID}`,
       metricGroupName: "Integration CEX flow",
       chainCode: null,
@@ -529,7 +548,7 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
       requireMetricEligible: true,
       isActive: true,
     }).returning();
-    await db.insert(schema.mqMetricGroupRules).values({
+    await db.insert(schema.mqPolicyMetricGroupRules).values({
       metricGroupId: metricGroup.id,
       ruleVersion: 1,
       ruleJson: { includeRoles: [`it_cex_reserve_${ROLE_ID}`], requireMetricEligible: true },
@@ -554,8 +573,8 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
 
     const registryRows = await db
       .select()
-      .from(schema.mqAddressRegistry)
-      .where(inArray(schema.mqAddressRegistry.id, commit.registryIds));
+      .from(schema.mqRegistryAddressLabels)
+      .where(inArray(schema.mqRegistryAddressLabels.id, commit.registryIds));
 
     expect(registryRows).toHaveLength(10);
     for (const row of registryRows) {
@@ -570,8 +589,8 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
 
     const [kvBuild] = await db
       .select()
-      .from(schema.mqKvBuilds)
-      .where(sql`${schema.mqKvBuilds.manifest}->>'triggeringBatchId' = ${String(batch.id)}`);
+      .from(schema.mqBuildKvBuilds)
+      .where(sql`${schema.mqBuildKvBuilds.manifest}->>'triggeringBatchId' = ${String(batch.id)}`);
     const manifest = kvBuild.manifest as Record<string, unknown>;
 
     expect(kvBuild.dictionaryVersion).toBe(commit.dictionaryVersion);
@@ -612,13 +631,19 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
     const retriedParity = await signedOriginPost<Awaited<ReturnType<typeof import("@/lib/mqchain/services/compiled-artifact-service").runCompiledArtifactParity>>>("/v1/kv-builds/compiled/parity", { artifactDirectory: compiled.artifactDirectory });
     expect(retriedParity.build.id).toBe(parity.build.id);
     expect(retriedParity.report.passed).toBe(true);
-    expect(await db.select().from(schema.mqKvCompiledEntries).where(eq(schema.mqKvCompiledEntries.buildId, parity.build.id))).toHaveLength(23);
+    expect(await db.select().from(schema.mqBuildCompiledEntries).where(eq(schema.mqBuildCompiledEntries.buildId, parity.build.id))).toHaveLength(23);
 
     const registered = await signedOriginPost<Awaited<ReturnType<typeof import("@/lib/mqchain/services/compiled-artifact-service").registerCompiledArtifact>>>("/v1/kv-builds/compiled/register", { artifactDirectory: compiled.artifactDirectory });
     expect(registered.build.status).toBe("compiled");
     expect(registered.build.compileRequestBuildId).toBe(pendingBuildId);
     expect(registered.validation.status).toBe("passed");
-    const persisted = await db.select().from(schema.mqKvCompiledEntries).where(eq(schema.mqKvCompiledEntries.buildId, registered.build.id)).orderBy(schema.mqKvCompiledEntries.indexName, schema.mqKvCompiledEntries.ordinal);
+    compiledBuildId = registered.build.id;
+    compiledBuildHash = registered.build.buildHash;
+    compiledDictionaryVersion = registered.build.dictionaryVersion ?? "";
+    compiledRegistrySnapshotHash = String(registered.build.manifest.registrySnapshotHash ?? "");
+    compiledValidationRunId = registered.validation.id;
+    compiledValidationReportHash = registered.validation.reportHash;
+    const persisted = await db.select().from(schema.mqBuildCompiledEntries).where(eq(schema.mqBuildCompiledEntries.buildId, registered.build.id)).orderBy(schema.mqBuildCompiledEntries.indexName, schema.mqBuildCompiledEntries.ordinal);
     expect(persisted).toHaveLength(23);
     expect(persisted.filter(row => row.indexName === "address_label_current").every(row => row.valueBytes.length === 56)).toBe(true);
     expect(persisted.filter(row => row.indexName === "address_label_timeline").every(row => row.valueBytes.length === 64)).toBe(true);
@@ -628,9 +653,9 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
     for (const ordinals of ordinalsByIndex.values()) expect(ordinals).toEqual(ordinals.map((_, index) => index));
     const preflight = buildKvManifestActivationPreflight(registered.build);
     expect(preflight.canActivate).toBe(true);
-    const active = await db.select().from(schema.mqKvBuilds).where(eq(schema.mqKvBuilds.status, "active"));
+    const active = await db.select().from(schema.mqBuildKvBuilds).where(eq(schema.mqBuildKvBuilds.status, "active"));
     expect(active).toHaveLength(0);
-    const [requestBuild] = await db.select().from(schema.mqKvBuilds).where(eq(schema.mqKvBuilds.id, pendingBuildId));
+    const [requestBuild] = await db.select().from(schema.mqBuildKvBuilds).where(eq(schema.mqBuildKvBuilds.id, pendingBuildId));
     expect(requestBuild.status).toBe("pending");
     const registeredAgain = await signedOriginPost<Awaited<ReturnType<typeof import("@/lib/mqchain/services/compiled-artifact-service").registerCompiledArtifact>>>("/v1/kv-builds/compiled/register", { artifactDirectory: compiled.artifactDirectory });
     expect(registeredAgain).toMatchObject({ idempotent: true, build: { id: registered.build.id, status: "compiled" } });
@@ -648,5 +673,39 @@ describeIntegration("bulk approval to registry commit lifecycle", () => {
       activationPreflightPassed: preflight.canActivate,
       activeBuildCount: active.length,
     })}\n`);
+  });
+
+  it("rejects protected Build 5 and permits one explicit disposable-only manual activation", async () => {
+    await db.insert(schema.mqBuildKvBuilds).values({
+      id: 5,
+      buildHash: "5".repeat(64),
+      status: "pending",
+      rowCount: 0,
+      manifest: { syntheticBuild5: true },
+    });
+    await expect(signedOriginPost(`/v1/kv-builds/5/activate`, {
+      buildId: 5,
+      expectedBuildHash: "5".repeat(64),
+      expectedDictionaryVersion: "synthetic",
+      expectedRegistrySnapshotHash: "5".repeat(64),
+      expectedCurrentActiveBuildId: null,
+      expectedValidationRunId: 1,
+      expectedValidationReportHash: "5".repeat(64),
+    })).rejects.toThrow(/protected historical build/i);
+    const [protectedBuild] = await db.select().from(schema.mqBuildKvBuilds).where(eq(schema.mqBuildKvBuilds.id, 5));
+    expect(protectedBuild).toMatchObject({ id: 5, status: "pending", buildHash: "5".repeat(64) });
+
+    const activated = await signedOriginPost<typeof protectedBuild>(`/v1/kv-builds/${compiledBuildId}/activate`, {
+      buildId: compiledBuildId,
+      expectedBuildHash: compiledBuildHash,
+      expectedDictionaryVersion: compiledDictionaryVersion,
+      expectedRegistrySnapshotHash: compiledRegistrySnapshotHash,
+      expectedCurrentActiveBuildId: null,
+      expectedValidationRunId: compiledValidationRunId,
+      expectedValidationReportHash: compiledValidationReportHash,
+    });
+    expect(activated).toMatchObject({ id: compiledBuildId, status: "active" });
+    const active = await db.select().from(schema.mqBuildKvBuilds).where(eq(schema.mqBuildKvBuilds.status, "active"));
+    expect(active.map((build) => build.id)).toEqual([compiledBuildId]);
   });
 });

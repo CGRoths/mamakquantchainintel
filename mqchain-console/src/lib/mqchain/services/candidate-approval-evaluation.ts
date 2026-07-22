@@ -1,18 +1,19 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressCandidates,
-  mqAddressCodecs,
-  mqAddressEvidence,
-  mqAddressNamespaces,
-  mqAddressRegistry,
-  mqEntities,
-  mqKvRoleDict,
-  mqProtocolComponents,
-  mqProtocols,
-  mqSourceVerifications,
-  mqSourceJobs,
+  mqWorkflowAddressCandidates,
+  mqDictAddressCodecs,
+  mqWorkflowAddressEvidence,
+  mqDictAddressNamespaces,
+  mqRegistryAddressLabels,
+  mqDictEntities,
+  mqDictRoles,
+  mqDictProtocolComponents,
+  mqDictProtocols,
+  mqPolicyRoleApprovalRequirements,
+  mqWorkflowSourceVerifications,
+  mqWorkflowSourceJobs,
 } from "@/db/schema";
 
 import { buildCandidateSourceVerificationContext } from "../candidate-detail";
@@ -26,11 +27,13 @@ export type ApprovalEvaluationReader = Pick<Db, "select">;
 export type CandidateApprovalEvaluationBundle = {
   candidateIds: number[];
   evaluations: CandidateApprovalEvaluation[];
-  candidatesById: Map<number, typeof mqAddressCandidates.$inferSelect>;
+  candidatesById: Map<number, typeof mqWorkflowAddressCandidates.$inferSelect>;
   sourceVerificationStatusById: Map<number, string>;
   evidenceCountById: Map<number, number>;
   sourceJobIds: number[];
   dictionaryVersion: string;
+  candidateSnapshotHash: string;
+  sourceVerificationSnapshotHash: string;
   previewHash: string;
 };
 
@@ -54,12 +57,14 @@ export async function buildCandidateApprovalEvaluations(input: {
   lockRows: boolean;
   /** Included in previewHash so a mode switch cannot reuse another mode's hash. */
   mode?: string;
+  selectionScope?: Readonly<Record<string, unknown>>;
+  approvalKind?: "individual" | "bulk";
 }): Promise<CandidateApprovalEvaluationBundle> {
   const { reader, candidateIds, dictionaryVersion, lockRows } = input;
-  const candidateQuery = reader.select().from(mqAddressCandidates).where(inArray(mqAddressCandidates.id, candidateIds));
+  const candidateQuery = reader.select().from(mqWorkflowAddressCandidates).where(inArray(mqWorkflowAddressCandidates.id, candidateIds));
   const candidates = lockRows
     ? await (candidateQuery as unknown as {
-        for(strength: "update"): Promise<(typeof mqAddressCandidates.$inferSelect)[]>;
+        for(strength: "update"): Promise<(typeof mqWorkflowAddressCandidates.$inferSelect)[]>;
       }).for("update")
     : await candidateQuery;
   const candidatesById = new Map(candidates.map((candidate) => [candidate.id, candidate]));
@@ -79,20 +84,34 @@ export async function buildCandidateApprovalEvaluations(input: {
 
   if (lockRows && sourceJobIds.length) {
     await reader
-      .select({ id: mqSourceJobs.id })
-      .from(mqSourceJobs)
-      .where(inArray(mqSourceJobs.id, sourceJobIds))
+      .select({ id: mqWorkflowSourceJobs.id })
+      .from(mqWorkflowSourceJobs)
+      .where(inArray(mqWorkflowSourceJobs.id, sourceJobIds))
       .for("update");
   }
 
+  const verificationConditions = [
+    presentIds.length ? inArray(mqWorkflowSourceVerifications.candidateId, presentIds) : undefined,
+    sourceJobIds.length ? inArray(mqWorkflowSourceVerifications.sourceJobId, sourceJobIds) : undefined,
+    sourceDocumentIds.length ? inArray(mqWorkflowSourceVerifications.sourceDocumentId, sourceDocumentIds) : undefined,
+  ].filter((condition): condition is NonNullable<typeof condition> => Boolean(condition));
+  const verificationQuery = verificationConditions.length
+    ? reader.select().from(mqWorkflowSourceVerifications).where(or(...verificationConditions))
+    : null;
+  const verificationRows = verificationQuery
+    ? lockRows
+      ? await (verificationQuery as unknown as {
+          for(strength: "update"): Promise<(typeof mqWorkflowSourceVerifications.$inferSelect)[]>;
+        }).for("update")
+      : await verificationQuery
+    : [];
+
   const [
     evidenceCounts,
-    candidateVerifications,
-    jobVerifications,
-    documentVerifications,
     entities,
     protocols,
     roles,
+    rolePolicies,
     components,
     namespaces,
     codecs,
@@ -100,35 +119,29 @@ export async function buildCandidateApprovalEvaluations(input: {
   ] = await Promise.all([
     presentIds.length
       ? reader
-          .select({ candidateId: mqAddressEvidence.candidateId, value: sql<number>`count(*)::int` })
-          .from(mqAddressEvidence)
-          .where(inArray(mqAddressEvidence.candidateId, presentIds))
-          .groupBy(mqAddressEvidence.candidateId)
+          .select({ candidateId: mqWorkflowAddressEvidence.candidateId, value: sql<number>`count(*)::int` })
+          .from(mqWorkflowAddressEvidence)
+          .where(inArray(mqWorkflowAddressEvidence.candidateId, presentIds))
+          .groupBy(mqWorkflowAddressEvidence.candidateId)
       : Promise.resolve([]),
-    presentIds.length
-      ? reader.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.candidateId, presentIds))
+    entityIds.length ? reader.select().from(mqDictEntities).where(inArray(mqDictEntities.id, entityIds)) : Promise.resolve([]),
+    protocolIds.length ? reader.select().from(mqDictProtocols).where(inArray(mqDictProtocols.id, protocolIds)) : Promise.resolve([]),
+    roleIds.length ? reader.select().from(mqDictRoles).where(inArray(mqDictRoles.roleId, roleIds)) : Promise.resolve([]),
+    roleIds.length
+      ? reader.select().from(mqPolicyRoleApprovalRequirements).where(inArray(mqPolicyRoleApprovalRequirements.roleId, roleIds))
       : Promise.resolve([]),
-    sourceJobIds.length
-      ? reader.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceJobId, sourceJobIds))
-      : Promise.resolve([]),
-    sourceDocumentIds.length
-      ? reader.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceDocumentId, sourceDocumentIds))
-      : Promise.resolve([]),
-    entityIds.length ? reader.select().from(mqEntities).where(inArray(mqEntities.id, entityIds)) : Promise.resolve([]),
-    protocolIds.length ? reader.select().from(mqProtocols).where(inArray(mqProtocols.id, protocolIds)) : Promise.resolve([]),
-    roleIds.length ? reader.select().from(mqKvRoleDict).where(inArray(mqKvRoleDict.roleId, roleIds)) : Promise.resolve([]),
     componentIds.length
-      ? reader.select().from(mqProtocolComponents).where(inArray(mqProtocolComponents.id, componentIds))
+      ? reader.select().from(mqDictProtocolComponents).where(inArray(mqDictProtocolComponents.id, componentIds))
       : Promise.resolve([]),
     namespaceIds.length
-      ? reader.select().from(mqAddressNamespaces).where(inArray(mqAddressNamespaces.id, namespaceIds))
+      ? reader.select().from(mqDictAddressNamespaces).where(inArray(mqDictAddressNamespaces.id, namespaceIds))
       : Promise.resolve([]),
-    codecIds.length ? reader.select().from(mqAddressCodecs).where(inArray(mqAddressCodecs.id, codecIds)) : Promise.resolve([]),
+    codecIds.length ? reader.select().from(mqDictAddressCodecs).where(inArray(mqDictAddressCodecs.id, codecIds)) : Promise.resolve([]),
     normalizedAddresses.length
       ? reader
           .select()
-          .from(mqAddressRegistry)
-          .where(and(inArray(mqAddressRegistry.normalizedAddress, normalizedAddresses), eq(mqAddressRegistry.isActive, true)))
+          .from(mqRegistryAddressLabels)
+          .where(and(inArray(mqRegistryAddressLabels.normalizedAddress, normalizedAddresses), eq(mqRegistryAddressLabels.isActive, true)))
       : Promise.resolve([]),
   ]);
 
@@ -136,15 +149,10 @@ export async function buildCandidateApprovalEvaluations(input: {
   const entityById = new Map(entities.map((row) => [row.id, row]));
   const protocolById = new Map(protocols.map((row) => [row.id, row]));
   const roleById = new Map(roles.map((row) => [row.roleId, row]));
+  const rolePolicyById = new Map(rolePolicies.map((row) => [row.roleId, row]));
   const componentById = new Map(components.map((row) => [row.id, row]));
   const namespaceById = new Map(namespaces.map((row) => [row.id, row]));
   const codecById = new Map(codecs.map((row) => [row.id, row]));
-
-  const verifications = new Map<number, typeof mqSourceVerifications.$inferSelect>();
-  for (const rows of [candidateVerifications, jobVerifications, documentVerifications]) {
-    for (const verification of rows) verifications.set(verification.id, verification);
-  }
-  const verificationRows = Array.from(verifications.values());
 
   const evaluations: CandidateApprovalEvaluation[] = [];
   const sourceVerificationStatusById = new Map<number, string>();
@@ -204,6 +212,7 @@ export async function buildCandidateApprovalEvaluations(input: {
           ) ?? null
         : null;
 
+    const rolePolicy = candidate.suggestedRoleId ? rolePolicyById.get(candidate.suggestedRoleId) : null;
     evaluations.push(
       evaluateCandidateApproval(
         {
@@ -239,6 +248,10 @@ export async function buildCandidateApprovalEvaluations(input: {
           },
           activeDictionaryVersion: dictionaryVersion,
           conflictingRegistryLabelId: conflicting?.id ?? null,
+          componentRequired: rolePolicy?.isActive ? rolePolicy.requireComponent : false,
+          minimumConfidence: rolePolicy?.isActive ? rolePolicy.minimumConfidence : 0,
+          allowBulkApproval: rolePolicy?.isActive ? rolePolicy.allowBulkApproval : true,
+          approvalKind: input.approvalKind ?? "individual",
         },
       ),
     );
@@ -246,28 +259,68 @@ export async function buildCandidateApprovalEvaluations(input: {
 
   // Deterministic over selection, candidate state, resolution and mode only.
   // Never over wall-clock time.
+  const candidateSnapshotHash = hashJson({
+    contract: "MQCHAIN-CANDIDATE-APPROVAL-SNAPSHOT-1",
+    candidates: candidateIds.map((candidateId) => {
+      const candidate = candidatesById.get(candidateId);
+      const evaluation = evaluations.find((item) => item.candidateId === candidateId);
+      return {
+        candidateId,
+        candidate: candidate
+          ? {
+              candidateStatus: candidate.candidateStatus,
+              sourceJobId: candidate.sourceJobId,
+              sourceDocumentId: candidate.sourceDocumentId,
+              chainCode: candidate.chainCode,
+              normalizedAddress: candidate.normalizedAddress,
+              namespaceId: candidate.namespaceId,
+              addressCodecId: candidate.addressCodecId,
+              payloadHex: candidate.payloadHex,
+              suggestedEntityId: candidate.suggestedEntityId,
+              suggestedProtocolId: candidate.suggestedProtocolId,
+              suggestedRoleId: candidate.suggestedRoleId,
+              suggestedComponentId: candidate.suggestedComponentId,
+              confidenceScore: candidate.confidenceScore,
+              qualityTier: candidate.qualityTier,
+              firstSeenBlock: candidate.firstSeenBlock,
+              lastSeenBlock: candidate.lastSeenBlock,
+              metadata: candidate.metadata,
+              updatedAt: candidate.updatedAt.toISOString(),
+            }
+          : null,
+        evidenceCount: evidenceCountById.get(candidateId) ?? 0,
+        eligible: evaluation?.eligible ?? false,
+        blockers: evaluation?.blockers ?? ["candidate_not_found"],
+        draft: evaluation?.draft ?? null,
+      };
+    }),
+  });
+  const sourceVerificationSnapshotHash = hashJson({
+    contract: "MQCHAIN-SOURCE-VERIFICATION-SNAPSHOT-1",
+    verifications: [...verificationRows]
+      .sort((left, right) => left.id - right.id)
+      .map((verification) => ({
+        id: verification.id,
+        sourceJobId: verification.sourceJobId,
+        sourceDocumentId: verification.sourceDocumentId,
+        candidateId: verification.candidateId,
+        verificationScope: verification.verificationScope,
+        sourceSheet: verification.sourceSheet,
+        sourceUrl: verification.sourceUrl,
+        sourceTrust: verification.sourceTrust,
+        status: verification.status,
+        verificationEvidence: verification.verificationEvidence,
+        createdAt: verification.createdAt.toISOString(),
+      })),
+  });
   const previewHash = hashJson({
     contract: "MQCHAIN-BULK-APPROVAL-PREVIEW-1",
     mode: input.mode ?? null,
+    selectionScope: input.selectionScope ?? null,
     dictionaryVersion,
-    candidates: candidateIds.map((candidateId) => {
-      const candidate = candidatesById.get(candidateId);
-      return {
-        candidateId,
-        present: Boolean(candidate),
-        candidateStatus: candidate?.candidateStatus ?? null,
-        updatedAt: candidate?.updatedAt?.toISOString() ?? null,
-        suggestedEntityId: candidate?.suggestedEntityId ?? null,
-        suggestedProtocolId: candidate?.suggestedProtocolId ?? null,
-        suggestedRoleId: candidate?.suggestedRoleId ?? null,
-        suggestedComponentId: candidate?.suggestedComponentId ?? null,
-        namespaceId: candidate?.namespaceId ?? null,
-        addressCodecId: candidate?.addressCodecId ?? null,
-        payloadHex: candidate?.payloadHex ?? null,
-        evidenceCount: evidenceCountById.get(candidateId) ?? 0,
-        sourceVerificationStatus: sourceVerificationStatusById.get(candidateId) ?? null,
-      };
-    }),
+    candidateIds,
+    candidateSnapshotHash,
+    sourceVerificationSnapshotHash,
   });
 
   return {
@@ -278,6 +331,8 @@ export async function buildCandidateApprovalEvaluations(input: {
     evidenceCountById,
     sourceJobIds: sourceJobIds.sort((left, right) => left - right),
     dictionaryVersion,
+    candidateSnapshotHash,
+    sourceVerificationSnapshotHash,
     previewHash,
   };
 }

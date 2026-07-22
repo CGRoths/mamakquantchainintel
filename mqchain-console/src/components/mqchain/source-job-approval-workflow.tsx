@@ -64,12 +64,21 @@ export function SourceJobApprovalWorkflow({
           <div id="bulk-approval">
             <BulkApprovalPanel
               rows={rows}
-              selectionGroups={coverage.sheets.map(sheet => ({
+              selectionGroups={[{
+                label: "source job",
+                sourceJobId,
+                sourceSheet: null,
+                candidateCount: coverage.candidateCount,
+                eligibleCount: coverage.eligibleCount,
+                blockedCount: coverage.blockedCount,
+              }, ...coverage.sheets.map(sheet => ({
                 label: sheet.sourceSheet,
-                candidateIds: sheet.candidateIds,
+                sourceJobId,
+                sourceSheet: sheet.sourceSheet,
+                candidateCount: sheet.candidateCount,
                 eligibleCount: sheet.eligibleCount,
                 blockedCount: sheet.blockedCount,
-              }))}
+              }))]}
             />
           </div>
         </>

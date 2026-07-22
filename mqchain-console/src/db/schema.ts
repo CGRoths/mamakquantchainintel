@@ -68,8 +68,8 @@ export const mqUsers = pgTable(
   (table) => [check("ck_mq_users_role", sql`${table.role} in (${sqlStringList(MQCHAIN_ROLES)})`)],
 );
 
-export const mqSourceJobs = pgTable(
-  "mq_source_jobs",
+export const mqWorkflowSourceJobs = pgTable(
+  "mq_workflow_source_jobs",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
     sourceType: text("source_type").notNull(),
@@ -103,11 +103,11 @@ export const mqSourceJobs = pgTable(
   ],
 );
 
-export const mqSourceDocuments = pgTable(
-  "mq_source_documents",
+export const mqWorkflowSourceDocuments = pgTable(
+  "mq_workflow_source_documents",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    sourceJobId: bigint("source_job_id", { mode: "number" }).references(() => mqSourceJobs.id),
+    sourceJobId: bigint("source_job_id", { mode: "number" }).references(() => mqWorkflowSourceJobs.id),
     documentType: text("document_type").notNull(),
     originalName: text("original_name"),
     storageUri: text("storage_uri"),
@@ -124,8 +124,8 @@ export const mqSourceDocuments = pgTable(
   ],
 );
 
-export const mqCategoryDict = pgTable(
-  "mq_category_dict",
+export const mqDictCategories = pgTable(
+  "mq_dict_categories",
   {
     categoryId: integer("category_id").primaryKey(),
     categoryCode: text("category_code").notNull().unique(),
@@ -141,14 +141,79 @@ export const mqCategoryDict = pgTable(
   (table) => [index("idx_mq_category_domain").on(table.domainCode)],
 );
 
-export const mqEntities = pgTable(
-  "mq_entities",
+export const mqDictLabelStatuses = pgTable("mq_dict_label_statuses", {
+  labelStatusCode: integer("label_status_code").primaryKey(),
+  stableCode: text("stable_code").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  description: text("description").notNull(),
+  isCurrent: boolean("is_current").notNull(),
+  isHistorical: boolean("is_historical").notNull(),
+  isServing: boolean("is_serving").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const mqDictMetricMembershipStatuses = pgTable("mq_dict_metric_membership_statuses", {
+  membershipStatusCode: integer("membership_status_code").primaryKey(),
+  stableCode: text("stable_code").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  isMember: boolean("is_member").notNull(),
+  description: text("description").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const mqDictAssetStatuses = pgTable("mq_dict_asset_statuses", {
+  assetStatusCode: integer("asset_status_code").primaryKey(),
+  stableCode: text("stable_code").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  isServing: boolean("is_serving").notNull(),
+  description: text("description").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const mqDictQualityTiers = pgTable("mq_dict_quality_tiers", {
+  qualityTier: integer("quality_tier").primaryKey(),
+  stableCode: text("stable_code").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  description: text("description").notNull(),
+  minimumEvidenceExpectation: text("minimum_evidence_expectation").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const mqDictFlagBits = pgTable(
+  "mq_dict_flag_bits",
+  {
+    bitPosition: integer("bit_position").primaryKey(),
+    bitMask: bigint("bit_mask", { mode: "number" }).notNull().unique(),
+    flagCode: text("flag_code").notNull().unique(),
+    displayName: text("display_name").notNull(),
+    appliesTo: text("applies_to").notNull(),
+    description: text("description").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+  },
+  (table) => [check("ck_mq_dict_flag_bits_position", sql`${table.bitPosition} between 0 and 30`)],
+);
+
+export const mqContractU1Versions = pgTable("mq_contract_u1_versions", {
+  contractCode: text("contract_code").primaryKey(),
+  schemaVersion: integer("schema_version").notNull(),
+  keyBytes: integer("key_bytes"),
+  valueBytes: integer("value_bytes"),
+  implementationModule: text("implementation_module").notNull(),
+  description: text("description").notNull(),
+  isFrozen: boolean("is_frozen").notNull().default(true),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const mqDictEntities = pgTable(
+  "mq_dict_entities",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
     entityCode: text("entity_code").notNull().unique(),
     entityName: text("entity_name").notNull(),
     entityType: text("entity_type"),
-    categoryId: integer("category_id").references(() => mqCategoryDict.categoryId),
+    categoryId: integer("category_id").references(() => mqDictCategories.categoryId),
     websiteUrl: text("website_url"),
     description: text("description"),
     isActive: boolean("is_active").notNull().default(true),
@@ -161,11 +226,11 @@ export const mqEntities = pgTable(
   ],
 );
 
-export const mqProtocols = pgTable(
-  "mq_protocols",
+export const mqDictProtocols = pgTable(
+  "mq_dict_protocols",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    entityId: bigint("entity_id", { mode: "number" }).references(() => mqEntities.id),
+    entityId: bigint("entity_id", { mode: "number" }).references(() => mqDictEntities.id),
     protocolCode: text("protocol_code").notNull().unique(),
     protocolName: text("protocol_name").notNull(),
     protocolType: text("protocol_type"),
@@ -181,8 +246,8 @@ export const mqProtocols = pgTable(
   ],
 );
 
-export const mqKvKeyPrefixDict = pgTable(
-  "mq_kv_key_prefix_dict",
+export const mqDictLegacyKeyPrefixes = pgTable(
+  "mq_dict_legacy_key_prefixes",
   {
     prefixCode: integer("prefix_code").primaryKey(),
     chainCode: text("chain_code").notNull(),
@@ -223,8 +288,8 @@ export const mqCatalogSources = pgTable(
   (table) => [index("idx_mq_catalog_sources_type").on(table.sourceType), index("idx_mq_catalog_sources_status").on(table.status)],
 );
 
-export const mqChainNetworks = pgTable(
-  "mq_chain_networks",
+export const mqDictChainNetworks = pgTable(
+  "mq_dict_chain_networks",
   {
     id: bigint("chain_network_id", { mode: "number" }).primaryKey(),
     networkCode: text("network_code").notNull().unique(),
@@ -249,8 +314,8 @@ export const mqChainNetworks = pgTable(
   ],
 );
 
-export const mqAddressCodecs = pgTable(
-  "mq_address_codecs",
+export const mqDictAddressCodecs = pgTable(
+  "mq_dict_address_codecs",
   {
     id: integer("address_codec_id").primaryKey(),
     codecCode: text("codec_code").notNull().unique(),
@@ -279,16 +344,16 @@ export const mqAddressCodecs = pgTable(
   ],
 );
 
-export const mqAddressNamespaces = pgTable(
-  "mq_address_namespaces",
+export const mqDictAddressNamespaces = pgTable(
+  "mq_dict_address_namespaces",
   {
     id: bigint("namespace_id", { mode: "number" }).primaryKey(),
     namespaceCode: text("namespace_code").notNull().unique(),
     namespaceName: text("namespace_name").notNull(),
-    chainNetworkId: bigint("chain_network_id", { mode: "number" }).notNull().references(() => mqChainNetworks.id),
-    addressCodecId: integer("address_codec_id").notNull().references(() => mqAddressCodecs.id),
+    chainNetworkId: bigint("chain_network_id", { mode: "number" }).notNull().references(() => mqDictChainNetworks.id),
+    addressCodecId: integer("address_codec_id").notNull().references(() => mqDictAddressCodecs.id),
     addressType: text("address_type").notNull().default("wallet_address"),
-    legacyPrefixCode: integer("legacy_prefix_code").references(() => mqKvKeyPrefixDict.prefixCode),
+    legacyPrefixCode: integer("legacy_prefix_code").references(() => mqDictLegacyKeyPrefixes.prefixCode),
     addressHrp: text("address_hrp"),
     networkDiscriminator: text("network_discriminator"),
     isActive: boolean("is_active").notNull().default(true),
@@ -309,8 +374,8 @@ export const mqAddressNamespaces = pgTable(
   ],
 );
 
-export const mqChainAliases = pgTable(
-  "mq_chain_aliases",
+export const mqCatalogChainAliases = pgTable(
+  "mq_catalog_chain_aliases",
   {
     id: bigint("alias_id", { mode: "number" }).primaryKey(),
     sourceScope: text("source_scope").notNull(),
@@ -337,7 +402,7 @@ export const mqChainAliases = pgTable(
     foreignKey({
       name: "fk_mq_chain_aliases_namespace_mapping",
       columns: [table.namespaceId, table.chainNetworkId, table.addressCodecId],
-      foreignColumns: [mqAddressNamespaces.id, mqAddressNamespaces.chainNetworkId, mqAddressNamespaces.addressCodecId],
+      foreignColumns: [mqDictAddressNamespaces.id, mqDictAddressNamespaces.chainNetworkId, mqDictAddressNamespaces.addressCodecId],
     }),
     check("ck_mq_chain_aliases_id_uint32", sql`${table.id} between 1 and 4294967295`),
     check("ck_mq_chain_aliases_status", sql`${table.status} in (${sqlStringList(CHAIN_ALIAS_STATUSES)})`),
@@ -348,10 +413,10 @@ export const mqChainAliases = pgTable(
   ],
 );
 
-export const mqChainCapabilities = pgTable(
-  "mq_chain_capabilities",
+export const mqPolicyChainCapabilities = pgTable(
+  "mq_policy_chain_capabilities",
   {
-    chainNetworkId: bigint("chain_network_id", { mode: "number" }).primaryKey().references(() => mqChainNetworks.id),
+    chainNetworkId: bigint("chain_network_id", { mode: "number" }).primaryKey().references(() => mqDictChainNetworks.id),
     supportTier: integer("support_tier"),
     catalogState: text("catalog_state").notNull().default("catalogued"),
     labelReadiness: text("label_readiness").notNull().default("not_ready"),
@@ -386,8 +451,8 @@ export const mqChainCapabilities = pgTable(
   ],
 );
 
-export const mqNetworkChangeProposals = pgTable(
-  "mq_network_change_proposals",
+export const mqGovernanceNetworkChangeProposals = pgTable(
+  "mq_governance_network_change_proposals",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
     changeType: text("change_type").notNull(),
@@ -410,8 +475,8 @@ export const mqNetworkChangeProposals = pgTable(
   ],
 );
 
-export const mqDictionaryProposals = pgTable(
-  "mq_dictionary_proposals",
+export const mqGovernanceDictionaryProposals = pgTable(
+  "mq_governance_dictionary_proposals",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
     proposalKind: text("proposal_kind").notNull(),
@@ -419,9 +484,9 @@ export const mqDictionaryProposals = pgTable(
     proposedName: text("proposed_name").notNull(),
     targetReferences: jsonb("target_references").$type<Record<string, unknown>>().notNull().default({}),
     proposedValues: jsonb("proposed_values").$type<Record<string, unknown>>().notNull().default({}),
-    sourceJobId: bigint("source_job_id", { mode: "number" }).references(() => mqSourceJobs.id),
-    sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(() => mqSourceDocuments.id),
-    candidateId: bigint("candidate_id", { mode: "number" }).references(() => mqAddressCandidates.id),
+    sourceJobId: bigint("source_job_id", { mode: "number" }).references(() => mqWorkflowSourceJobs.id),
+    sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(() => mqWorkflowSourceDocuments.id),
+    candidateId: bigint("candidate_id", { mode: "number" }).references(() => mqWorkflowAddressCandidates.id),
     affectedRowReferences: jsonb("affected_row_references").$type<unknown[]>().notNull().default([]),
     reason: text("reason").notNull(),
     evidence: jsonb("evidence").$type<Record<string, unknown>>().notNull().default({}),
@@ -442,8 +507,8 @@ export const mqDictionaryProposals = pgTable(
   ],
 );
 
-export const mqDictionaryIdRanges = pgTable(
-  "mq_dictionary_id_ranges",
+export const mqGovernanceDictionaryIdRanges = pgTable(
+  "mq_governance_dictionary_id_ranges",
   {
     id: bigint("id", { mode: "number" }).primaryKey(),
     dictionaryKind: text("dictionary_kind").notNull(),
@@ -463,8 +528,8 @@ export const mqDictionaryIdRanges = pgTable(
   ],
 );
 
-export const mqExternalIdentifiers = pgTable(
-  "mq_external_identifiers",
+export const mqCatalogExternalIdentifiers = pgTable(
+  "mq_catalog_external_identifiers",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
     subjectKind: text("subject_kind").notNull(),
@@ -483,8 +548,8 @@ export const mqExternalIdentifiers = pgTable(
   ],
 );
 
-export const mqNameAliases = pgTable(
-  "mq_name_aliases",
+export const mqCatalogNameAliases = pgTable(
+  "mq_catalog_name_aliases",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
     subjectKind: text("subject_kind").notNull(),
@@ -499,13 +564,13 @@ export const mqNameAliases = pgTable(
   (table) => [uniqueIndex("uq_mq_name_alias_subject_alias").on(table.subjectKind, table.subjectId, table.normalizedAlias), index("idx_mq_name_alias_lookup").on(table.normalizedAlias)],
 );
 
-export const mqKvRoleDict = pgTable(
-  "mq_kv_role_dict",
+export const mqDictRoles = pgTable(
+  "mq_dict_roles",
   {
     roleId: integer("role_id").primaryKey(),
     roleCode: text("role_code").notNull().unique(),
     roleName: text("role_name").notNull(),
-    categoryId: integer("category_id").references(() => mqCategoryDict.categoryId),
+    categoryId: integer("category_id").references(() => mqDictCategories.categoryId),
     roleGroup: text("role_group"),
     metricUsageDefault: text("metric_usage_default"),
     boundaryClass: text("boundary_class"),
@@ -524,8 +589,23 @@ export const mqKvRoleDict = pgTable(
   ],
 );
 
-export const mqTagDict = pgTable(
-  "mq_tag_dict",
+export const mqPolicyRoleApprovalRequirements = pgTable(
+  "mq_policy_role_approval_requirements",
+  {
+    roleId: integer("role_id").primaryKey().references(() => mqDictRoles.roleId),
+    requireComponent: boolean("require_component").notNull().default(false),
+    minimumConfidence: integer("minimum_confidence").notNull().default(0),
+    allowBulkApproval: boolean("allow_bulk_approval").notNull().default(true),
+    isActive: boolean("is_active").notNull().default(true),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("ck_mq_policy_role_approval_requirements_confidence", sql`${table.minimumConfidence} between 0 and 100`)],
+);
+
+export const mqDictTags = pgTable(
+  "mq_dict_tags",
   {
     id: bigint("tag_id", { mode: "number" }).primaryKey(),
     tagCode: text("tag_code").notNull().unique(),
@@ -539,8 +619,8 @@ export const mqTagDict = pgTable(
   (table) => [check("ck_mq_tag_dict_id_uint32", sql`${table.id} between 1 and 4294967295`), index("idx_mq_tag_dict_group").on(table.tagGroup)],
 );
 
-export const mqTagsetDict = pgTable(
-  "mq_tagset_dict",
+export const mqDictTagsets = pgTable(
+  "mq_dict_tagsets",
   {
     id: bigint("tagset_id", { mode: "number" }).primaryKey(),
     tagsetCode: text("tagset_code").notNull().unique(),
@@ -551,22 +631,22 @@ export const mqTagsetDict = pgTable(
   (table) => [check("ck_mq_tagset_dict_id_uint32", sql`${table.id} between 1 and 4294967295`)],
 );
 
-export const mqTagsetMembers = pgTable(
-  "mq_tagset_members",
+export const mqMapTagsetMembers = pgTable(
+  "mq_map_tagset_members",
   {
-    tagsetId: bigint("tagset_id", { mode: "number" }).notNull().references(() => mqTagsetDict.id),
-    tagId: bigint("tag_id", { mode: "number" }).notNull().references(() => mqTagDict.id),
+    tagsetId: bigint("tagset_id", { mode: "number" }).notNull().references(() => mqDictTagsets.id),
+    tagId: bigint("tag_id", { mode: "number" }).notNull().references(() => mqDictTags.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.tagsetId, table.tagId] }), index("idx_mq_tagset_members_tag").on(table.tagId)],
 );
 
-export const mqProtocolDeployments = pgTable(
-  "mq_protocol_deployments",
+export const mqDictProtocolDeployments = pgTable(
+  "mq_dict_protocol_deployments",
   {
     id: bigint("deployment_id", { mode: "number" }).primaryKey(),
-    protocolId: bigint("protocol_id", { mode: "number" }).notNull().references(() => mqProtocols.id),
-    namespaceId: bigint("namespace_id", { mode: "number" }).notNull().references(() => mqAddressNamespaces.id),
+    protocolId: bigint("protocol_id", { mode: "number" }).notNull().references(() => mqDictProtocols.id),
+    namespaceId: bigint("namespace_id", { mode: "number" }).notNull().references(() => mqDictAddressNamespaces.id),
     deploymentCode: text("deployment_code").notNull().unique(),
     deploymentName: text("deployment_name").notNull(),
     status: text("status").notNull().default("active"),
@@ -579,20 +659,20 @@ export const mqProtocolDeployments = pgTable(
   (table) => [index("idx_mq_protocol_deployments_protocol").on(table.protocolId), index("idx_mq_protocol_deployments_namespace").on(table.namespaceId), check("ck_mq_protocol_deployments_id_uint32", sql`${table.id} between 1 and 4294967295`)],
 );
 
-export const mqProtocolComponents = pgTable(
-  "mq_protocol_components",
+export const mqDictProtocolComponents = pgTable(
+  "mq_dict_protocol_components",
   {
     id: bigint("component_id", { mode: "number" }).primaryKey(),
-    protocolId: bigint("protocol_id", { mode: "number" }).notNull().references(() => mqProtocols.id),
-    deploymentId: bigint("deployment_id", { mode: "number" }).references(() => mqProtocolDeployments.id),
+    protocolId: bigint("protocol_id", { mode: "number" }).notNull().references(() => mqDictProtocols.id),
+    deploymentId: bigint("deployment_id", { mode: "number" }).references(() => mqDictProtocolDeployments.id),
     componentCode: text("component_code").notNull().unique(),
     componentName: text("component_name").notNull(),
     componentType: text("component_type").notNull(),
-    namespaceId: bigint("namespace_id", { mode: "number" }).notNull().references(() => mqAddressNamespaces.id),
-    addressCodecId: integer("address_codec_id").notNull().references(() => mqAddressCodecs.id),
+    namespaceId: bigint("namespace_id", { mode: "number" }).notNull().references(() => mqDictAddressNamespaces.id),
+    addressCodecId: integer("address_codec_id").notNull().references(() => mqDictAddressCodecs.id),
     normalizedPayloadHex: text("normalized_payload_hex").notNull(),
-    roleId: integer("role_id").notNull().references(() => mqKvRoleDict.roleId),
-    categoryId: integer("category_id").notNull().references(() => mqCategoryDict.categoryId),
+    roleId: integer("role_id").notNull().references(() => mqDictRoles.roleId),
+    categoryId: integer("category_id").notNull().references(() => mqDictCategories.categoryId),
     confidenceScore: integer("confidence_score").notNull(),
     qualityTier: integer("quality_tier").notNull(),
     validFromHeight: bigint("valid_from_height", { mode: "number" }),
@@ -613,8 +693,8 @@ export const mqProtocolComponents = pgTable(
   ],
 );
 
-export const mqAssets = pgTable(
-  "mq_assets",
+export const mqDictAssets = pgTable(
+  "mq_dict_assets",
   {
     id: bigint("asset_id", { mode: "number" }).primaryKey(),
     assetCode: text("asset_code").notNull().unique(),
@@ -631,8 +711,8 @@ export const mqAssets = pgTable(
   (table) => [check("ck_mq_assets_id_uint32", sql`${table.id} between 1 and 4294967295`), index("idx_mq_assets_type").on(table.assetType)],
 );
 
-export const mqTokenStandards = pgTable(
-  "mq_token_standards",
+export const mqDictTokenStandards = pgTable(
+  "mq_dict_token_standards",
   {
     id: integer("standard_id").primaryKey(),
     standardCode: text("standard_code").notNull().unique(),
@@ -648,17 +728,17 @@ export const mqTokenStandards = pgTable(
   (table) => [check("ck_mq_token_standards_id_uint16", sql`${table.id} between 1 and 65535`), index("idx_mq_token_standards_family").on(table.chainFamily)],
 );
 
-export const mqTokenContracts = pgTable(
-  "mq_token_contracts",
+export const mqRegistryTokenContracts = pgTable(
+  "mq_registry_token_contracts",
   {
     id: bigint("token_contract_id", { mode: "number" }).primaryKey(),
-    assetId: bigint("asset_id", { mode: "number" }).notNull().references(() => mqAssets.id),
-    namespaceId: bigint("namespace_id", { mode: "number" }).notNull().references(() => mqAddressNamespaces.id),
-    addressCodecId: integer("address_codec_id").notNull().references(() => mqAddressCodecs.id),
+    assetId: bigint("asset_id", { mode: "number" }).notNull().references(() => mqDictAssets.id),
+    namespaceId: bigint("namespace_id", { mode: "number" }).notNull().references(() => mqDictAddressNamespaces.id),
+    addressCodecId: integer("address_codec_id").notNull().references(() => mqDictAddressCodecs.id),
     normalizedPayloadHex: text("normalized_payload_hex").notNull(),
-    standardId: integer("standard_id").notNull().references(() => mqTokenStandards.id),
+    standardId: integer("standard_id").notNull().references(() => mqDictTokenStandards.id),
     decimals: integer("decimals").notNull(),
-    issuerEntityId: bigint("issuer_entity_id", { mode: "number" }).references(() => mqEntities.id),
+    issuerEntityId: bigint("issuer_entity_id", { mode: "number" }).references(() => mqDictEntities.id),
     status: text("status").notNull().default("active"),
     sourceId: bigint("source_id", { mode: "number" }).notNull().references(() => mqCatalogSources.id),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
@@ -675,13 +755,13 @@ export const mqTokenContracts = pgTable(
   ],
 );
 
-export const mqAssetNamespaces = pgTable(
-  "mq_asset_namespaces",
+export const mqRegistryAssetNamespaces = pgTable(
+  "mq_registry_asset_namespaces",
   {
     id: bigint("asset_namespace_id", { mode: "number" }).primaryKey(),
-    assetId: bigint("asset_id", { mode: "number" }).notNull().references(() => mqAssets.id),
-    namespaceId: bigint("namespace_id", { mode: "number" }).notNull().references(() => mqAddressNamespaces.id),
-    standardId: integer("standard_id").notNull().references(() => mqTokenStandards.id),
+    assetId: bigint("asset_id", { mode: "number" }).notNull().references(() => mqDictAssets.id),
+    namespaceId: bigint("namespace_id", { mode: "number" }).notNull().references(() => mqDictAddressNamespaces.id),
+    standardId: integer("standard_id").notNull().references(() => mqDictTokenStandards.id),
     status: text("status").notNull().default("active"),
     sourceId: bigint("source_id", { mode: "number" }).notNull().references(() => mqCatalogSources.id),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
@@ -692,16 +772,16 @@ export const mqAssetNamespaces = pgTable(
   (table) => [uniqueIndex("uq_mq_asset_namespaces_asset_namespace").on(table.assetId, table.namespaceId), check("ck_mq_asset_namespaces_id_uint32", sql`${table.id} between 1 and 4294967295`)],
 );
 
-export const mqDiscoveryJobs = pgTable(
-  "mq_discovery_jobs",
+export const mqWorkflowDiscoveryJobs = pgTable(
+  "mq_workflow_discovery_jobs",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
     discoveryType: text("discovery_type").notNull(),
     status: text("status").notNull().default("draft"),
     chainCode: text("chain_code"),
     seedAddress: text("seed_address"),
-    entityId: bigint("entity_id", { mode: "number" }).references(() => mqEntities.id),
-    protocolId: bigint("protocol_id", { mode: "number" }).references(() => mqProtocols.id),
+    entityId: bigint("entity_id", { mode: "number" }).references(() => mqDictEntities.id),
+    protocolId: bigint("protocol_id", { mode: "number" }).references(() => mqDictProtocols.id),
     config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
     candidatesCreated: integer("candidates_created").notNull().default(0),
     evidenceCreated: integer("evidence_created").notNull().default(0),
@@ -722,33 +802,33 @@ export const mqDiscoveryJobs = pgTable(
   ],
 );
 
-export const mqAddressCandidates = pgTable(
-  "mq_address_candidates",
+export const mqWorkflowAddressCandidates = pgTable(
+  "mq_workflow_address_candidates",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    sourceJobId: bigint("source_job_id", { mode: "number" }).references(() => mqSourceJobs.id),
-    sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(() => mqSourceDocuments.id),
+    sourceJobId: bigint("source_job_id", { mode: "number" }).references(() => mqWorkflowSourceJobs.id),
+    sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(() => mqWorkflowSourceDocuments.id),
     rawAddress: text("raw_address").notNull(),
     normalizedAddress: text("normalized_address").notNull(),
     chainCode: text("chain_code"),
     addressFamily: text("address_family"),
-    prefixCode: integer("prefix_code").references(() => mqKvKeyPrefixDict.prefixCode),
-    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
-    addressCodecId: integer("address_codec_id").references(() => mqAddressCodecs.id),
+    prefixCode: integer("prefix_code").references(() => mqDictLegacyKeyPrefixes.prefixCode),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqDictAddressNamespaces.id),
+    addressCodecId: integer("address_codec_id").references(() => mqDictAddressCodecs.id),
     payloadHex: text("payload_hex"),
     entityHint: text("entity_hint"),
     protocolHint: text("protocol_hint"),
     roleHint: text("role_hint"),
-    suggestedEntityId: bigint("suggested_entity_id", { mode: "number" }).references(() => mqEntities.id),
-    suggestedProtocolId: bigint("suggested_protocol_id", { mode: "number" }).references(() => mqProtocols.id),
-    suggestedRoleId: integer("suggested_role_id").references(() => mqKvRoleDict.roleId),
-    suggestedComponentId: bigint("suggested_component_id", { mode: "number" }).references(() => mqProtocolComponents.id),
+    suggestedEntityId: bigint("suggested_entity_id", { mode: "number" }).references(() => mqDictEntities.id),
+    suggestedProtocolId: bigint("suggested_protocol_id", { mode: "number" }).references(() => mqDictProtocols.id),
+    suggestedRoleId: integer("suggested_role_id").references(() => mqDictRoles.roleId),
+    suggestedComponentId: bigint("suggested_component_id", { mode: "number" }).references(() => mqDictProtocolComponents.id),
     confidenceScore: integer("confidence_score").notNull().default(0),
     qualityTier: integer("quality_tier").notNull().default(0),
     candidateStatus: text("candidate_status").notNull().default("pending_review"),
     duplicateOfCandidateId: bigint("duplicate_of_candidate_id", { mode: "number" }),
     discoveredBy: text("discovered_by").notNull().default("manual"),
-    discoveryJobId: bigint("discovery_job_id", { mode: "number" }).references(() => mqDiscoveryJobs.id),
+    discoveryJobId: bigint("discovery_job_id", { mode: "number" }).references(() => mqWorkflowDiscoveryJobs.id),
     evidenceCount: integer("evidence_count").notNull().default(0),
     lastSeenBlock: bigint("last_seen_block", { mode: "number" }),
     firstSeenBlock: bigint("first_seen_block", { mode: "number" }),
@@ -774,15 +854,15 @@ export const mqAddressCandidates = pgTable(
   ],
 );
 
-export const mqLabelBatches = pgTable(
-  "mq_label_batches",
+export const mqWorkflowLabelBatches = pgTable(
+  "mq_workflow_label_batches",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    sourceJobId: bigint("source_job_id", { mode: "number" }).references(() => mqSourceJobs.id),
-    sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(() => mqSourceDocuments.id),
-    entityId: bigint("entity_id", { mode: "number" }).references(() => mqEntities.id),
-    protocolId: bigint("protocol_id", { mode: "number" }).references(() => mqProtocols.id),
-    roleId: integer("role_id").references(() => mqKvRoleDict.roleId),
+    sourceJobId: bigint("source_job_id", { mode: "number" }).references(() => mqWorkflowSourceJobs.id),
+    sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(() => mqWorkflowSourceDocuments.id),
+    entityId: bigint("entity_id", { mode: "number" }).references(() => mqDictEntities.id),
+    protocolId: bigint("protocol_id", { mode: "number" }).references(() => mqDictProtocols.id),
+    roleId: integer("role_id").references(() => mqDictRoles.roleId),
     sourceType: text("source_type"),
     sourceUrl: text("source_url"),
     sourceName: text("source_name"),
@@ -842,11 +922,11 @@ export const mqLabelBatches = pgTable(
   ],
 );
 
-export const mqLabelBatchCandidates = pgTable(
-  "mq_label_batch_candidates",
+export const mqWorkflowLabelBatchCandidates = pgTable(
+  "mq_workflow_label_batch_candidates",
   {
-    batchId: bigint("batch_id", { mode: "number" }).notNull().references(() => mqLabelBatches.id),
-    candidateId: bigint("candidate_id", { mode: "number" }).notNull().references(() => mqAddressCandidates.id),
+    batchId: bigint("batch_id", { mode: "number" }).notNull().references(() => mqWorkflowLabelBatches.id),
+    candidateId: bigint("candidate_id", { mode: "number" }).notNull().references(() => mqWorkflowAddressCandidates.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -855,23 +935,23 @@ export const mqLabelBatchCandidates = pgTable(
   ],
 );
 
-export const mqAddressRegistry = pgTable(
-  "mq_address_registry",
+export const mqRegistryAddressLabels = pgTable(
+  "mq_registry_address_labels",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
     normalizedAddress: text("normalized_address").notNull(),
     rawAddress: text("raw_address"),
     chainCode: text("chain_code").notNull(),
-    prefixCode: integer("prefix_code").references(() => mqKvKeyPrefixDict.prefixCode),
-    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
-    addressCodecId: integer("address_codec_id").references(() => mqAddressCodecs.id),
+    prefixCode: integer("prefix_code").references(() => mqDictLegacyKeyPrefixes.prefixCode),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqDictAddressNamespaces.id),
+    addressCodecId: integer("address_codec_id").references(() => mqDictAddressCodecs.id),
     payloadHex: text("payload_hex"),
-    entityId: bigint("entity_id", { mode: "number" }).references(() => mqEntities.id),
-    protocolId: bigint("protocol_id", { mode: "number" }).references(() => mqProtocols.id),
-    categoryId: integer("category_id").references(() => mqCategoryDict.categoryId),
-    roleId: integer("role_id").references(() => mqKvRoleDict.roleId),
-    componentId: bigint("component_id", { mode: "number" }).references(() => mqProtocolComponents.id),
-    tagsetId: bigint("tagset_id", { mode: "number" }).references(() => mqTagsetDict.id),
+    entityId: bigint("entity_id", { mode: "number" }).references(() => mqDictEntities.id),
+    protocolId: bigint("protocol_id", { mode: "number" }).references(() => mqDictProtocols.id),
+    categoryId: integer("category_id").references(() => mqDictCategories.categoryId),
+    roleId: integer("role_id").references(() => mqDictRoles.roleId),
+    componentId: bigint("component_id", { mode: "number" }).references(() => mqDictProtocolComponents.id),
+    tagsetId: bigint("tagset_id", { mode: "number" }).references(() => mqDictTagsets.id),
     confidenceScore: integer("confidence_score").notNull(),
     labelStatus: integer("label_status").notNull().default(1),
     qualityTier: integer("quality_tier").notNull(),
@@ -882,8 +962,8 @@ export const mqAddressRegistry = pgTable(
     firstSeenBlock: bigint("first_seen_block", { mode: "number" }),
     lastSeenBlock: bigint("last_seen_block", { mode: "number" }),
     isActive: boolean("is_active").notNull().default(true),
-    primarySourceJobId: bigint("primary_source_job_id", { mode: "number" }).references(() => mqSourceJobs.id),
-    approvedBatchId: bigint("approved_batch_id", { mode: "number" }).references(() => mqLabelBatches.id),
+    primarySourceJobId: bigint("primary_source_job_id", { mode: "number" }).references(() => mqWorkflowSourceJobs.id),
+    approvedBatchId: bigint("approved_batch_id", { mode: "number" }).references(() => mqWorkflowLabelBatches.id),
     notes: text("notes"),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -918,27 +998,27 @@ export const mqAddressRegistry = pgTable(
   ],
 );
 
-export const mqAddressTags = pgTable(
-  "mq_address_tags",
+export const mqRegistryAddressTags = pgTable(
+  "mq_registry_address_tags",
   {
-    registryId: bigint("registry_id", { mode: "number" }).notNull().references(() => mqAddressRegistry.id),
-    tagId: bigint("tag_id", { mode: "number" }).notNull().references(() => mqTagDict.id),
+    registryId: bigint("registry_id", { mode: "number" }).notNull().references(() => mqRegistryAddressLabels.id),
+    tagId: bigint("tag_id", { mode: "number" }).notNull().references(() => mqDictTags.id),
     sourceId: bigint("source_id", { mode: "number" }).references(() => mqCatalogSources.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.registryId, table.tagId] }), index("idx_mq_address_tags_tag").on(table.tagId)],
 );
 
-export const mqAddressEvidence = pgTable(
-  "mq_address_evidence",
+export const mqWorkflowAddressEvidence = pgTable(
+  "mq_workflow_address_evidence",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    candidateId: bigint("candidate_id", { mode: "number" }).references(() => mqAddressCandidates.id),
-    registryId: bigint("registry_id", { mode: "number" }).references(() => mqAddressRegistry.id),
-    batchId: bigint("batch_id", { mode: "number" }).references(() => mqLabelBatches.id),
+    candidateId: bigint("candidate_id", { mode: "number" }).references(() => mqWorkflowAddressCandidates.id),
+    registryId: bigint("registry_id", { mode: "number" }).references(() => mqRegistryAddressLabels.id),
+    batchId: bigint("batch_id", { mode: "number" }).references(() => mqWorkflowLabelBatches.id),
     evidenceType: text("evidence_type").notNull(),
     sourceUrl: text("source_url"),
-    sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(() => mqSourceDocuments.id),
+    sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(() => mqWorkflowSourceDocuments.id),
     evidenceHash: text("evidence_hash"),
     storageUri: text("storage_uri"),
     confidenceDelta: integer("confidence_delta").notNull().default(0),
@@ -961,13 +1041,13 @@ export const mqAddressEvidence = pgTable(
   ],
 );
 
-export const mqSourceVerifications = pgTable(
-  "mq_source_verifications",
+export const mqWorkflowSourceVerifications = pgTable(
+  "mq_workflow_source_verifications",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    sourceJobId: bigint("source_job_id", { mode: "number" }).references(() => mqSourceJobs.id),
-    sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(() => mqSourceDocuments.id),
-    candidateId: bigint("candidate_id", { mode: "number" }).references(() => mqAddressCandidates.id),
+    sourceJobId: bigint("source_job_id", { mode: "number" }).references(() => mqWorkflowSourceJobs.id),
+    sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(() => mqWorkflowSourceDocuments.id),
+    candidateId: bigint("candidate_id", { mode: "number" }).references(() => mqWorkflowAddressCandidates.id),
     verificationScope: text("verification_scope").notNull().default("source_job"),
     sourceSheet: text("source_sheet"),
     sourceUrl: text("source_url"),
@@ -996,12 +1076,12 @@ export const mqSourceVerifications = pgTable(
   ],
 );
 
-export const mqLabelBatchEvidence = pgTable(
-  "mq_label_batch_evidence",
+export const mqWorkflowLabelBatchEvidence = pgTable(
+  "mq_workflow_label_batch_evidence",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    batchId: bigint("batch_id", { mode: "number" }).references(() => mqLabelBatches.id),
-    evidenceId: bigint("evidence_id", { mode: "number" }).references(() => mqAddressEvidence.id),
+    batchId: bigint("batch_id", { mode: "number" }).references(() => mqWorkflowLabelBatches.id),
+    evidenceId: bigint("evidence_id", { mode: "number" }).references(() => mqWorkflowAddressEvidence.id),
     evidenceHash: text("evidence_hash"),
     summary: text("summary"),
     payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
@@ -1010,13 +1090,13 @@ export const mqLabelBatchEvidence = pgTable(
   (table) => [index("idx_mq_batch_evidence_batch").on(table.batchId)],
 );
 
-export const mqApprovalEvents = pgTable(
-  "mq_approval_events",
+export const mqWorkflowApprovalEvents = pgTable(
+  "mq_workflow_approval_events",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    candidateId: bigint("candidate_id", { mode: "number" }).references(() => mqAddressCandidates.id),
-    registryId: bigint("registry_id", { mode: "number" }).references(() => mqAddressRegistry.id),
-    batchId: bigint("batch_id", { mode: "number" }).references(() => mqLabelBatches.id),
+    candidateId: bigint("candidate_id", { mode: "number" }).references(() => mqWorkflowAddressCandidates.id),
+    registryId: bigint("registry_id", { mode: "number" }).references(() => mqRegistryAddressLabels.id),
+    batchId: bigint("batch_id", { mode: "number" }).references(() => mqWorkflowLabelBatches.id),
     action: text("action").notNull(),
     actorId: uuid("actor_id").references(() => mqUsers.id),
     reason: text("reason"),
@@ -1032,8 +1112,26 @@ export const mqApprovalEvents = pgTable(
   ],
 );
 
-export const mqAuditLog = pgTable(
-  "mq_audit_log",
+export const mqWorkflowBulkApprovalOperations = pgTable(
+  "mq_workflow_bulk_approval_operations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    actorId: uuid("actor_id").notNull().references(() => mqUsers.id),
+    requestHash: text("request_hash").notNull(),
+    status: text("status").notNull().default("running"),
+    result: jsonb("result").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_mq_workflow_bulk_approval_operations_actor").on(table.actorId),
+    check("ck_mq_workflow_bulk_approval_operations_status", sql`${table.status} in ('running', 'completed')`),
+  ],
+);
+
+export const mqAuditEvents = pgTable(
+  "mq_audit_events",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
     actorId: uuid("actor_id").references(() => mqUsers.id),
@@ -1046,7 +1144,7 @@ export const mqAuditLog = pgTable(
   (table) => [index("idx_mq_audit_action").on(table.action), index("idx_mq_audit_target").on(table.targetTable, table.targetId)],
 );
 
-export const mqDictionaryVersions = pgTable("mq_dictionary_versions", {
+export const mqGovernanceDictionaryVersions = pgTable("mq_governance_dictionary_versions", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   versionHash: text("version_hash").notNull().unique(),
   catalogHash: text("catalog_hash"),
@@ -1058,14 +1156,14 @@ export const mqDictionaryVersions = pgTable("mq_dictionary_versions", {
   activatedAt: timestamp("activated_at", { withTimezone: true }),
 });
 
-export const mqMetricGroups = pgTable(
-  "mq_metric_groups",
+export const mqDictMetricGroups = pgTable(
+  "mq_dict_metric_groups",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
     metricGroupCode: text("metric_group_code").notNull().unique(),
     metricGroupName: text("metric_group_name").notNull(),
     chainCode: text("chain_code"),
-    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqDictAddressNamespaces.id),
     minConfidence: integer("min_confidence").notNull().default(70),
     requireMetricEligible: boolean("require_metric_eligible").notNull().default(true),
     description: text("description"),
@@ -1079,11 +1177,11 @@ export const mqMetricGroups = pgTable(
   ],
 );
 
-export const mqMetricGroupRules = pgTable(
-  "mq_metric_group_rules",
+export const mqPolicyMetricGroupRules = pgTable(
+  "mq_policy_metric_group_rules",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    metricGroupId: bigint("metric_group_id", { mode: "number" }).notNull().references(() => mqMetricGroups.id),
+    metricGroupId: bigint("metric_group_id", { mode: "number" }).notNull().references(() => mqDictMetricGroups.id),
     ruleVersion: integer("rule_version").notNull().default(1),
     ruleJson: jsonb("rule_json").$type<Record<string, unknown>>().notNull().default({}),
     status: text("status").notNull().default("active"),
@@ -1102,8 +1200,8 @@ export const mqMetricGroupRules = pgTable(
   ],
 );
 
-export const mqKvBuilds = pgTable(
-  "mq_kv_builds",
+export const mqBuildKvBuilds = pgTable(
+  "mq_build_kv_builds",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
     buildHash: text("build_hash").notNull().unique(),
@@ -1112,7 +1210,7 @@ export const mqKvBuilds = pgTable(
     baseBuildId: bigint("base_build_id", { mode: "number" }),
     deltaParentBuildId: bigint("delta_parent_build_id", { mode: "number" }),
     compileRequestBuildId: bigint("compile_request_build_id", { mode: "number" }),
-    lastCommittedBatchId: bigint("last_committed_batch_id", { mode: "number" }).references(() => mqLabelBatches.id),
+    lastCommittedBatchId: bigint("last_committed_batch_id", { mode: "number" }).references(() => mqWorkflowLabelBatches.id),
     status: text("status").notNull().default("pending"),
     rowCount: integer("row_count").notNull().default(0),
     storageUri: text("storage_uri"),
@@ -1135,21 +1233,21 @@ export const mqKvBuilds = pgTable(
   ],
 );
 
-export const mqKvCompiledEntries = pgTable(
-  "mq_kv_compiled_entries",
+export const mqBuildCompiledEntries = pgTable(
+  "mq_build_compiled_entries",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    buildId: bigint("build_id", { mode: "number" }).notNull().references(() => mqKvBuilds.id),
+    buildId: bigint("build_id", { mode: "number" }).notNull().references(() => mqBuildKvBuilds.id),
     indexName: text("index_name").notNull(),
     ordinal: integer("ordinal").notNull(),
     keyBytes: bytea("key_bytes").notNull(),
     valueBytes: bytea("value_bytes").notNull(),
     keyHash: text("key_hash").notNull(),
     recordHash: text("record_hash").notNull(),
-    registryId: bigint("registry_id", { mode: "number" }).references(() => mqAddressRegistry.id),
-    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqMetricGroups.id),
-    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
-    addressCodecId: integer("address_codec_id").references(() => mqAddressCodecs.id),
+    registryId: bigint("registry_id", { mode: "number" }).references(() => mqRegistryAddressLabels.id),
+    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqDictMetricGroups.id),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqDictAddressNamespaces.id),
+    addressCodecId: integer("address_codec_id").references(() => mqDictAddressCodecs.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -1169,12 +1267,12 @@ export const mqKvCompiledEntries = pgTable(
   ],
 );
 
-export const mqKvValidationRuns = pgTable(
-  "mq_kv_validation_runs",
+export const mqBuildValidationRuns = pgTable(
+  "mq_build_validation_runs",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    buildId: bigint("build_id", { mode: "number" }).notNull().references(() => mqKvBuilds.id),
-    compileRequestBuildId: bigint("compile_request_build_id", { mode: "number" }).notNull().references(() => mqKvBuilds.id),
+    buildId: bigint("build_id", { mode: "number" }).notNull().references(() => mqBuildKvBuilds.id),
+    compileRequestBuildId: bigint("compile_request_build_id", { mode: "number" }).notNull().references(() => mqBuildKvBuilds.id),
     validationType: text("validation_type").notNull(),
     status: text("status").notNull(),
     dictionaryVersion: text("dictionary_version").notNull(),
@@ -1206,12 +1304,12 @@ export const mqKvValidationRuns = pgTable(
   ],
 );
 
-export const mqMetricGroupMembershipSnapshots = pgTable(
-  "mq_metric_group_membership_snapshots",
+export const mqBuildMetricGroupMembershipSnapshots = pgTable(
+  "mq_build_metric_group_membership_snapshots",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqMetricGroups.id),
-    kvBuildId: bigint("kv_build_id", { mode: "number" }).references(() => mqKvBuilds.id),
+    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqDictMetricGroups.id),
+    kvBuildId: bigint("kv_build_id", { mode: "number" }).references(() => mqBuildKvBuilds.id),
     metricGroupCode: text("metric_group_code").notNull(),
     dictionaryVersion: text("dictionary_version"),
     status: text("status").notNull().default("pending"),
@@ -1234,21 +1332,21 @@ export const mqMetricGroupMembershipSnapshots = pgTable(
   ],
 );
 
-export const mqMetricGroupMembers = pgTable(
-  "mq_metric_group_members",
+export const mqBuildMetricGroupMembers = pgTable(
+  "mq_build_metric_group_members",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    snapshotId: bigint("snapshot_id", { mode: "number" }).references(() => mqMetricGroupMembershipSnapshots.id),
-    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqMetricGroups.id),
-    registryId: bigint("registry_id", { mode: "number" }).references(() => mqAddressRegistry.id),
+    snapshotId: bigint("snapshot_id", { mode: "number" }).references(() => mqBuildMetricGroupMembershipSnapshots.id),
+    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqDictMetricGroups.id),
+    registryId: bigint("registry_id", { mode: "number" }).references(() => mqRegistryAddressLabels.id),
     chainCode: text("chain_code").notNull(),
     normalizedAddress: text("normalized_address").notNull(),
-    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
-    addressCodecId: integer("address_codec_id").references(() => mqAddressCodecs.id),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqDictAddressNamespaces.id),
+    addressCodecId: integer("address_codec_id").references(() => mqDictAddressCodecs.id),
     payloadHex: text("payload_hex"),
     membershipStatus: text("membership_status").notNull().default("active"),
-    entityId: bigint("entity_id", { mode: "number" }).references(() => mqEntities.id),
-    roleId: integer("role_id").references(() => mqKvRoleDict.roleId),
+    entityId: bigint("entity_id", { mode: "number" }).references(() => mqDictEntities.id),
+    roleId: integer("role_id").references(() => mqDictRoles.roleId),
     confidenceScore: integer("confidence_score").notNull(),
     flags: integer("flags").notNull().default(0),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
@@ -1266,23 +1364,23 @@ export const mqMetricGroupMembers = pgTable(
   ],
 );
 
-export const mqKvIndexManifests = pgTable(
-  "mq_kv_index_manifest",
+export const mqBuildIndexManifests = pgTable(
+  "mq_build_index_manifests",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    buildId: bigint("build_id", { mode: "number" }).references(() => mqKvBuilds.id),
+    buildId: bigint("build_id", { mode: "number" }).references(() => mqBuildKvBuilds.id),
     indexName: text("index_name").notNull(),
     dictionaryVersion: text("dictionary_version"),
     status: text("status").notNull().default("pending"),
     rowCount: integer("row_count").notNull().default(0),
     keySchemaVersion: text("key_schema_version"),
     valueSchemaVersion: text("value_schema_version"),
-    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
-    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqMetricGroups.id),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqDictAddressNamespaces.id),
+    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqDictMetricGroups.id),
     contentHash: text("content_hash"),
     storageUri: text("storage_uri"),
     manifestHash: text("manifest_hash"),
-    lastCommittedBatchId: bigint("last_committed_batch_id", { mode: "number" }).references(() => mqLabelBatches.id),
+    lastCommittedBatchId: bigint("last_committed_batch_id", { mode: "number" }).references(() => mqWorkflowLabelBatches.id),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
     createdBy: uuid("created_by").references(() => mqUsers.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1301,11 +1399,11 @@ export const mqKvIndexManifests = pgTable(
   ],
 );
 
-export const mqKvIndexShards = pgTable(
-  "mq_kv_index_shards",
+export const mqBuildIndexShards = pgTable(
+  "mq_build_index_shards",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    manifestId: bigint("manifest_id", { mode: "number" }).references(() => mqKvIndexManifests.id),
+    manifestId: bigint("manifest_id", { mode: "number" }).references(() => mqBuildIndexManifests.id),
     shardId: text("shard_id").notNull(),
     shardKey: text("shard_key").notNull(),
     shardHash: text("shard_hash"),
@@ -1322,12 +1420,12 @@ export const mqKvIndexShards = pgTable(
   ],
 );
 
-export const mqKvFilterManifests = pgTable(
-  "mq_kv_filter_manifest",
+export const mqBuildFilterManifests = pgTable(
+  "mq_build_filter_manifests",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    buildId: bigint("build_id", { mode: "number" }).notNull().references(() => mqKvBuilds.id),
-    indexManifestId: bigint("index_manifest_id", { mode: "number" }).references(() => mqKvIndexManifests.id),
+    buildId: bigint("build_id", { mode: "number" }).notNull().references(() => mqBuildKvBuilds.id),
+    indexManifestId: bigint("index_manifest_id", { mode: "number" }).references(() => mqBuildIndexManifests.id),
     indexName: text("index_name").notNull(),
     filterSchemaVersion: text("filter_schema_version").notNull(),
     implementation: text("implementation").notNull(),
@@ -1336,8 +1434,8 @@ export const mqKvFilterManifests = pgTable(
     itemCount: integer("item_count").notNull(),
     falsePositiveTargetPpm: integer("false_positive_target_ppm").notNull().default(1000),
     observedFalsePositivePpm: integer("observed_false_positive_ppm"),
-    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqAddressNamespaces.id),
-    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqMetricGroups.id),
+    namespaceId: bigint("namespace_id", { mode: "number" }).references(() => mqDictAddressNamespaces.id),
+    metricGroupId: bigint("metric_group_id", { mode: "number" }).references(() => mqDictMetricGroups.id),
     contentHash: text("content_hash").notNull(),
     storageUri: text("storage_uri").notNull(),
     status: text("status").notNull().default("pending"),
@@ -1358,7 +1456,7 @@ export const mqKvFilterManifests = pgTable(
 );
 
 export type MqUser = typeof mqUsers.$inferSelect;
-export type MqAddressCandidate = typeof mqAddressCandidates.$inferSelect;
-export type MqAddressRegistryRow = typeof mqAddressRegistry.$inferSelect;
-export type MqLabelBatch = typeof mqLabelBatches.$inferSelect;
-export type MqSourceVerification = typeof mqSourceVerifications.$inferSelect;
+export type MqAddressCandidate = typeof mqWorkflowAddressCandidates.$inferSelect;
+export type MqAddressRegistryRow = typeof mqRegistryAddressLabels.$inferSelect;
+export type MqLabelBatch = typeof mqWorkflowLabelBatches.$inferSelect;
+export type MqSourceVerification = typeof mqWorkflowSourceVerifications.$inferSelect;

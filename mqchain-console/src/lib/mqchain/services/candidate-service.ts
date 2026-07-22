@@ -3,19 +3,19 @@ import Papa from "papaparse";
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressCandidates,
-  mqAddressEvidence,
-  mqAddressRegistry,
-  mqApprovalEvents,
-  mqAuditLog,
-  mqCategoryDict,
-  mqDiscoveryJobs,
-  mqEntities,
-  mqKvRoleDict,
-  mqProtocols,
-  mqSourceDocuments,
-  mqSourceJobs,
-  mqSourceVerifications,
+  mqWorkflowAddressCandidates,
+  mqWorkflowAddressEvidence,
+  mqRegistryAddressLabels,
+  mqWorkflowApprovalEvents,
+  mqAuditEvents,
+  mqDictCategories,
+  mqWorkflowDiscoveryJobs,
+  mqDictEntities,
+  mqDictRoles,
+  mqDictProtocols,
+  mqWorkflowSourceDocuments,
+  mqWorkflowSourceJobs,
+  mqWorkflowSourceVerifications,
   mqUsers,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
@@ -331,7 +331,7 @@ export async function createCandidatesFromRows(
 
   const result = await db.transaction(async (tx) => {
     const [sourceJob] = await tx
-      .insert(mqSourceJobs)
+      .insert(mqWorkflowSourceJobs)
       .values({
         sourceType: source.sourceType,
         sourceName: source.sourceName,
@@ -347,12 +347,12 @@ export async function createCandidatesFromRows(
       .returning();
 
     const [document] = await tx
-      .insert(mqSourceDocuments)
+      .insert(mqWorkflowSourceDocuments)
       .values({
         sourceJobId: sourceJob.id,
         documentType: source.documentType,
         originalName: source.originalName,
-        storageUri: `postgres://mq_source_documents/${sourceJob.id}`,
+        storageUri: `postgres://mq_workflow_source_documents/${sourceJob.id}`,
         contentHash: hashText(source.rawText),
         mimeType: mimeTypeForDocument(source.documentType),
         sizeBytes: Buffer.byteLength(source.rawText),
@@ -386,12 +386,12 @@ export async function createCandidatesFromRows(
       seen.add(duplicateKey);
 
       const existing = await tx
-        .select({ id: mqAddressCandidates.id })
-        .from(mqAddressCandidates)
+        .select({ id: mqWorkflowAddressCandidates.id })
+        .from(mqWorkflowAddressCandidates)
         .where(
             and(
-              eq(mqAddressCandidates.normalizedAddress, normalized.normalizedAddress),
-            eq(mqAddressCandidates.chainCode, normalized.chainCode),
+              eq(mqWorkflowAddressCandidates.normalizedAddress, normalized.normalizedAddress),
+            eq(mqWorkflowAddressCandidates.chainCode, normalized.chainCode),
           ),
         )
         .limit(1);
@@ -416,7 +416,7 @@ export async function createCandidatesFromRows(
       }
 
       const [candidate] = await tx
-        .insert(mqAddressCandidates)
+        .insert(mqWorkflowAddressCandidates)
         .values({
           sourceJobId: sourceJob.id,
           sourceDocumentId: document.id,
@@ -497,7 +497,7 @@ export async function createCandidatesFromRows(
         rawReference: row.raw_reference,
       };
 
-      await tx.insert(mqAddressEvidence).values({
+      await tx.insert(mqWorkflowAddressEvidence).values({
         candidateId: candidate.id,
         sourceDocumentId: document.id,
         evidenceType: row.evidence_type || evidenceTypeForSource(source.sourceType),
@@ -539,19 +539,19 @@ export async function createCandidatesFromRows(
     };
 
     await tx
-      .update(mqSourceJobs)
+      .update(mqWorkflowSourceJobs)
       .set({
         status: finalStatus,
         chainScope: sourceScope.chainScope,
         expectedRoles: sourceScope.expectedRoles,
         metadata: summaryMetadata,
       })
-      .where(eq(mqSourceJobs.id, sourceJob.id));
+      .where(eq(mqWorkflowSourceJobs.id, sourceJob.id));
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: user.id,
       action: "source_job_intake_created",
-      targetTable: "mq_source_jobs",
+      targetTable: "mq_workflow_source_jobs",
       targetId: String(sourceJob.id),
       payload: buildSourceJobIntakeAuditPayload({
         sourceJobId: sourceJob.id,
@@ -593,9 +593,9 @@ export async function createCandidatesFromRows(
 }
 
 function candidateOrderBy(sort: CandidateListFilters["sort"]) {
-  if (sort === "confidence") return desc(mqAddressCandidates.confidenceScore);
-  if (sort === "evidence_count") return desc(mqAddressCandidates.evidenceCount);
-  return desc(mqAddressCandidates.createdAt);
+  if (sort === "confidence") return desc(mqWorkflowAddressCandidates.confidenceScore);
+  if (sort === "evidence_count") return desc(mqWorkflowAddressCandidates.evidenceCount);
+  return desc(mqWorkflowAddressCandidates.createdAt);
 }
 
 function addCondition(conditions: SQL[], condition: SQL | undefined) {
@@ -604,7 +604,7 @@ function addCondition(conditions: SQL[], condition: SQL | undefined) {
 
 async function buildCandidateSourceVerificationContextMap(
   tx: Pick<ReturnType<typeof getDb>, "select">,
-  candidates: (typeof mqAddressCandidates.$inferSelect)[],
+  candidates: (typeof mqWorkflowAddressCandidates.$inferSelect)[],
 ) {
   const candidateIds = candidates.map((candidate) => candidate.id);
   if (!candidateIds.length) {
@@ -617,14 +617,14 @@ async function buildCandidateSourceVerificationContextMap(
   const sourceDocumentIds = Array.from(
     new Set(candidates.map((candidate) => candidate.sourceDocumentId).filter((id): id is number => typeof id === "number")),
   );
-  const verificationRowsById = new Map<number, typeof mqSourceVerifications.$inferSelect>();
+  const verificationRowsById = new Map<number, typeof mqWorkflowSourceVerifications.$inferSelect>();
   const verificationQueries = [
-    tx.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.candidateId, candidateIds)),
+    tx.select().from(mqWorkflowSourceVerifications).where(inArray(mqWorkflowSourceVerifications.candidateId, candidateIds)),
     sourceJobIds.length
-      ? tx.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceJobId, sourceJobIds))
+      ? tx.select().from(mqWorkflowSourceVerifications).where(inArray(mqWorkflowSourceVerifications.sourceJobId, sourceJobIds))
       : Promise.resolve([]),
     sourceDocumentIds.length
-      ? tx.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceDocumentId, sourceDocumentIds))
+      ? tx.select().from(mqWorkflowSourceVerifications).where(inArray(mqWorkflowSourceVerifications.sourceDocumentId, sourceDocumentIds))
       : Promise.resolve([]),
   ];
 
@@ -663,30 +663,30 @@ export async function listCandidatesFromDatabase(input?: unknown) {
     addCondition(
       conditions,
       or(
-        ilike(mqAddressCandidates.normalizedAddress, `%${filters.q}%`),
-        ilike(mqAddressCandidates.rawAddress, `%${filters.q}%`),
-        ilike(mqAddressCandidates.entityHint, `%${filters.q}%`),
-        ilike(mqAddressCandidates.protocolHint, `%${filters.q}%`),
-        ilike(mqAddressCandidates.roleHint, `%${filters.q}%`),
+        ilike(mqWorkflowAddressCandidates.normalizedAddress, `%${filters.q}%`),
+        ilike(mqWorkflowAddressCandidates.rawAddress, `%${filters.q}%`),
+        ilike(mqWorkflowAddressCandidates.entityHint, `%${filters.q}%`),
+        ilike(mqWorkflowAddressCandidates.protocolHint, `%${filters.q}%`),
+        ilike(mqWorkflowAddressCandidates.roleHint, `%${filters.q}%`),
       ),
     );
   }
 
   if (filters.status) {
-    conditions.push(eq(mqAddressCandidates.candidateStatus, filters.status));
+    conditions.push(eq(mqWorkflowAddressCandidates.candidateStatus, filters.status));
   }
 
   if (filters.chain) {
-    conditions.push(eq(mqAddressCandidates.chainCode, filters.chain));
+    conditions.push(eq(mqWorkflowAddressCandidates.chainCode, filters.chain));
   }
 
   if (filters.entity) {
     addCondition(
       conditions,
       or(
-        ilike(mqAddressCandidates.entityHint, `%${filters.entity}%`),
-        ilike(mqEntities.entityCode, `%${filters.entity}%`),
-        ilike(mqEntities.entityName, `%${filters.entity}%`),
+        ilike(mqWorkflowAddressCandidates.entityHint, `%${filters.entity}%`),
+        ilike(mqDictEntities.entityCode, `%${filters.entity}%`),
+        ilike(mqDictEntities.entityName, `%${filters.entity}%`),
       ),
     );
   }
@@ -695,9 +695,9 @@ export async function listCandidatesFromDatabase(input?: unknown) {
     addCondition(
       conditions,
       or(
-        ilike(mqAddressCandidates.protocolHint, `%${filters.protocol}%`),
-        ilike(mqProtocols.protocolCode, `%${filters.protocol}%`),
-        ilike(mqProtocols.protocolName, `%${filters.protocol}%`),
+        ilike(mqWorkflowAddressCandidates.protocolHint, `%${filters.protocol}%`),
+        ilike(mqDictProtocols.protocolCode, `%${filters.protocol}%`),
+        ilike(mqDictProtocols.protocolName, `%${filters.protocol}%`),
       ),
     );
   }
@@ -706,35 +706,35 @@ export async function listCandidatesFromDatabase(input?: unknown) {
     addCondition(
       conditions,
       or(
-        ilike(mqAddressCandidates.roleHint, `%${filters.role}%`),
-        ilike(mqKvRoleDict.roleCode, `%${filters.role}%`),
-        ilike(mqKvRoleDict.roleName, `%${filters.role}%`),
+        ilike(mqWorkflowAddressCandidates.roleHint, `%${filters.role}%`),
+        ilike(mqDictRoles.roleCode, `%${filters.role}%`),
+        ilike(mqDictRoles.roleName, `%${filters.role}%`),
       ),
     );
   }
 
   if (filters.sourceType) {
-    conditions.push(eq(mqSourceJobs.sourceType, filters.sourceType));
+    conditions.push(eq(mqWorkflowSourceJobs.sourceType, filters.sourceType));
   }
 
   if (filters.discoveryType) {
-    conditions.push(eq(mqAddressCandidates.discoveredBy, filters.discoveryType));
+    conditions.push(eq(mqWorkflowAddressCandidates.discoveredBy, filters.discoveryType));
   }
 
   if (filters.conflicts === "true") {
-    conditions.push(eq(mqAddressCandidates.candidateStatus, "conflict_pending"));
+    conditions.push(eq(mqWorkflowAddressCandidates.candidateStatus, "conflict_pending"));
   }
 
   if (filters.minConfidence !== undefined) {
-    conditions.push(gte(mqAddressCandidates.confidenceScore, filters.minConfidence));
+    conditions.push(gte(mqWorkflowAddressCandidates.confidenceScore, filters.minConfidence));
   }
 
   if (filters.maxConfidence !== undefined) {
-    conditions.push(lte(mqAddressCandidates.confidenceScore, filters.maxConfidence));
+    conditions.push(lte(mqWorkflowAddressCandidates.confidenceScore, filters.maxConfidence));
   }
 
   if (filters.qualityTier !== undefined) {
-    conditions.push(eq(mqAddressCandidates.qualityTier, filters.qualityTier));
+    conditions.push(eq(mqWorkflowAddressCandidates.qualityTier, filters.qualityTier));
   }
 
   const db = getDb();
@@ -742,28 +742,28 @@ export async function listCandidatesFromDatabase(input?: unknown) {
   const offset = (filters.page - 1) * filters.pageSize;
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
-    .from(mqAddressCandidates)
-    .leftJoin(mqEntities, eq(mqAddressCandidates.suggestedEntityId, mqEntities.id))
-    .leftJoin(mqProtocols, eq(mqAddressCandidates.suggestedProtocolId, mqProtocols.id))
-    .leftJoin(mqKvRoleDict, eq(mqAddressCandidates.suggestedRoleId, mqKvRoleDict.roleId))
-    .leftJoin(mqSourceJobs, eq(mqAddressCandidates.sourceJobId, mqSourceJobs.id))
+    .from(mqWorkflowAddressCandidates)
+    .leftJoin(mqDictEntities, eq(mqWorkflowAddressCandidates.suggestedEntityId, mqDictEntities.id))
+    .leftJoin(mqDictProtocols, eq(mqWorkflowAddressCandidates.suggestedProtocolId, mqDictProtocols.id))
+    .leftJoin(mqDictRoles, eq(mqWorkflowAddressCandidates.suggestedRoleId, mqDictRoles.roleId))
+    .leftJoin(mqWorkflowSourceJobs, eq(mqWorkflowAddressCandidates.sourceJobId, mqWorkflowSourceJobs.id))
     .where(where);
 
   const rows = await db
     .select({
-      candidate: mqAddressCandidates,
-      entityName: mqEntities.entityName,
-      protocolName: mqProtocols.protocolName,
-      roleCode: mqKvRoleDict.roleCode,
-      sourceType: mqSourceJobs.sourceType,
+      candidate: mqWorkflowAddressCandidates,
+      entityName: mqDictEntities.entityName,
+      protocolName: mqDictProtocols.protocolName,
+      roleCode: mqDictRoles.roleCode,
+      sourceType: mqWorkflowSourceJobs.sourceType,
     })
-    .from(mqAddressCandidates)
-    .leftJoin(mqEntities, eq(mqAddressCandidates.suggestedEntityId, mqEntities.id))
-    .leftJoin(mqProtocols, eq(mqAddressCandidates.suggestedProtocolId, mqProtocols.id))
-    .leftJoin(mqKvRoleDict, eq(mqAddressCandidates.suggestedRoleId, mqKvRoleDict.roleId))
-    .leftJoin(mqSourceJobs, eq(mqAddressCandidates.sourceJobId, mqSourceJobs.id))
+    .from(mqWorkflowAddressCandidates)
+    .leftJoin(mqDictEntities, eq(mqWorkflowAddressCandidates.suggestedEntityId, mqDictEntities.id))
+    .leftJoin(mqDictProtocols, eq(mqWorkflowAddressCandidates.suggestedProtocolId, mqDictProtocols.id))
+    .leftJoin(mqDictRoles, eq(mqWorkflowAddressCandidates.suggestedRoleId, mqDictRoles.roleId))
+    .leftJoin(mqWorkflowSourceJobs, eq(mqWorkflowAddressCandidates.sourceJobId, mqWorkflowSourceJobs.id))
     .where(where)
-    .orderBy(candidateOrderBy(filters.sort), asc(mqAddressCandidates.id))
+    .orderBy(candidateOrderBy(filters.sort), asc(mqWorkflowAddressCandidates.id))
     .limit(filters.pageSize)
     .offset(offset);
   const sourceVerificationContextByCandidateId = await buildCandidateSourceVerificationContextMap(
@@ -787,7 +787,7 @@ export async function listCandidatesFromDatabase(input?: unknown) {
 
 export async function getCandidateDetail(id: number) {
   const db = getDb();
-  const [candidate] = await db.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, id)).limit(1);
+  const [candidate] = await db.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.id, id)).limit(1);
 
   if (!candidate) {
     return null;
@@ -796,64 +796,64 @@ export async function getCandidateDetail(id: number) {
   const registryMatchQuery = candidate.chainCode
     ? db
         .select({
-          registry: mqAddressRegistry,
-          entity: mqEntities,
-          protocol: mqProtocols,
-          role: mqKvRoleDict,
-          category: mqCategoryDict,
+          registry: mqRegistryAddressLabels,
+          entity: mqDictEntities,
+          protocol: mqDictProtocols,
+          role: mqDictRoles,
+          category: mqDictCategories,
         })
-        .from(mqAddressRegistry)
-        .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
-        .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
-        .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-        .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId))
-        .where(and(eq(mqAddressRegistry.normalizedAddress, candidate.normalizedAddress), eq(mqAddressRegistry.chainCode, candidate.chainCode)))
-        .orderBy(desc(mqAddressRegistry.isActive), desc(mqAddressRegistry.createdAt))
+        .from(mqRegistryAddressLabels)
+        .leftJoin(mqDictEntities, eq(mqRegistryAddressLabels.entityId, mqDictEntities.id))
+        .leftJoin(mqDictProtocols, eq(mqRegistryAddressLabels.protocolId, mqDictProtocols.id))
+        .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+        .leftJoin(mqDictCategories, eq(mqDictCategories.categoryId, sql<number>`coalesce(${mqRegistryAddressLabels.categoryId}, ${mqDictRoles.categoryId})`))
+        .where(and(eq(mqRegistryAddressLabels.normalizedAddress, candidate.normalizedAddress), eq(mqRegistryAddressLabels.chainCode, candidate.chainCode)))
+        .orderBy(desc(mqRegistryAddressLabels.isActive), desc(mqRegistryAddressLabels.createdAt))
         .limit(20)
     : Promise.resolve([]);
 
-  const sourceVerificationConditions: SQL[] = [eq(mqSourceVerifications.candidateId, id)];
+  const sourceVerificationConditions: SQL[] = [eq(mqWorkflowSourceVerifications.candidateId, id)];
   if (candidate.sourceJobId) {
-    sourceVerificationConditions.push(eq(mqSourceVerifications.sourceJobId, candidate.sourceJobId));
+    sourceVerificationConditions.push(eq(mqWorkflowSourceVerifications.sourceJobId, candidate.sourceJobId));
   }
   if (candidate.sourceDocumentId) {
-    sourceVerificationConditions.push(eq(mqSourceVerifications.sourceDocumentId, candidate.sourceDocumentId));
+    sourceVerificationConditions.push(eq(mqWorkflowSourceVerifications.sourceDocumentId, candidate.sourceDocumentId));
   }
 
   const [evidence, dictionaries, sourceJob, sourceDocument, registryMatches, approvalEvents, duplicateOfCandidate, duplicateCandidates, discoveryJob, sourceVerifications] =
     await Promise.all([
-    db.select().from(mqAddressEvidence).where(eq(mqAddressEvidence.candidateId, id)).orderBy(desc(mqAddressEvidence.createdAt)),
+    db.select().from(mqWorkflowAddressEvidence).where(eq(mqWorkflowAddressEvidence.candidateId, id)).orderBy(desc(mqWorkflowAddressEvidence.createdAt)),
     getDictionaryMaps(),
     candidate.sourceJobId
-      ? db.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, candidate.sourceJobId)).limit(1)
+      ? db.select().from(mqWorkflowSourceJobs).where(eq(mqWorkflowSourceJobs.id, candidate.sourceJobId)).limit(1)
       : Promise.resolve([]),
     candidate.sourceDocumentId
-      ? db.select().from(mqSourceDocuments).where(eq(mqSourceDocuments.id, candidate.sourceDocumentId)).limit(1)
+      ? db.select().from(mqWorkflowSourceDocuments).where(eq(mqWorkflowSourceDocuments.id, candidate.sourceDocumentId)).limit(1)
       : Promise.resolve([]),
     registryMatchQuery,
-    db.select().from(mqApprovalEvents).where(eq(mqApprovalEvents.candidateId, id)).orderBy(desc(mqApprovalEvents.createdAt)).limit(50),
+    db.select().from(mqWorkflowApprovalEvents).where(eq(mqWorkflowApprovalEvents.candidateId, id)).orderBy(desc(mqWorkflowApprovalEvents.createdAt)).limit(50),
     candidate.duplicateOfCandidateId
-      ? db.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, candidate.duplicateOfCandidateId)).limit(1)
+      ? db.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.id, candidate.duplicateOfCandidateId)).limit(1)
       : Promise.resolve([]),
     db
       .select()
-      .from(mqAddressCandidates)
-      .where(eq(mqAddressCandidates.duplicateOfCandidateId, id))
-      .orderBy(desc(mqAddressCandidates.createdAt))
+      .from(mqWorkflowAddressCandidates)
+      .where(eq(mqWorkflowAddressCandidates.duplicateOfCandidateId, id))
+      .orderBy(desc(mqWorkflowAddressCandidates.createdAt))
       .limit(20),
     candidate.discoveryJobId
-      ? db.select().from(mqDiscoveryJobs).where(eq(mqDiscoveryJobs.id, candidate.discoveryJobId)).limit(1)
+      ? db.select().from(mqWorkflowDiscoveryJobs).where(eq(mqWorkflowDiscoveryJobs.id, candidate.discoveryJobId)).limit(1)
       : Promise.resolve([]),
     db
       .select({
-        verification: mqSourceVerifications,
+        verification: mqWorkflowSourceVerifications,
         verifierEmail: mqUsers.email,
         verifierName: mqUsers.displayName,
       })
-      .from(mqSourceVerifications)
-      .leftJoin(mqUsers, eq(mqSourceVerifications.verifiedBy, mqUsers.id))
+      .from(mqWorkflowSourceVerifications)
+      .leftJoin(mqUsers, eq(mqWorkflowSourceVerifications.verifiedBy, mqUsers.id))
       .where(or(...sourceVerificationConditions))
-      .orderBy(desc(mqSourceVerifications.createdAt))
+      .orderBy(desc(mqWorkflowSourceVerifications.createdAt))
       .limit(100),
   ]);
 
@@ -874,10 +874,10 @@ export async function getCandidateDetail(id: number) {
 
 export async function listApprovedCandidateIds() {
   return getDb()
-    .select({ id: mqAddressCandidates.id })
-    .from(mqAddressCandidates)
-    .where(eq(mqAddressCandidates.candidateStatus, "approved"))
-    .orderBy(desc(mqAddressCandidates.updatedAt))
+    .select({ id: mqWorkflowAddressCandidates.id })
+    .from(mqWorkflowAddressCandidates)
+    .where(eq(mqWorkflowAddressCandidates.candidateStatus, "approved"))
+    .orderBy(desc(mqWorkflowAddressCandidates.updatedAt))
     .limit(500);
 }
 
@@ -886,5 +886,5 @@ export async function getCandidatesByIds(candidateIds: number[]) {
     return [];
   }
 
-  return getDb().select().from(mqAddressCandidates).where(inArray(mqAddressCandidates.id, candidateIds));
+  return getDb().select().from(mqWorkflowAddressCandidates).where(inArray(mqWorkflowAddressCandidates.id, candidateIds));
 }

@@ -213,7 +213,7 @@ describe("U1 identity and component/category propagation", () => {
     expect(commit).toContain("prefixCode: candidate.prefixCode");
     expect(commit).toContain("componentId: optionalNumber(draft.componentId) ?? candidate.suggestedComponentId");
     // Category precedence: approved override, then approved role category.
-    expect(commit).toContain("categoryId: optionalNumber(draft.categoryId) ?? role?.categoryId ?? null");
+    expect(commit).toContain("categoryId: effectiveCategoryId(optionalNumber(draft.categoryId), role?.categoryId)");
   });
 
   it("fails closed instead of reconstructing an unknown U1 key during commit", () => {

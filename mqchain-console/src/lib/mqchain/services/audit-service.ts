@@ -1,7 +1,7 @@
 import { and, desc, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
-import { mqApprovalEvents, mqAuditLog, mqUsers } from "@/db/schema";
+import { mqWorkflowApprovalEvents, mqAuditEvents, mqUsers } from "@/db/schema";
 import { buildAuditTimeline } from "../audit";
 import { parseAuditListFilters, type AuditListFilters } from "../list-filters";
 
@@ -25,28 +25,28 @@ function approvalConditions(filters: AuditListFilters, actorIds: string[] | null
     addCondition(
       conditions,
       or(
-        ilike(mqApprovalEvents.action, `%${filters.q}%`),
-        ilike(mqApprovalEvents.reason, `%${filters.q}%`),
-        sql`${mqApprovalEvents.candidateId}::text ilike ${`%${filters.q}%`}`,
-        sql`${mqApprovalEvents.registryId}::text ilike ${`%${filters.q}%`}`,
-        sql`${mqApprovalEvents.batchId}::text ilike ${`%${filters.q}%`}`,
-        sql`${mqApprovalEvents.metadata}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqWorkflowApprovalEvents.action, `%${filters.q}%`),
+        ilike(mqWorkflowApprovalEvents.reason, `%${filters.q}%`),
+        sql`${mqWorkflowApprovalEvents.candidateId}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqWorkflowApprovalEvents.registryId}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqWorkflowApprovalEvents.batchId}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqWorkflowApprovalEvents.metadata}::text ilike ${`%${filters.q}%`}`,
       ),
     );
   }
 
-  if (filters.action) conditions.push(ilike(mqApprovalEvents.action, `%${filters.action}%`));
+  if (filters.action) conditions.push(ilike(mqWorkflowApprovalEvents.action, `%${filters.action}%`));
   if (filters.target) {
     addCondition(
       conditions,
       or(
-        sql`${mqApprovalEvents.candidateId}::text ilike ${`%${filters.target}%`}`,
-        sql`${mqApprovalEvents.registryId}::text ilike ${`%${filters.target}%`}`,
-        sql`${mqApprovalEvents.batchId}::text ilike ${`%${filters.target}%`}`,
+        sql`${mqWorkflowApprovalEvents.candidateId}::text ilike ${`%${filters.target}%`}`,
+        sql`${mqWorkflowApprovalEvents.registryId}::text ilike ${`%${filters.target}%`}`,
+        sql`${mqWorkflowApprovalEvents.batchId}::text ilike ${`%${filters.target}%`}`,
       ),
     );
   }
-  if (actorIds) conditions.push(actorIds.length ? inArray(mqApprovalEvents.actorId, actorIds) : sql`false`);
+  if (actorIds) conditions.push(actorIds.length ? inArray(mqWorkflowApprovalEvents.actorId, actorIds) : sql`false`);
 
   return conditions.length ? and(...conditions) : sql`true`;
 }
@@ -58,29 +58,29 @@ function systemConditions(filters: AuditListFilters, actorIds: string[] | null) 
     addCondition(
       conditions,
       or(
-        ilike(mqAuditLog.action, `%${filters.q}%`),
-        ilike(mqAuditLog.targetTable, `%${filters.q}%`),
-        ilike(mqAuditLog.targetId, `%${filters.q}%`),
-        sql`${mqAuditLog.payload}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqAuditEvents.action, `%${filters.q}%`),
+        ilike(mqAuditEvents.targetTable, `%${filters.q}%`),
+        ilike(mqAuditEvents.targetId, `%${filters.q}%`),
+        sql`${mqAuditEvents.payload}::text ilike ${`%${filters.q}%`}`,
       ),
     );
   }
 
-  if (filters.action) conditions.push(ilike(mqAuditLog.action, `%${filters.action}%`));
+  if (filters.action) conditions.push(ilike(mqAuditEvents.action, `%${filters.action}%`));
   if (filters.target) {
     addCondition(
       conditions,
-      or(ilike(mqAuditLog.targetTable, `%${filters.target}%`), ilike(mqAuditLog.targetId, `%${filters.target}%`)),
+      or(ilike(mqAuditEvents.targetTable, `%${filters.target}%`), ilike(mqAuditEvents.targetId, `%${filters.target}%`)),
     );
   }
-  if (actorIds) conditions.push(actorIds.length ? inArray(mqAuditLog.actorId, actorIds) : sql`false`);
+  if (actorIds) conditions.push(actorIds.length ? inArray(mqAuditEvents.actorId, actorIds) : sql`false`);
 
   return conditions.length ? and(...conditions) : sql`true`;
 }
 
 export async function listAuditLog(input: unknown = {}) {
   const filters = typeof input === "number" ? parseAuditListFilters({ pageSize: input }) : parseAuditListFilters(input);
-  return getDb().select().from(mqAuditLog).where(systemConditions(filters, await matchingActorIds(filters))).orderBy(desc(mqAuditLog.createdAt)).limit(filters.pageSize);
+  return getDb().select().from(mqAuditEvents).where(systemConditions(filters, await matchingActorIds(filters))).orderBy(desc(mqAuditEvents.createdAt)).limit(filters.pageSize);
 }
 
 export async function listAuditTimeline(input: unknown = {}) {
@@ -95,14 +95,14 @@ export async function listAuditTimeline(input: unknown = {}) {
 
   const [approvalCountRows, systemCountRows, approvalEvents, auditRows] = await Promise.all([
     shouldReadApproval
-      ? db.select({ total: sql<number>`count(*)::int` }).from(mqApprovalEvents).where(approvalWhere)
+      ? db.select({ total: sql<number>`count(*)::int` }).from(mqWorkflowApprovalEvents).where(approvalWhere)
       : Promise.resolve([{ total: 0 }]),
-    shouldReadSystem ? db.select({ total: sql<number>`count(*)::int` }).from(mqAuditLog).where(systemWhere) : Promise.resolve([{ total: 0 }]),
+    shouldReadSystem ? db.select({ total: sql<number>`count(*)::int` }).from(mqAuditEvents).where(systemWhere) : Promise.resolve([{ total: 0 }]),
     shouldReadApproval
-      ? db.select().from(mqApprovalEvents).where(approvalWhere).orderBy(desc(mqApprovalEvents.createdAt)).limit(readLimit)
+      ? db.select().from(mqWorkflowApprovalEvents).where(approvalWhere).orderBy(desc(mqWorkflowApprovalEvents.createdAt)).limit(readLimit)
       : Promise.resolve([]),
     shouldReadSystem
-      ? db.select().from(mqAuditLog).where(systemWhere).orderBy(desc(mqAuditLog.createdAt)).limit(readLimit)
+      ? db.select().from(mqAuditEvents).where(systemWhere).orderBy(desc(mqAuditEvents.createdAt)).limit(readLimit)
       : Promise.resolve([]),
   ]);
   const eventActorIds = Array.from(

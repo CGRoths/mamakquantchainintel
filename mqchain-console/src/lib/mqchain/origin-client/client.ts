@@ -196,7 +196,7 @@ export const createDiscoveryJob = (input: unknown) => mutate("discovery:create",
 export const createDiscoveryJobFromRegistry = (input: unknown) => mutate("discovery:create", "/v1/discovery/jobs", { mode: "from_registry", input });
 export const completeDiscoveryJob = (input: unknown) => mutate("discovery:create", `/v1/discovery/jobs/${inputId(input, "jobId")}/complete`, input);
 export const createKvBuildManifest = (input: unknown) => mutate("batch:commit", "/v1/kv-builds", input);
-export const activateKvBuildManifest = (input: unknown) => mutate("batch:commit", `/v1/kv-builds/${inputId(input, "buildId")}/activate`, input);
+export const activateKvBuildManifest = (input: unknown) => mutate("kv:activate", `/v1/kv-builds/${inputId(input, "buildId")}/activate`, input);
 export const createMetricGroup = (input: unknown) => mutate("dictionary:edit", "/v1/metric-groups", input);
 export const addMetricGroupRule = (input: unknown) => mutate("dictionary:edit", `/v1/metric-groups/${inputId(input, "metricGroupId")}/rules`, input);
 export const deactivateMetricGroup = (input: unknown) => mutate("dictionary:edit", `/v1/metric-groups/${inputId(input, "metricGroupId")}/deactivate`, input);

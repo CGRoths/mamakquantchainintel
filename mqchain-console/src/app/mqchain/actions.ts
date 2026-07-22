@@ -496,6 +496,12 @@ function createKvBuildManifestInputFromFormData(formData: FormData) {
 function kvBuildIdInputFromFormData(formData: FormData) {
   return {
     buildId: formValue(formData, "buildId"),
+    expectedBuildHash: formValue(formData, "expectedBuildHash"),
+    expectedDictionaryVersion: formValue(formData, "expectedDictionaryVersion"),
+    expectedRegistrySnapshotHash: formValue(formData, "expectedRegistrySnapshotHash"),
+    expectedCurrentActiveBuildId: formValue(formData, "expectedCurrentActiveBuildId"),
+    expectedValidationRunId: formValue(formData, "expectedValidationRunId"),
+    expectedValidationReportHash: formValue(formData, "expectedValidationReportHash"),
   };
 }
 
@@ -891,7 +897,17 @@ function bulkApprovalSelectionFromFormData(formData: FormData) {
     .map((value) => Number(value))
     .filter((value) => Number.isInteger(value) && value > 0);
   const mode = formValue(formData, "mode") === "strict" ? "strict" : "eligible_only";
-  return { candidateIds, mode } as const;
+  const rawSelectionType = formValue(formData, "selectionType");
+  const selectionType = rawSelectionType === "source_sheet" || rawSelectionType === "source_job" ? rawSelectionType : "explicit_ids";
+  const sourceJobId = Number(formValue(formData, "sourceJobId"));
+  const sourceSheet = formValue(formData, "sourceSheet") || null;
+  return {
+    selectionType,
+    candidateIds,
+    sourceJobId: Number.isInteger(sourceJobId) && sourceJobId > 0 ? sourceJobId : undefined,
+    sourceSheet,
+    mode,
+  } as const;
 }
 
 export async function previewBulkCandidateApprovalResultAction(
@@ -900,7 +916,7 @@ export async function previewBulkCandidateApprovalResultAction(
 ): Promise<BulkApprovalPreviewState> {
   return runAction(async () => {
     const selection = bulkApprovalSelectionFromFormData(formData);
-    if (!selection.candidateIds.length) {
+    if (selection.selectionType === "explicit_ids" && !selection.candidateIds.length) {
       throw new Error("Select at least one candidate to preview.");
     }
 
@@ -919,7 +935,7 @@ export async function executeBulkCandidateApprovalResultAction(
 ): Promise<BulkApprovalResultState> {
   return runAction(async () => {
     const selection = bulkApprovalSelectionFromFormData(formData);
-    if (!selection.candidateIds.length) {
+    if (selection.selectionType === "explicit_ids" && !selection.candidateIds.length) {
       throw new Error("Select at least one candidate to approve.");
     }
 
@@ -927,6 +943,9 @@ export async function executeBulkCandidateApprovalResultAction(
       ...selection,
       expectedDictionaryVersion: formValue(formData, "expectedDictionaryVersion"),
       expectedPreviewHash: formValue(formData, "expectedPreviewHash"),
+      expectedCandidateSnapshotHash: formValue(formData, "expectedCandidateSnapshotHash"),
+      expectedSourceVerificationSnapshotHash: formValue(formData, "expectedSourceVerificationSnapshotHash"),
+      idempotencyKey: formValue(formData, "idempotencyKey"),
       reason: formValue(formData, "reason"),
     });
 

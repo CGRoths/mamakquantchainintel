@@ -1,17 +1,17 @@
-﻿import { count, desc, eq, sql } from "drizzle-orm";
+import { count, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressCandidates,
-  mqAddressRegistry,
-  mqApprovalEvents,
-  mqDiscoveryJobs,
-  mqEntities,
-  mqKvBuilds,
-  mqLabelBatches,
-  mqMetricGroups,
-  mqProtocols,
-  mqSourceJobs,
+  mqWorkflowAddressCandidates,
+  mqRegistryAddressLabels,
+  mqWorkflowApprovalEvents,
+  mqWorkflowDiscoveryJobs,
+  mqDictEntities,
+  mqBuildKvBuilds,
+  mqWorkflowLabelBatches,
+  mqDictMetricGroups,
+  mqDictProtocols,
+  mqWorkflowSourceJobs,
 } from "@/db/schema";
 import { FLAG_BITS } from "../flags";
 import { buildConfidenceDistribution, buildDashboardLatestKvBuildSummary, normalizeDistributionRows } from "../dashboard";
@@ -48,64 +48,64 @@ export async function getDashboardOverviewFromDatabase() {
     recentSourceJobs,
     recentDiscoveryJobs,
   ] = await Promise.all([
-    db.select({ value: count() }).from(mqAddressCandidates).where(eq(mqAddressCandidates.candidateStatus, "pending_review")),
-    db.select({ value: count() }).from(mqAddressCandidates).where(eq(mqAddressCandidates.candidateStatus, "needs_more_evidence")),
+    db.select({ value: count() }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.candidateStatus, "pending_review")),
+    db.select({ value: count() }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.candidateStatus, "needs_more_evidence")),
     db
       .select({ value: count() })
-      .from(mqAddressCandidates)
-      .where(sql`${mqAddressCandidates.candidateStatus} = 'approved' and ${mqAddressCandidates.updatedAt}::date = now()::date`),
+      .from(mqWorkflowAddressCandidates)
+      .where(sql`${mqWorkflowAddressCandidates.candidateStatus} = 'approved' and ${mqWorkflowAddressCandidates.updatedAt}::date = now()::date`),
     db
       .select({ value: count() })
-      .from(mqAddressCandidates)
-      .where(sql`${mqAddressCandidates.candidateStatus} = 'rejected' and ${mqAddressCandidates.updatedAt}::date = now()::date`),
-    db.select({ value: count() }).from(mqLabelBatches).where(eq(mqLabelBatches.status, "committed")),
-    db.select({ value: count() }).from(mqEntities).where(eq(mqEntities.isActive, true)),
-    db.select({ value: count() }).from(mqProtocols).where(eq(mqProtocols.isActive, true)),
-    db.select({ value: count() }).from(mqAddressRegistry).where(eq(mqAddressRegistry.isActive, true)),
-    db.select({ value: count() }).from(mqAddressCandidates).where(eq(mqAddressCandidates.candidateStatus, "conflict_pending")),
+      .from(mqWorkflowAddressCandidates)
+      .where(sql`${mqWorkflowAddressCandidates.candidateStatus} = 'rejected' and ${mqWorkflowAddressCandidates.updatedAt}::date = now()::date`),
+    db.select({ value: count() }).from(mqWorkflowLabelBatches).where(eq(mqWorkflowLabelBatches.status, "committed")),
+    db.select({ value: count() }).from(mqDictEntities).where(eq(mqDictEntities.isActive, true)),
+    db.select({ value: count() }).from(mqDictProtocols).where(eq(mqDictProtocols.isActive, true)),
+    db.select({ value: count() }).from(mqRegistryAddressLabels).where(eq(mqRegistryAddressLabels.isActive, true)),
+    db.select({ value: count() }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.candidateStatus, "conflict_pending")),
     db
       .select({ value: count() })
-      .from(mqAddressRegistry)
-      .where(sql`${mqAddressRegistry.isActive} = true and (${mqAddressRegistry.flags} & ${metricEligibleMask}) <> 0 and ${mqAddressRegistry.confidenceScore} >= 70`),
-    db.select({ value: count() }).from(mqMetricGroups).where(eq(mqMetricGroups.isActive, true)),
-    db.select().from(mqLabelBatches).where(eq(mqLabelBatches.status, "committed")).orderBy(desc(mqLabelBatches.committedAt)).limit(1),
-    db.select().from(mqKvBuilds).orderBy(desc(mqKvBuilds.createdAt)).limit(1),
+      .from(mqRegistryAddressLabels)
+      .where(sql`${mqRegistryAddressLabels.isActive} = true and (${mqRegistryAddressLabels.flags} & ${metricEligibleMask}) <> 0 and ${mqRegistryAddressLabels.confidenceScore} >= 70`),
+    db.select({ value: count() }).from(mqDictMetricGroups).where(eq(mqDictMetricGroups.isActive, true)),
+    db.select().from(mqWorkflowLabelBatches).where(eq(mqWorkflowLabelBatches.status, "committed")).orderBy(desc(mqWorkflowLabelBatches.committedAt)).limit(1),
+    db.select().from(mqBuildKvBuilds).orderBy(desc(mqBuildKvBuilds.createdAt)).limit(1),
     db
-      .select({ label: mqDiscoveryJobs.status, count: sql<number>`count(*)::int` })
-      .from(mqDiscoveryJobs)
-      .groupBy(mqDiscoveryJobs.status)
+      .select({ label: mqWorkflowDiscoveryJobs.status, count: sql<number>`count(*)::int` })
+      .from(mqWorkflowDiscoveryJobs)
+      .groupBy(mqWorkflowDiscoveryJobs.status)
       .orderBy(desc(sql`count(*)`)),
     db
       .select({
-        label: sql<string>`coalesce(${mqSourceJobs.sourceType}, ${mqAddressCandidates.discoveredBy}, 'unknown')`,
+        label: sql<string>`coalesce(${mqWorkflowSourceJobs.sourceType}, ${mqWorkflowAddressCandidates.discoveredBy}, 'unknown')`,
         count: sql<number>`count(*)::int`,
       })
-      .from(mqAddressCandidates)
-      .leftJoin(mqSourceJobs, eq(mqAddressCandidates.sourceJobId, mqSourceJobs.id))
-      .groupBy(sql`coalesce(${mqSourceJobs.sourceType}, ${mqAddressCandidates.discoveredBy}, 'unknown')`)
+      .from(mqWorkflowAddressCandidates)
+      .leftJoin(mqWorkflowSourceJobs, eq(mqWorkflowAddressCandidates.sourceJobId, mqWorkflowSourceJobs.id))
+      .groupBy(sql`coalesce(${mqWorkflowSourceJobs.sourceType}, ${mqWorkflowAddressCandidates.discoveredBy}, 'unknown')`)
       .orderBy(desc(sql`count(*)`))
       .limit(8),
     db
-      .select({ label: sql<string>`concat('tier ', ${mqAddressRegistry.qualityTier})`, count: sql<number>`count(*)::int` })
-      .from(mqAddressRegistry)
-      .where(eq(mqAddressRegistry.isActive, true))
-      .groupBy(mqAddressRegistry.qualityTier)
+      .select({ label: sql<string>`concat('tier ', ${mqRegistryAddressLabels.qualityTier})`, count: sql<number>`count(*)::int` })
+      .from(mqRegistryAddressLabels)
+      .where(eq(mqRegistryAddressLabels.isActive, true))
+      .groupBy(mqRegistryAddressLabels.qualityTier)
       .orderBy(desc(sql`count(*)`)),
     db
-      .select({ confidenceScore: mqAddressRegistry.confidenceScore })
-      .from(mqAddressRegistry)
-      .where(eq(mqAddressRegistry.isActive, true)),
+      .select({ confidenceScore: mqRegistryAddressLabels.confidenceScore })
+      .from(mqRegistryAddressLabels)
+      .where(eq(mqRegistryAddressLabels.isActive, true)),
     db
-      .select({ label: sql<string>`coalesce(${mqEntities.entityName}, 'unassigned')`, count: sql<number>`count(*)::int` })
-      .from(mqAddressRegistry)
-      .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
-      .where(eq(mqAddressRegistry.isActive, true))
-      .groupBy(sql`coalesce(${mqEntities.entityName}, 'unassigned')`)
+      .select({ label: sql<string>`coalesce(${mqDictEntities.entityName}, 'unassigned')`, count: sql<number>`count(*)::int` })
+      .from(mqRegistryAddressLabels)
+      .leftJoin(mqDictEntities, eq(mqRegistryAddressLabels.entityId, mqDictEntities.id))
+      .where(eq(mqRegistryAddressLabels.isActive, true))
+      .groupBy(sql`coalesce(${mqDictEntities.entityName}, 'unassigned')`)
       .orderBy(desc(sql`count(*)`))
       .limit(8),
-    db.select().from(mqApprovalEvents).orderBy(desc(mqApprovalEvents.createdAt)).limit(8),
-    db.select().from(mqSourceJobs).orderBy(desc(mqSourceJobs.createdAt)).limit(8),
-    db.select().from(mqDiscoveryJobs).orderBy(desc(mqDiscoveryJobs.createdAt)).limit(8),
+    db.select().from(mqWorkflowApprovalEvents).orderBy(desc(mqWorkflowApprovalEvents.createdAt)).limit(8),
+    db.select().from(mqWorkflowSourceJobs).orderBy(desc(mqWorkflowSourceJobs.createdAt)).limit(8),
+    db.select().from(mqWorkflowDiscoveryJobs).orderBy(desc(mqWorkflowDiscoveryJobs.createdAt)).limit(8),
   ]);
 
   return {

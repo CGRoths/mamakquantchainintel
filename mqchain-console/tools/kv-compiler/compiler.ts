@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import { asc, eq, inArray } from "drizzle-orm";
 
 import { getDb } from "../../src/db/client";
-import { mqAddressRegistry, mqKvBuilds, mqKvRoleDict } from "../../src/db/schema";
+import { mqRegistryAddressLabels, mqBuildKvBuilds, mqDictRoles } from "../../src/db/schema";
 import { COMPILED_INDEX_NAMES, compileU1RecordStream, summarizeCompiledRecordStream } from "../../src/lib/mqchain/kv/compiled-records";
 import { MQCHAIN_KV_CONTRACT_SCHEMA_VERSIONS } from "../../src/lib/mqchain/kv/contract";
 import { computeFullKvBuildRequestHash } from "../../src/lib/mqchain/kv-manifest";
@@ -24,7 +24,7 @@ export type FullRequestManifest = {
   artifactType: "rocksdb";
 } & typeof MQCHAIN_KV_CONTRACT_SCHEMA_VERSIONS;
 
-export function requireFullRequest(build: typeof mqKvBuilds.$inferSelect): FullRequestManifest {
+export function requireFullRequest(build: typeof mqBuildKvBuilds.$inferSelect): FullRequestManifest {
   const manifest = build.manifest as Partial<FullRequestManifest>;
   if (build.status !== "pending") throw new Error(`compile_request_not_pending:${build.id}:${build.status}`);
   if (manifest.reason !== "full_registry_compile" || manifest.compileScope !== "full") throw new Error(`compile_request_not_full:${build.id}`);
@@ -48,7 +48,7 @@ export function compiledArtifactHash(requestHash: string, summaries: ReturnType<
 export async function compilePendingFullBuild(buildId: number, artifactRoot: string) {
   const db = getDb();
   const prepared = await db.transaction(async tx => {
-    const [requestBuild] = await tx.select().from(mqKvBuilds).where(eq(mqKvBuilds.id, buildId)).limit(1);
+    const [requestBuild] = await tx.select().from(mqBuildKvBuilds).where(eq(mqBuildKvBuilds.id, buildId)).limit(1);
     if (!requestBuild) throw new Error(`compile_request_not_found:${buildId}`);
     const request = requireFullRequest(requestBuild);
     const requestHash = computeFullKvBuildRequestHash(request as never);
@@ -56,11 +56,11 @@ export async function compilePendingFullBuild(buildId: number, artifactRoot: str
     const snapshot = await loadFullKvCompilationSnapshot(tx);
     assertRequestMatchesSnapshot(request, snapshot);
     const rows = snapshot.registryIds.length ? await tx
-      .select({ registry: mqAddressRegistry, resolvedCategoryId: mqKvRoleDict.categoryId })
-      .from(mqAddressRegistry)
-      .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-      .where(inArray(mqAddressRegistry.id, [...snapshot.registryIds]))
-      .orderBy(asc(mqAddressRegistry.id)) : [];
+      .select({ registry: mqRegistryAddressLabels, resolvedCategoryId: mqDictRoles.categoryId })
+      .from(mqRegistryAddressLabels)
+      .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+      .where(inArray(mqRegistryAddressLabels.id, [...snapshot.registryIds]))
+      .orderBy(asc(mqRegistryAddressLabels.id)) : [];
     const records = compileU1RecordStream({
       rows: rows.map(row => ({ ...row.registry, resolvedCategoryId: row.resolvedCategoryId })),
       currentRegistryIds: snapshot.currentRegistryIds,

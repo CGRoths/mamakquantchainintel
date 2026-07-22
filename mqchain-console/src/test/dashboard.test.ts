@@ -67,6 +67,7 @@ describe("dashboard rollups", () => {
         activatedAt: null,
         manifest: {
           artifactType: "rocksdb",
+          compileScope: "full",
           dictionarySchemaVersion: "MQD-U1",
           keySchemaVersion: "MQK-U1",
           valueSchemaVersion: "MQV-U1",
@@ -110,6 +111,7 @@ describe("dashboard rollups", () => {
         activatedAt: null,
         manifest: {
           artifactType: "rocksdb",
+          compileScope: "full",
           rowCount: 3,
           indexes: {
             addressLabelCurrent: { indexName: "address_label_current", rowCount: 3 },

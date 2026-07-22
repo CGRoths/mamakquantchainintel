@@ -103,24 +103,24 @@ describe("source-job deletion implementation contracts", () => {
   it("performs preview, audit, and every delete inside one transaction", () => {
     const transaction = service.indexOf("return getDb().transaction(async tx =>", service.indexOf("export async function deletePendingSourceJob"));
     const previewLoad = service.indexOf("loadSourceJobDeletionPlan(tx", transaction);
-    const audit = service.indexOf("tx.insert(mqAuditLog)", previewLoad);
+    const audit = service.indexOf("tx.insert(mqAuditEvents)", previewLoad);
     const deletes = [
-      "tx.delete(mqLabelBatchEvidence)",
-      "tx.delete(mqApprovalEvents)",
-      "tx.delete(mqLabelBatchCandidates)",
-      "tx.delete(mqAddressEvidence)",
-      "tx.delete(mqSourceVerifications)",
-      "tx.delete(mqLabelBatches)",
-      "tx.delete(mqAddressCandidates)",
-      "tx.delete(mqSourceDocuments)",
-      "tx.delete(mqSourceJobs)",
+      "tx.delete(mqWorkflowLabelBatchEvidence)",
+      "tx.delete(mqWorkflowApprovalEvents)",
+      "tx.delete(mqWorkflowLabelBatchCandidates)",
+      "tx.delete(mqWorkflowAddressEvidence)",
+      "tx.delete(mqWorkflowSourceVerifications)",
+      "tx.delete(mqWorkflowLabelBatches)",
+      "tx.delete(mqWorkflowAddressCandidates)",
+      "tx.delete(mqWorkflowSourceDocuments)",
+      "tx.delete(mqWorkflowSourceJobs)",
     ].map(token => service.indexOf(token, audit));
     expect(transaction).toBeGreaterThan(0);
     expect(previewLoad).toBeGreaterThan(transaction);
     expect(audit).toBeGreaterThan(previewLoad);
     expect(deletes.every(index => index > audit)).toBe(true);
     expect(deletes).toEqual([...deletes].sort((left, right) => left - right));
-    expect(service).not.toContain("tx.delete(mqAuditLog)");
+    expect(service).not.toContain("tx.delete(mqAuditEvents)");
   });
 
   it("relies on database transaction rollback when any deletion step fails", () => {

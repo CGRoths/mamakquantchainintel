@@ -1,16 +1,16 @@
-import { and, desc, eq, gte, isNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressEvidence,
-  mqAddressRegistry,
-  mqCategoryDict,
-  mqEntities,
-  mqKvRoleDict,
-  mqLabelBatches,
-  mqMetricGroupRules,
-  mqMetricGroups,
-  mqProtocols,
+  mqWorkflowAddressEvidence,
+  mqRegistryAddressLabels,
+  mqDictCategories,
+  mqDictEntities,
+  mqDictRoles,
+  mqWorkflowLabelBatches,
+  mqPolicyMetricGroupRules,
+  mqDictMetricGroups,
+  mqDictProtocols,
 } from "@/db/schema";
 import { normalizeAddress } from "../address/normalize";
 import { isHistoricalLabel, isMetricEligible } from "../flags";
@@ -29,13 +29,13 @@ export type ResolverOutput = {
 };
 
 export type ResolverLabel = {
-  registry: typeof mqAddressRegistry.$inferSelect;
-  entity: typeof mqEntities.$inferSelect | null;
-  protocol: typeof mqProtocols.$inferSelect | null;
-  role: typeof mqKvRoleDict.$inferSelect | null;
-  category: typeof mqCategoryDict.$inferSelect | null;
-  sourceBatch: typeof mqLabelBatches.$inferSelect | null;
-  evidence: (typeof mqAddressEvidence.$inferSelect)[];
+  registry: typeof mqRegistryAddressLabels.$inferSelect;
+  entity: typeof mqDictEntities.$inferSelect | null;
+  protocol: typeof mqDictProtocols.$inferSelect | null;
+  role: typeof mqDictRoles.$inferSelect | null;
+  category: typeof mqDictCategories.$inferSelect | null;
+  sourceBatch: typeof mqWorkflowLabelBatches.$inferSelect | null;
+  evidence: (typeof mqWorkflowAddressEvidence.$inferSelect)[];
   evidenceSummary: ReturnType<typeof summarizeResolverEvidence>;
   status: "active" | "historical" | "inactive";
   metricEligible: boolean;
@@ -54,33 +54,33 @@ async function findRegistryLabel(chainCode: string, normalizedAddress: string, b
     !isPointInTimeLookup
       ? []
       : [
-          or(isNull(mqAddressRegistry.validFromBlock), lte(mqAddressRegistry.validFromBlock, blockNumber)),
-          or(isNull(mqAddressRegistry.validToBlock), gte(mqAddressRegistry.validToBlock, blockNumber)),
+          or(isNull(mqRegistryAddressLabels.validFromBlock), lte(mqRegistryAddressLabels.validFromBlock, blockNumber)),
+          or(isNull(mqRegistryAddressLabels.validToBlock), gte(mqRegistryAddressLabels.validToBlock, blockNumber)),
         ];
-  const activeConditions = isPointInTimeLookup ? [] : [eq(mqAddressRegistry.isActive, true)];
+  const activeConditions = isPointInTimeLookup ? [] : [eq(mqRegistryAddressLabels.isActive, true)];
 
   const [label] = await db
     .select({
-      registry: mqAddressRegistry,
-      entity: mqEntities,
-      protocol: mqProtocols,
-      role: mqKvRoleDict,
-      category: mqCategoryDict,
+      registry: mqRegistryAddressLabels,
+      entity: mqDictEntities,
+      protocol: mqDictProtocols,
+      role: mqDictRoles,
+      category: mqDictCategories,
     })
-    .from(mqAddressRegistry)
-    .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
-    .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
-    .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-    .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId))
+    .from(mqRegistryAddressLabels)
+    .leftJoin(mqDictEntities, eq(mqRegistryAddressLabels.entityId, mqDictEntities.id))
+    .leftJoin(mqDictProtocols, eq(mqRegistryAddressLabels.protocolId, mqDictProtocols.id))
+    .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+        .leftJoin(mqDictCategories, eq(mqDictCategories.categoryId, sql<number>`coalesce(${mqRegistryAddressLabels.categoryId}, ${mqDictRoles.categoryId})`))
     .where(
       and(
-        eq(mqAddressRegistry.chainCode, chainCode),
-        eq(mqAddressRegistry.normalizedAddress, normalizedAddress),
+        eq(mqRegistryAddressLabels.chainCode, chainCode),
+        eq(mqRegistryAddressLabels.normalizedAddress, normalizedAddress),
         ...activeConditions,
         ...blockConditions,
       ),
     )
-    .orderBy(desc(mqAddressRegistry.createdAt))
+    .orderBy(desc(mqRegistryAddressLabels.createdAt))
     .limit(1);
 
   if (!label) {
@@ -89,9 +89,9 @@ async function findRegistryLabel(chainCode: string, normalizedAddress: string, b
 
   const [sourceBatch, evidence] = await Promise.all([
     label.registry.approvedBatchId
-      ? db.select().from(mqLabelBatches).where(eq(mqLabelBatches.id, label.registry.approvedBatchId)).limit(1)
+      ? db.select().from(mqWorkflowLabelBatches).where(eq(mqWorkflowLabelBatches.id, label.registry.approvedBatchId)).limit(1)
       : Promise.resolve([]),
-    db.select().from(mqAddressEvidence).where(eq(mqAddressEvidence.registryId, label.registry.id)).orderBy(desc(mqAddressEvidence.createdAt)).limit(25),
+    db.select().from(mqWorkflowAddressEvidence).where(eq(mqWorkflowAddressEvidence.registryId, label.registry.id)).orderBy(desc(mqWorkflowAddressEvidence.createdAt)).limit(25),
   ]);
 
   const status = label.registry.isActive
@@ -155,8 +155,8 @@ class PostgresAddressResolverImpl implements AddressResolver {
     const db = getDb();
     const [group] = await db
       .select()
-      .from(mqMetricGroups)
-      .where(and(eq(mqMetricGroups.metricGroupCode, metricGroupCode), eq(mqMetricGroups.isActive, true)))
+      .from(mqDictMetricGroups)
+      .where(and(eq(mqDictMetricGroups.metricGroupCode, metricGroupCode), eq(mqDictMetricGroups.isActive, true)))
       .limit(1);
     if (!group) {
       return { ...resolved, metricGroupMatch: false, metricGroupCode };
@@ -166,7 +166,7 @@ class PostgresAddressResolverImpl implements AddressResolver {
       return { ...resolved, metricGroupMatch: false, metricGroupCode };
     }
 
-    const rules = await db.select().from(mqMetricGroupRules).where(eq(mqMetricGroupRules.metricGroupId, group.id));
+    const rules = await db.select().from(mqPolicyMetricGroupRules).where(eq(mqPolicyMetricGroupRules.metricGroupId, group.id));
     const row = {
       roleCode: resolved.label.role?.roleCode,
       categoryCode: resolved.label.category?.categoryCode,

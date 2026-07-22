@@ -19,7 +19,7 @@ describe("audit timeline export API payloads", () => {
           source: "system",
           action: "source_job_archived",
           actor: "reviewer@mamakquant.local",
-          target: "mq_source_jobs:12",
+          target: "mq_workflow_source_jobs:12",
           reason: "sourceJob: 12",
           createdAt: laterAt,
         },
@@ -57,7 +57,7 @@ describe("audit timeline export API payloads", () => {
           id: 9,
           actorId: "00000000-0000-0000-0000-000000000001",
           action: "source_job_archived",
-          targetTable: "mq_source_jobs",
+          targetTable: "mq_workflow_source_jobs",
           targetId: "12",
           payload: {
             sourceJob: {
@@ -94,7 +94,7 @@ describe("audit timeline export API payloads", () => {
           source: "system",
           id: 9,
           targetIds: {
-            targetTable: "mq_source_jobs",
+            targetTable: "mq_workflow_source_jobs",
             targetId: "12",
           },
           payloadSummary: {
@@ -149,7 +149,7 @@ describe("audit timeline export API payloads", () => {
           source: "system",
           action: "raw_payload_audited",
           actor: "system",
-          target: "mq_source_documents:5",
+          target: "mq_workflow_source_documents:5",
           reason: "2 payload keys",
           createdAt,
         },
@@ -160,7 +160,7 @@ describe("audit timeline export API payloads", () => {
           id: 10,
           actorId: null,
           action: "raw_payload_audited",
-          targetTable: "mq_source_documents",
+          targetTable: "mq_workflow_source_documents",
           targetId: "5",
           payload: {
             extractedText: "do not export this text",

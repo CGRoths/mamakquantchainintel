@@ -41,11 +41,20 @@ function formatCount(value: number) {
   return value.toLocaleString("en-US");
 }
 
-export type BulkApprovalSelectionGroup = { label: string; candidateIds: readonly number[]; eligibleCount: number; blockedCount: number };
+export type BulkApprovalSelectionGroup = {
+  label: string;
+  sourceJobId: number;
+  sourceSheet: string | null;
+  candidateCount: number;
+  eligibleCount: number;
+  blockedCount: number;
+};
 
 export function BulkApprovalPanel({ rows, selectionGroups = [] }: { rows: BulkApprovalRow[]; selectionGroups?: readonly BulkApprovalSelectionGroup[] }) {
   const router = useRouter();
   const [rawSelected, setRawSelected] = useState<number[]>([]);
+  const [serverScope, setServerScope] = useState<{ selectionType: "source_sheet" | "source_job"; sourceJobId: number; sourceSheet: string | null } | null>(null);
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [mode, setMode] = useState<BulkApprovalMode>("eligible_only");
   const [reason, setReason] = useState("");
   // The confirmation is armed for one exact selection+mode; any change to
@@ -73,8 +82,10 @@ export function BulkApprovalPanel({ rows, selectionGroups = [] }: { rows: BulkAp
   );
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const selectionKey = useMemo(
-    () => `${mode}:${[...selected].sort((left, right) => left - right).join(",")}`,
-    [mode, selected],
+    () => serverScope
+      ? `${mode}:${serverScope.selectionType}:${serverScope.sourceJobId}:${serverScope.sourceSheet ?? ""}`
+      : `${mode}:explicit_ids:${[...selected].sort((left, right) => left - right).join(",")}`,
+    [mode, selected, serverScope],
   );
   const confirming = armedKey === selectionKey;
 
@@ -88,14 +99,19 @@ export function BulkApprovalPanel({ rows, selectionGroups = [] }: { rows: BulkAp
   const previewMatchesSelection = useMemo(() => {
     if (!preview) return false;
     if (preview.mode !== mode) return false;
+    if (serverScope) {
+      return preview.selectionType === serverScope.selectionType && preview.sourceJobId === serverScope.sourceJobId && preview.sourceSheet === serverScope.sourceSheet;
+    }
     const sortedSelection = [...selected].sort((left, right) => left - right);
     return (
+      preview.selectionType === "explicit_ids" &&
       preview.candidateIds.length === sortedSelection.length &&
       preview.candidateIds.every((value, index) => value === sortedSelection[index])
     );
-  }, [preview, selected, mode]);
+  }, [preview, selected, mode, serverScope]);
 
   function toggleRow(candidateId: number) {
+    setServerScope(null);
     setRawSelected((current) =>
       current.includes(candidateId) ? current.filter((value) => value !== candidateId) : [...current, candidateId],
     );
@@ -123,21 +139,21 @@ export function BulkApprovalPanel({ rows, selectionGroups = [] }: { rows: BulkAp
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setRawSelected(allPageSelected ? [] : allPageIds)}
+            onClick={() => { setServerScope(null); setRawSelected(allPageSelected ? [] : allPageIds); }}
             disabled={!rows.length}
           >
             {allPageSelected ? "Clear current page" : "Select current page"}
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => setRawSelected([])} disabled={!selected.length}>
+          <Button type="button" variant="outline" size="sm" onClick={() => { setRawSelected([]); setServerScope(null); }} disabled={!selected.length && !serverScope}>
             Clear selection
           </Button>
-          <span className="font-mono text-sm">Selected: {formatCount(selected.length)}</span>
+          <span className="font-mono text-sm">{serverScope ? `Server scope: ${serverScope.sourceSheet ?? "entire source job"}` : `Selected: ${formatCount(selected.length)}`}</span>
         </div>
         {selectionGroups.length ? (
           <div className="flex flex-wrap gap-2">
             {selectionGroups.map(group => (
-              <Button key={group.label} type="button" variant="outline" size="sm" onClick={() => setRawSelected([...group.candidateIds])} disabled={!group.candidateIds.length || group.candidateIds.length > 10_000}>
-                Select all {group.label} ({formatCount(group.candidateIds.length)})
+              <Button key={`${group.sourceJobId}:${group.sourceSheet ?? "job"}`} type="button" variant="outline" size="sm" onClick={() => { setRawSelected([]); setServerScope({ selectionType: group.sourceSheet ? "source_sheet" : "source_job", sourceJobId: group.sourceJobId, sourceSheet: group.sourceSheet }); }} disabled={!group.candidateCount || group.candidateCount > 10_000}>
+                Preview all eligible in {group.label} ({formatCount(group.candidateCount)})
               </Button>
             ))}
           </div>
@@ -230,11 +246,14 @@ export function BulkApprovalPanel({ rows, selectionGroups = [] }: { rows: BulkAp
         </fieldset>
 
         <form action={previewAction} className="flex items-end gap-3">
-          {selected.map((candidateId) => (
+          {!serverScope ? selected.map((candidateId) => (
             <input key={candidateId} type="hidden" name="candidateId" value={candidateId} />
-          ))}
+          )) : null}
+          <input type="hidden" name="selectionType" value={serverScope?.selectionType ?? "explicit_ids"} />
+          {serverScope ? <input type="hidden" name="sourceJobId" value={serverScope.sourceJobId} /> : null}
+          {serverScope?.sourceSheet ? <input type="hidden" name="sourceSheet" value={serverScope.sourceSheet} /> : null}
           <input type="hidden" name="mode" value={mode} />
-          <Button type="submit" variant="outline" disabled={!selected.length || previewPending}>
+          <Button type="submit" variant="outline" disabled={(!selected.length && !serverScope) || previewPending}>
             {previewPending ? "Previewing..." : "Preview"}
           </Button>
         </form>
@@ -295,12 +314,18 @@ export function BulkApprovalPanel({ rows, selectionGroups = [] }: { rows: BulkAp
               </Alert>
             ) : (
               <form action={executeAction} className="space-y-3">
-                {preview.candidateIds.map((candidateId) => (
+                {preview.selectionType === "explicit_ids" ? preview.candidateIds.map((candidateId) => (
                   <input key={candidateId} type="hidden" name="candidateId" value={candidateId} />
-                ))}
+                )) : null}
+                <input type="hidden" name="selectionType" value={preview.selectionType} />
+                {preview.sourceJobId ? <input type="hidden" name="sourceJobId" value={preview.sourceJobId} /> : null}
+                {preview.sourceSheet ? <input type="hidden" name="sourceSheet" value={preview.sourceSheet} /> : null}
                 <input type="hidden" name="mode" value={preview.mode} />
                 <input type="hidden" name="expectedDictionaryVersion" value={preview.dictionaryVersion} />
                 <input type="hidden" name="expectedPreviewHash" value={preview.previewHash} />
+                <input type="hidden" name="expectedCandidateSnapshotHash" value={preview.candidateSnapshotHash} />
+                <input type="hidden" name="expectedSourceVerificationSnapshotHash" value={preview.sourceVerificationSnapshotHash} />
+                <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
                 <div className="grid gap-2">
                   <Label htmlFor="bulk-approval-reason">Reason</Label>
                   <Input

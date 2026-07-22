@@ -2,12 +2,12 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressNamespaces,
-  mqAuditLog,
-  mqChainCapabilities,
-  mqChainNetworks,
-  mqDictionaryIdRanges,
-  mqNetworkChangeProposals,
+  mqDictAddressNamespaces,
+  mqAuditEvents,
+  mqPolicyChainCapabilities,
+  mqDictChainNetworks,
+  mqGovernanceDictionaryIdRanges,
+  mqGovernanceNetworkChangeProposals,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { loadAndValidateU1Catalog } from "@/lib/mqchain/catalog/u1";
@@ -36,10 +36,10 @@ function optionalNumber(values: Record<string, unknown>, key: string) {
 export async function listNetworkSupportMatrix() {
   const db = getDb();
   const [networks, capabilities, namespaces, proposals] = await Promise.all([
-    db.select().from(mqChainNetworks).orderBy(asc(mqChainNetworks.id)),
-    db.select().from(mqChainCapabilities).orderBy(asc(mqChainCapabilities.chainNetworkId)),
-    db.select().from(mqAddressNamespaces).orderBy(asc(mqAddressNamespaces.id)),
-    db.select().from(mqNetworkChangeProposals).orderBy(desc(mqNetworkChangeProposals.createdAt)).limit(100),
+    db.select().from(mqDictChainNetworks).orderBy(asc(mqDictChainNetworks.id)),
+    db.select().from(mqPolicyChainCapabilities).orderBy(asc(mqPolicyChainCapabilities.chainNetworkId)),
+    db.select().from(mqDictAddressNamespaces).orderBy(asc(mqDictAddressNamespaces.id)),
+    db.select().from(mqGovernanceNetworkChangeProposals).orderBy(desc(mqGovernanceNetworkChangeProposals.createdAt)).limit(100),
   ]);
   const capabilityByNetwork = new Map(capabilities.map(row => [row.chainNetworkId, row]));
   const namespaceCounts = new Map<number, number>();
@@ -76,7 +76,7 @@ export async function getNetworkCatalogDrift() {
   const [catalog, matrix, ranges] = await Promise.all([
     loadAndValidateU1Catalog(),
     listNetworkSupportMatrix(),
-    getDb().select().from(mqDictionaryIdRanges).orderBy(asc(mqDictionaryIdRanges.id)),
+    getDb().select().from(mqGovernanceDictionaryIdRanges).orderBy(asc(mqGovernanceDictionaryIdRanges.id)),
   ]);
   const drift: NetworkCatalogDrift[] = [];
   const databaseById = new Map(matrix.rows.map(row => [String(row.network.id), row]));
@@ -130,14 +130,14 @@ export async function getNetworkCatalogDrift() {
 export async function createNetworkChangeProposal(input: unknown) {
   const actor = await assertPermission("network:propose");
   const parsed = networkChangeProposalSchema.parse(input);
-  const [proposal] = await getDb().insert(mqNetworkChangeProposals).values({
+  const [proposal] = await getDb().insert(mqGovernanceNetworkChangeProposals).values({
     changeType: parsed.changeType,
     networkId: parsed.networkId ?? null,
     proposedValues: parsed.proposedValues,
     reason: parsed.reason,
     requestedBy: actor.id,
   }).returning();
-  await getDb().insert(mqAuditLog).values({ actorId: actor.id, action: "network_change_proposed", targetTable: "mq_network_change_proposals", targetId: String(proposal.id), payload: { proposal } });
+  await getDb().insert(mqAuditEvents).values({ actorId: actor.id, action: "network_change_proposed", targetTable: "mq_governance_network_change_proposals", targetId: String(proposal.id), payload: { proposal } });
   return proposal;
 }
 
@@ -146,26 +146,26 @@ export async function reviewNetworkChangeProposal(input: unknown) {
   const parsed = networkChangeReviewSchema.parse(input);
   const db = getDb();
   return db.transaction(async tx => {
-    const [proposal] = await tx.select().from(mqNetworkChangeProposals).where(eq(mqNetworkChangeProposals.id, parsed.proposalId)).limit(1);
+    const [proposal] = await tx.select().from(mqGovernanceNetworkChangeProposals).where(eq(mqGovernanceNetworkChangeProposals.id, parsed.proposalId)).limit(1);
     if (!proposal) throw new Error("Network change proposal not found.");
     if (parsed.action === "approve" || parsed.action === "reject") {
       if (proposal.status !== "pending") throw new Error("Only pending proposals can be reviewed.");
       const status = parsed.action === "approve" ? "approved" : "rejected";
-      const [reviewed] = await tx.update(mqNetworkChangeProposals).set({ status, reviewedBy: actor.id, reviewNotes: parsed.reviewNotes || null, reviewedAt: new Date() }).where(eq(mqNetworkChangeProposals.id, proposal.id)).returning();
-      await tx.insert(mqAuditLog).values({ actorId: actor.id, action: `network_change_${status}`, targetTable: "mq_network_change_proposals", targetId: String(proposal.id), payload: { before: proposal, after: reviewed } });
+      const [reviewed] = await tx.update(mqGovernanceNetworkChangeProposals).set({ status, reviewedBy: actor.id, reviewNotes: parsed.reviewNotes || null, reviewedAt: new Date() }).where(eq(mqGovernanceNetworkChangeProposals.id, proposal.id)).returning();
+      await tx.insert(mqAuditEvents).values({ actorId: actor.id, action: `network_change_${status}`, targetTable: "mq_governance_network_change_proposals", targetId: String(proposal.id), payload: { before: proposal, after: reviewed } });
       return reviewed;
     }
     if (proposal.status !== "approved") throw new Error("Only approved proposals can be applied.");
     const values = proposal.proposedValues;
     let networkId = proposal.networkId;
     if (proposal.changeType === "create") {
-      const [range] = await tx.select().from(mqDictionaryIdRanges).where(eq(mqDictionaryIdRanges.rangeCode, "u1_networks")).limit(1);
+      const [range] = await tx.select().from(mqGovernanceDictionaryIdRanges).where(eq(mqGovernanceDictionaryIdRanges.rangeCode, "u1_networks")).limit(1);
       if (!range) throw new Error("Network allocation range is missing.");
       networkId = range.nextId;
       if (networkId > MAX_STABLE_DICTIONARY_ID) throw new Error("dictionary_id_range_exhausted:network");
       const networkCode = requiredString(values, "networkCode");
       if (!/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(networkCode)) throw new Error("networkCode must be lowercase snake_case.");
-      await tx.insert(mqChainNetworks).values({
+      await tx.insert(mqDictChainNetworks).values({
         id: networkId,
         networkCode,
         networkName: requiredString(values, "networkName"),
@@ -178,19 +178,19 @@ export async function reviewNetworkChangeProposal(input: unknown) {
         notes: optionalString(values, "notes"),
         isActive: false,
       });
-      await tx.insert(mqChainCapabilities).values({ chainNetworkId: networkId, catalogState: "catalogued", labelReadiness: "not_ready", runtimeReadiness: "not_ready", catalogStatus: "catalogued", normalizerStatus: "planned", mqnodeParserStatus: "unsupported", assetResolverStatus: "planned", currentLabelStatus: "planned", timelineStatus: "planned", metricStatus: "unsupported" });
-      await tx.update(mqDictionaryIdRanges).set({ nextId: networkId + 1, updatedAt: new Date() }).where(eq(mqDictionaryIdRanges.id, range.id));
+      await tx.insert(mqPolicyChainCapabilities).values({ chainNetworkId: networkId, catalogState: "catalogued", labelReadiness: "not_ready", runtimeReadiness: "not_ready", catalogStatus: "catalogued", normalizerStatus: "planned", mqnodeParserStatus: "unsupported", assetResolverStatus: "planned", currentLabelStatus: "planned", timelineStatus: "planned", metricStatus: "unsupported" });
+      await tx.update(mqGovernanceDictionaryIdRanges).set({ nextId: networkId + 1, updatedAt: new Date() }).where(eq(mqGovernanceDictionaryIdRanges.id, range.id));
     } else {
       if (!networkId) throw new Error("Proposal has no network ID.");
-      const [network] = await tx.select().from(mqChainNetworks).where(eq(mqChainNetworks.id, networkId)).limit(1);
+      const [network] = await tx.select().from(mqDictChainNetworks).where(eq(mqDictChainNetworks.id, networkId)).limit(1);
       if (!network) throw new Error("Network not found.");
       if (proposal.changeType === "activate") {
         await tx.execute(sql`select set_config('mqchain.network_change_proposal_id', ${String(proposal.id)}, true)`);
-        await tx.update(mqChainNetworks).set({ isActive: true, updatedAt: new Date() }).where(eq(mqChainNetworks.id, networkId));
+        await tx.update(mqDictChainNetworks).set({ isActive: true, updatedAt: new Date() }).where(eq(mqDictChainNetworks.id, networkId));
       } else if (proposal.changeType === "deactivate") {
-        await tx.update(mqChainNetworks).set({ isActive: false, updatedAt: new Date() }).where(eq(mqChainNetworks.id, networkId));
+        await tx.update(mqDictChainNetworks).set({ isActive: false, updatedAt: new Date() }).where(eq(mqDictChainNetworks.id, networkId));
       } else if (proposal.changeType === "update") {
-        await tx.update(mqChainNetworks).set({
+        await tx.update(mqDictChainNetworks).set({
           networkName: optionalString(values, "networkName") ?? network.networkName,
           caip2: Object.hasOwn(values, "caip2") ? optionalString(values, "caip2") : network.caip2,
           evmChainId: Object.hasOwn(values, "evmChainId") ? optionalNumber(values, "evmChainId") : network.evmChainId,
@@ -198,15 +198,15 @@ export async function reviewNetworkChangeProposal(input: unknown) {
           sourceId: Object.hasOwn(values, "sourceId") ? optionalNumber(values, "sourceId") : network.sourceId,
           notes: Object.hasOwn(values, "notes") ? optionalString(values, "notes") : network.notes,
           updatedAt: new Date(),
-        }).where(eq(mqChainNetworks.id, networkId));
+        }).where(eq(mqDictChainNetworks.id, networkId));
       } else if (proposal.changeType === "capability_update") {
         const allowed = ["supportTier", "catalogState", "labelReadiness", "runtimeReadiness", "catalogStatus", "normalizerStatus", "mqnodeParserStatus", "assetResolverStatus", "currentLabelStatus", "timelineStatus", "metricStatus", "mqnodeIntegrationTestRef", "metricIntegrationTestRef", "notes"] as const;
         const updates = Object.fromEntries(allowed.filter(key => Object.hasOwn(values, key)).map(key => [key, values[key]]));
-        await tx.update(mqChainCapabilities).set({ ...updates, updatedAt: new Date() }).where(eq(mqChainCapabilities.chainNetworkId, networkId));
+        await tx.update(mqPolicyChainCapabilities).set({ ...updates, updatedAt: new Date() }).where(eq(mqPolicyChainCapabilities.chainNetworkId, networkId));
       }
     }
-    const [applied] = await tx.update(mqNetworkChangeProposals).set({ networkId, status: "applied", reviewedBy: proposal.reviewedBy ?? actor.id, appliedAt: new Date() }).where(eq(mqNetworkChangeProposals.id, proposal.id)).returning();
-    await tx.insert(mqAuditLog).values({ actorId: actor.id, action: "network_change_applied", targetTable: "mq_network_change_proposals", targetId: String(proposal.id), payload: { proposal: applied } });
+    const [applied] = await tx.update(mqGovernanceNetworkChangeProposals).set({ networkId, status: "applied", reviewedBy: proposal.reviewedBy ?? actor.id, appliedAt: new Date() }).where(eq(mqGovernanceNetworkChangeProposals.id, proposal.id)).returning();
+    await tx.insert(mqAuditEvents).values({ actorId: actor.id, action: "network_change_applied", targetTable: "mq_governance_network_change_proposals", targetId: String(proposal.id), payload: { proposal: applied } });
     return applied;
   });
 }

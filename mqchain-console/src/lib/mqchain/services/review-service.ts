@@ -1,7 +1,7 @@
 import { count, desc, eq, inArray } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
-import { mqAddressCandidates, mqAddressEvidence, mqSourceVerifications } from "@/db/schema";
+import { mqWorkflowAddressCandidates, mqWorkflowAddressEvidence, mqWorkflowSourceVerifications } from "@/db/schema";
 import { buildCandidateSourceVerificationContext } from "../candidate-detail";
 import { parseReviewGroupListFilters, parseReviewQueueListFilters, type ReviewQueueListFilters } from "../list-filters";
 import {
@@ -16,17 +16,17 @@ import { listCandidatesFromDatabase as listCandidates } from "./candidate-servic
 type CandidateListRow = Awaited<ReturnType<typeof listCandidates>>["rows"][number];
 
 type ReviewQueueRow = CandidateListRow & {
-  latestEvidence: typeof mqAddressEvidence.$inferSelect | null;
+  latestEvidence: typeof mqWorkflowAddressEvidence.$inferSelect | null;
   sourceVerificationContext: ReturnType<typeof buildCandidateSourceVerificationContext>;
 };
 
 async function getReviewCounts() {
   const db = getDb();
   const [pending, needsMoreEvidence, conflicts, approvedReady] = await Promise.all([
-    db.select({ value: count() }).from(mqAddressCandidates).where(eq(mqAddressCandidates.candidateStatus, "pending_review")),
-    db.select({ value: count() }).from(mqAddressCandidates).where(eq(mqAddressCandidates.candidateStatus, "needs_more_evidence")),
-    db.select({ value: count() }).from(mqAddressCandidates).where(eq(mqAddressCandidates.candidateStatus, "conflict_pending")),
-    db.select({ value: count() }).from(mqAddressCandidates).where(eq(mqAddressCandidates.candidateStatus, "approved")),
+    db.select({ value: count() }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.candidateStatus, "pending_review")),
+    db.select({ value: count() }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.candidateStatus, "needs_more_evidence")),
+    db.select({ value: count() }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.candidateStatus, "conflict_pending")),
+    db.select({ value: count() }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.candidateStatus, "approved")),
   ]);
 
   return {
@@ -45,11 +45,11 @@ async function attachLatestEvidence(rows: CandidateListRow[]): Promise<ReviewQue
 
   const evidenceRows = await getDb()
     .select()
-    .from(mqAddressEvidence)
-    .where(inArray(mqAddressEvidence.candidateId, candidateIds))
-    .orderBy(desc(mqAddressEvidence.createdAt));
+    .from(mqWorkflowAddressEvidence)
+    .where(inArray(mqWorkflowAddressEvidence.candidateId, candidateIds))
+    .orderBy(desc(mqWorkflowAddressEvidence.createdAt));
 
-  const latestEvidenceByCandidate = new Map<number, typeof mqAddressEvidence.$inferSelect>();
+  const latestEvidenceByCandidate = new Map<number, typeof mqWorkflowAddressEvidence.$inferSelect>();
   for (const evidence of evidenceRows) {
     if (evidence.candidateId && !latestEvidenceByCandidate.has(evidence.candidateId)) {
       latestEvidenceByCandidate.set(evidence.candidateId, evidence);
@@ -62,14 +62,14 @@ async function attachLatestEvidence(rows: CandidateListRow[]): Promise<ReviewQue
   const sourceDocumentIds = Array.from(
     new Set(rows.map((row) => row.candidate.sourceDocumentId).filter((id): id is number => typeof id === "number")),
   );
-  const verificationRowsById = new Map<number, typeof mqSourceVerifications.$inferSelect>();
+  const verificationRowsById = new Map<number, typeof mqWorkflowSourceVerifications.$inferSelect>();
   const verificationQueries = [
-    getDb().select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.candidateId, candidateIds)),
+    getDb().select().from(mqWorkflowSourceVerifications).where(inArray(mqWorkflowSourceVerifications.candidateId, candidateIds)),
     sourceJobIds.length
-      ? getDb().select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceJobId, sourceJobIds))
+      ? getDb().select().from(mqWorkflowSourceVerifications).where(inArray(mqWorkflowSourceVerifications.sourceJobId, sourceJobIds))
       : Promise.resolve([]),
     sourceDocumentIds.length
-      ? getDb().select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceDocumentId, sourceDocumentIds))
+      ? getDb().select().from(mqWorkflowSourceVerifications).where(inArray(mqWorkflowSourceVerifications.sourceDocumentId, sourceDocumentIds))
       : Promise.resolve([]),
   ];
   for (const verifications of await Promise.all(verificationQueries)) {

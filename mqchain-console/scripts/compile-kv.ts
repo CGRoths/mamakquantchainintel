@@ -5,18 +5,18 @@ import { and, eq } from "drizzle-orm";
 
 import { closeDb, getDb } from "../src/db/client";
 import {
-  mqAddressRegistry,
-  mqAssetNamespaces,
-  mqCategoryDict,
-  mqEntities,
-  mqKvBuilds,
-  mqKvFilterManifests,
-  mqKvIndexManifests,
-  mqKvRoleDict,
-  mqMetricGroupRules,
-  mqMetricGroups,
-  mqProtocols,
-  mqTokenContracts,
+  mqRegistryAddressLabels,
+  mqRegistryAssetNamespaces,
+  mqDictCategories,
+  mqDictEntities,
+  mqBuildKvBuilds,
+  mqBuildFilterManifests,
+  mqBuildIndexManifests,
+  mqDictRoles,
+  mqPolicyMetricGroupRules,
+  mqDictMetricGroups,
+  mqDictProtocols,
+  mqRegistryTokenContracts,
 } from "../src/db/schema";
 import { extractKvIndexManifestRecords } from "../src/lib/mqchain/kv-manifest";
 import { loadAndValidateU1Catalog } from "../src/lib/mqchain/catalog/u1";
@@ -83,21 +83,21 @@ async function main() {
   const [rows, metricGroups, metricGroupRules, nativeAssets, tokenContracts] = await Promise.all([
     db
       .select({
-        registry: mqAddressRegistry,
-        entity: mqEntities,
-        protocol: mqProtocols,
-        role: mqKvRoleDict,
-        category: mqCategoryDict,
+        registry: mqRegistryAddressLabels,
+        entity: mqDictEntities,
+        protocol: mqDictProtocols,
+        role: mqDictRoles,
+        category: mqDictCategories,
       })
-      .from(mqAddressRegistry)
-      .innerJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
-      .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
-      .innerJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-      .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId)),
-    db.select().from(mqMetricGroups).where(eq(mqMetricGroups.isActive, true)),
-    db.select().from(mqMetricGroupRules).where(eq(mqMetricGroupRules.status, "active")),
-    db.select().from(mqAssetNamespaces).where(eq(mqAssetNamespaces.status, "active")),
-    db.select().from(mqTokenContracts).where(eq(mqTokenContracts.status, "active")),
+      .from(mqRegistryAddressLabels)
+      .innerJoin(mqDictEntities, eq(mqRegistryAddressLabels.entityId, mqDictEntities.id))
+      .leftJoin(mqDictProtocols, eq(mqRegistryAddressLabels.protocolId, mqDictProtocols.id))
+      .innerJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+      .leftJoin(mqDictCategories, eq(mqDictRoles.categoryId, mqDictCategories.categoryId)),
+    db.select().from(mqDictMetricGroups).where(eq(mqDictMetricGroups.isActive, true)),
+    db.select().from(mqPolicyMetricGroupRules).where(eq(mqPolicyMetricGroupRules.status, "active")),
+    db.select().from(mqRegistryAssetNamespaces).where(eq(mqRegistryAssetNamespaces.status, "active")),
+    db.select().from(mqRegistryTokenContracts).where(eq(mqRegistryTokenContracts.status, "active")),
   ]);
 
   const groups = metricGroups.map((group) => ({
@@ -395,7 +395,7 @@ async function main() {
     dictionaryVersion,
     rowCount: totalKeys,
     generatedAt: new Date().toISOString(),
-    source: "postgres:mq_address_registry:approved_batch_committed",
+    source: "postgres:mq_registry_address_labels:approved_batch_committed",
     sourceContract,
     artifactType: "u1-jsonl-kv-preview-with-cuckoo",
     buildKind: "base",
@@ -475,7 +475,7 @@ async function main() {
   ].join("\n"), "utf8");
 
   const [build] = await db
-    .insert(mqKvBuilds)
+    .insert(mqBuildKvBuilds)
     .values({
       buildHash,
       dictionaryVersion,
@@ -487,7 +487,7 @@ async function main() {
       manifest,
     })
     .onConflictDoUpdate({
-      target: mqKvBuilds.buildHash,
+      target: mqBuildKvBuilds.buildHash,
       set: {
         status: "compiled",
         dictionaryVersion,
@@ -505,7 +505,7 @@ async function main() {
   for (const record of indexRecords) {
     const artifact = u1Artifacts.find(item => item.indexName === record.indexName)!;
     const [indexManifest] = await db
-      .insert(mqKvIndexManifests)
+      .insert(mqBuildIndexManifests)
       .values({
         buildId: build.id,
         indexName: record.indexName,
@@ -521,7 +521,7 @@ async function main() {
         metadata: record.metadata,
       })
       .onConflictDoUpdate({
-        target: [mqKvIndexManifests.buildId, mqKvIndexManifests.indexName],
+        target: [mqBuildIndexManifests.buildId, mqBuildIndexManifests.indexName],
         set: {
           dictionaryVersion,
           status: "compiled",
@@ -535,7 +535,7 @@ async function main() {
           metadata: record.metadata,
         },
       })
-      .returning({ id: mqKvIndexManifests.id });
+      .returning({ id: mqBuildIndexManifests.id });
     indexManifestIdByName.set(record.indexName, indexManifest.id);
   }
 
@@ -560,14 +560,14 @@ async function main() {
       },
     };
     const [existing] = await db
-      .select({ id: mqKvFilterManifests.id })
-      .from(mqKvFilterManifests)
-      .where(and(eq(mqKvFilterManifests.buildId, build.id), eq(mqKvFilterManifests.indexName, artifact.indexName)))
+      .select({ id: mqBuildFilterManifests.id })
+      .from(mqBuildFilterManifests)
+      .where(and(eq(mqBuildFilterManifests.buildId, build.id), eq(mqBuildFilterManifests.indexName, artifact.indexName)))
       .limit(1);
     if (existing) {
-      await db.update(mqKvFilterManifests).set(values).where(eq(mqKvFilterManifests.id, existing.id));
+      await db.update(mqBuildFilterManifests).set(values).where(eq(mqBuildFilterManifests.id, existing.id));
     } else {
-      await db.insert(mqKvFilterManifests).values({ buildId: build.id, indexName: artifact.indexName, ...values });
+      await db.insert(mqBuildFilterManifests).values({ buildId: build.id, indexName: artifact.indexName, ...values });
     }
   }
 

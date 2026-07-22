@@ -2,13 +2,13 @@ import { asc, desc, eq, inArray } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressRegistry,
-  mqAuditLog,
-  mqKvBuilds,
-  mqKvCompiledEntries,
-  mqKvIndexManifests,
-  mqKvRoleDict,
-  mqKvValidationRuns,
+  mqRegistryAddressLabels,
+  mqAuditEvents,
+  mqBuildKvBuilds,
+  mqBuildCompiledEntries,
+  mqBuildIndexManifests,
+  mqDictRoles,
+  mqBuildValidationRuns,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 
@@ -53,11 +53,11 @@ function artifactDirectory(input: unknown) {
 
 async function loadCanonicalRecords(tx: Tx, registryIds: readonly number[], snapshot: Awaited<ReturnType<typeof loadFullKvCompilationSnapshot>>) {
   const rows = registryIds.length ? await tx
-    .select({ registry: mqAddressRegistry, resolvedCategoryId: mqKvRoleDict.categoryId })
-    .from(mqAddressRegistry)
-    .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-    .where(inArray(mqAddressRegistry.id, [...registryIds]))
-    .orderBy(asc(mqAddressRegistry.id)) : [];
+    .select({ registry: mqRegistryAddressLabels, resolvedCategoryId: mqDictRoles.categoryId })
+    .from(mqRegistryAddressLabels)
+    .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+    .where(inArray(mqRegistryAddressLabels.id, [...registryIds]))
+    .orderBy(asc(mqRegistryAddressLabels.id)) : [];
   return compileU1RecordStream({
     rows: rows.map(row => ({ ...row.registry, resolvedCategoryId: row.resolvedCategoryId })),
     currentRegistryIds: snapshot.currentRegistryIds,
@@ -130,8 +130,10 @@ export function buildThreeWayParityReport(input: {
 }
 
 async function insertCompiledEntries(tx: Tx, buildId: number, records: readonly CompiledU1Record[]) {
-  for (let offset = 0; offset < records.length; offset += 500) {
-    await tx.insert(mqKvCompiledEntries).values(records.slice(offset, offset + 500).map(record => ({ ...record, buildId })));
+  const chunkSize = Number(process.env.MQCHAIN_COMPILED_ENTRY_CHUNK_SIZE ?? 500);
+  if (!Number.isSafeInteger(chunkSize) || chunkSize < 1 || chunkSize > 5_000) throw new Error("compiled_entry_chunk_size_invalid");
+  for (let offset = 0; offset < records.length; offset += chunkSize) {
+    await tx.insert(mqBuildCompiledEntries).values(records.slice(offset, offset + chunkSize).map(record => ({ ...record, buildId })));
   }
 }
 
@@ -153,14 +155,14 @@ function totals(report: ReturnType<typeof buildThreeWayParityReport>) {
 }
 
 export async function runCompiledArtifactParity(input: unknown) {
-  const actor = await assertPermission("batch:commit");
+  const actor = await assertPermission("kv:register");
   const directory = artifactDirectory(input);
   const artifact = await verifyCompiledArtifactPackage(directory).catch(error => {
     throw new CompiledArtifactError(409, "artifact_verification_failed", error instanceof Error ? error.message : "Artifact verification failed.");
   });
   const db = getDb();
   return db.transaction(async tx => {
-    const [requestBuild] = await tx.select().from(mqKvBuilds).where(eq(mqKvBuilds.id, artifact.manifest.compileRequestBuildId)).limit(1).for("update");
+    const [requestBuild] = await tx.select().from(mqBuildKvBuilds).where(eq(mqBuildKvBuilds.id, artifact.manifest.compileRequestBuildId)).limit(1).for("update");
     if (!requestBuild) throw new CompiledArtifactError(404, "compile_request_not_found", "Compile request was not found.");
     const request = requireFullRequest(requestBuild);
     const requestHash = computeFullKvBuildRequestHash(request as never);
@@ -174,9 +176,9 @@ export async function runCompiledArtifactParity(input: unknown) {
     if (expectedArtifactHash !== artifact.manifest.artifactHash || snapshot.dictionaryVersion !== artifact.manifest.dictionaryVersion || snapshot.registrySnapshotHash !== artifact.manifest.registrySnapshotHash) {
       throw new CompiledArtifactError(409, "artifact_snapshot_mismatch", "Artifact lineage does not match the canonical snapshot.");
     }
-    let [build] = await tx.select().from(mqKvBuilds).where(eq(mqKvBuilds.buildHash, artifact.manifest.artifactHash)).limit(1).for("update");
+    let [build] = await tx.select().from(mqBuildKvBuilds).where(eq(mqBuildKvBuilds.buildHash, artifact.manifest.artifactHash)).limit(1).for("update");
     if (!build) {
-      [build] = await tx.insert(mqKvBuilds).values({
+      [build] = await tx.insert(mqBuildKvBuilds).values({
         buildHash: artifact.manifest.artifactHash,
         dictionaryVersion: artifact.manifest.dictionaryVersion,
         buildKind: "base",
@@ -191,10 +193,10 @@ export async function runCompiledArtifactParity(input: unknown) {
     }
     if (build.compileRequestBuildId !== requestBuild.id) throw new CompiledArtifactError(409, "compiled_build_lineage_mismatch", "Compiled build belongs to another request.");
     if (build.status === "pending") {
-      await tx.delete(mqKvCompiledEntries).where(eq(mqKvCompiledEntries.buildId, build.id));
+      await tx.delete(mqBuildCompiledEntries).where(eq(mqBuildCompiledEntries.buildId, build.id));
       await insertCompiledEntries(tx, build.id, artifact.records);
     }
-    const postgresRows = await tx.select().from(mqKvCompiledEntries).where(eq(mqKvCompiledEntries.buildId, build.id)).orderBy(asc(mqKvCompiledEntries.indexName), asc(mqKvCompiledEntries.ordinal));
+    const postgresRows = await tx.select().from(mqBuildCompiledEntries).where(eq(mqBuildCompiledEntries.buildId, build.id)).orderBy(asc(mqBuildCompiledEntries.indexName), asc(mqBuildCompiledEntries.ordinal));
     const postgres = postgresRows.map(row => ({ ...row, indexName: row.indexName as CompiledIndexName }));
     const report = buildThreeWayParityReport({
       buildId: build.id,
@@ -207,7 +209,7 @@ export async function runCompiledArtifactParity(input: unknown) {
     });
     const reportHash = hashJson(report);
     const countTotals = totals(report);
-    const [validation] = await tx.insert(mqKvValidationRuns).values({
+    const [validation] = await tx.insert(mqBuildValidationRuns).values({
       buildId: build.id,
       compileRequestBuildId: requestBuild.id,
       validationType: "three_way_u1_parity",
@@ -220,40 +222,40 @@ export async function runCompiledArtifactParity(input: unknown) {
       completedAt: new Date(),
     }).returning();
     if (build.status === "pending") {
-      [build] = await tx.update(mqKvBuilds).set({
+      [build] = await tx.update(mqBuildKvBuilds).set({
         storageUri: artifact.manifest.storageUri,
         manifest: {
           ...artifact.manifest,
           artifactStatus: report.passed ? "parity_passed" : "parity_failed",
-          postgresCompiledReference: { table: "mq_kv_compiled_entries", buildId: build.id, rowCount: postgres.length },
+          postgresCompiledReference: { table: "mq_build_compiled_entries", buildId: build.id, rowCount: postgres.length },
           validation: { validationRunId: validation.id, status: validation.status, reportHash },
         },
-      }).where(eq(mqKvBuilds.id, build.id)).returning();
+      }).where(eq(mqBuildKvBuilds.id, build.id)).returning();
     }
-    await tx.insert(mqAuditLog).values({ actorId: actor.id, action: "kv_compiled_artifact_parity", targetTable: "mq_kv_builds", targetId: String(build.id), payload: { compileRequestBuildId: requestBuild.id, validationRunId: validation.id, status: validation.status, reportHash } });
+    await tx.insert(mqAuditEvents).values({ actorId: actor.id, action: "kv_compiled_artifact_parity", targetTable: "mq_build_kv_builds", targetId: String(build.id), payload: { compileRequestBuildId: requestBuild.id, validationRunId: validation.id, status: validation.status, reportHash } });
     return { build, validation, report };
   }, { isolationLevel: "repeatable read" });
 }
 
 export async function registerCompiledArtifact(input: unknown) {
-  const actor = await assertPermission("batch:commit");
+  const actor = await assertPermission("kv:register");
   const directory = artifactDirectory(input);
   const artifact = await verifyCompiledArtifactPackage(directory).catch(error => {
     throw new CompiledArtifactError(409, "artifact_verification_failed", error instanceof Error ? error.message : "Artifact verification failed.");
   });
   const db = getDb();
   return db.transaction(async tx => {
-    let [build] = await tx.select().from(mqKvBuilds).where(eq(mqKvBuilds.buildHash, artifact.manifest.artifactHash)).limit(1).for("update");
+    let [build] = await tx.select().from(mqBuildKvBuilds).where(eq(mqBuildKvBuilds.buildHash, artifact.manifest.artifactHash)).limit(1).for("update");
     if (!build) throw new CompiledArtifactError(409, "artifact_parity_required", "Run three-way parity before registration.");
     if (build.status === "active" || build.status === "superseded") throw new CompiledArtifactError(409, "immutable_compiled_build", "Activated or superseded builds are immutable.");
-    const [validation] = await tx.select().from(mqKvValidationRuns).where(eq(mqKvValidationRuns.buildId, build.id)).orderBy(desc(mqKvValidationRuns.createdAt), desc(mqKvValidationRuns.id)).limit(1).for("update");
+    const [validation] = await tx.select().from(mqBuildValidationRuns).where(eq(mqBuildValidationRuns.buildId, build.id)).orderBy(desc(mqBuildValidationRuns.createdAt), desc(mqBuildValidationRuns.id)).limit(1).for("update");
     if (!validation || validation.status !== "passed" || validation.validationType !== "three_way_u1_parity") throw new CompiledArtifactError(409, "artifact_parity_required", "Latest three-way parity validation must pass before registration.");
-    const compiledRows = await tx.select({ id: mqKvCompiledEntries.id }).from(mqKvCompiledEntries).where(eq(mqKvCompiledEntries.buildId, build.id));
+    const compiledRows = await tx.select({ id: mqBuildCompiledEntries.id }).from(mqBuildCompiledEntries).where(eq(mqBuildCompiledEntries.buildId, build.id));
     if (compiledRows.length !== artifact.records.length) throw new CompiledArtifactError(409, "compiled_entry_count_mismatch", "PostgreSQL compiled-entry count does not match the artifact.");
     if (build.status === "compiled") return { build, validation, manifest: build.manifest, idempotent: true };
     for (const indexName of COMPILED_INDEX_NAMES) {
       const index = artifact.manifest.indexes[indexName];
-      await tx.insert(mqKvIndexManifests).values({
+      await tx.insert(mqBuildIndexManifests).values({
         buildId: build.id,
         indexName,
         dictionaryVersion: artifact.manifest.dictionaryVersion,
@@ -272,11 +274,11 @@ export async function registerCompiledArtifact(input: unknown) {
     const manifest = {
       ...artifact.manifest,
       artifactStatus: "compiled",
-      postgresCompiledReference: { table: "mq_kv_compiled_entries", buildId: build.id, rowCount: artifact.records.length },
+      postgresCompiledReference: { table: "mq_build_compiled_entries", buildId: build.id, rowCount: artifact.records.length },
       validation: { validationRunId: validation.id, status: validation.status, reportHash: validation.reportHash },
     };
-    [build] = await tx.update(mqKvBuilds).set({ status: "compiled", storageUri: artifact.manifest.storageUri, manifest }).where(eq(mqKvBuilds.id, build.id)).returning();
-    await tx.insert(mqAuditLog).values({ actorId: actor.id, action: "kv_compiled_artifact_registered", targetTable: "mq_kv_builds", targetId: String(build.id), payload: { compileRequestBuildId: artifact.manifest.compileRequestBuildId, validationRunId: validation.id, artifactHash: artifact.manifest.artifactHash } });
+    [build] = await tx.update(mqBuildKvBuilds).set({ status: "compiled", storageUri: artifact.manifest.storageUri, manifest }).where(eq(mqBuildKvBuilds.id, build.id)).returning();
+    await tx.insert(mqAuditEvents).values({ actorId: actor.id, action: "kv_compiled_artifact_registered", targetTable: "mq_build_kv_builds", targetId: String(build.id), payload: { compileRequestBuildId: artifact.manifest.compileRequestBuildId, validationRunId: validation.id, artifactHash: artifact.manifest.artifactHash } });
     return { build, validation, manifest, idempotent: false };
   });
 }

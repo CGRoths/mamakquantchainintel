@@ -61,7 +61,7 @@ describe("KV compiler source contract", () => {
         registryRow({ id: 4, approvedBatchId: null }),
       ]),
     ).toMatchObject({
-      sourceOfTruth: "postgres:mq_address_registry",
+      sourceOfTruth: "postgres:mq_registry_address_labels",
       postgresIsCanonicalTruth: true,
       rocksDbIsCompiledArtifactOnly: true,
       registryRowsRequireApprovedBatch: true,

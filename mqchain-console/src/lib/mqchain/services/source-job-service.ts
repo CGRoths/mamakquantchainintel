@@ -2,22 +2,22 @@ import { and, asc, desc, eq, ilike, inArray, not, or, sql, type SQL } from "driz
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressCandidates,
-  mqAddressEvidence,
-  mqAddressRegistry,
-  mqApprovalEvents,
-  mqAuditLog,
-  mqEntities,
-  mqKvRoleDict,
-  mqKvBuilds,
-  mqKvIndexManifests,
-  mqLabelBatchCandidates,
-  mqLabelBatchEvidence,
-  mqLabelBatches,
-  mqProtocols,
-  mqSourceDocuments,
-  mqSourceJobs,
-  mqSourceVerifications,
+  mqWorkflowAddressCandidates,
+  mqWorkflowAddressEvidence,
+  mqRegistryAddressLabels,
+  mqWorkflowApprovalEvents,
+  mqAuditEvents,
+  mqDictEntities,
+  mqDictRoles,
+  mqBuildKvBuilds,
+  mqBuildIndexManifests,
+  mqWorkflowLabelBatchCandidates,
+  mqWorkflowLabelBatchEvidence,
+  mqWorkflowLabelBatches,
+  mqDictProtocols,
+  mqWorkflowSourceDocuments,
+  mqWorkflowSourceJobs,
+  mqWorkflowSourceVerifications,
   mqUsers,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
@@ -35,10 +35,10 @@ import { buildSourceJobDeletionPreview, SourceJobDeletionError, type SourceJobDe
 import { isSourceJobDeleteConfirmation, sourceJobDeletionSchema, sourceJobArchiveSchema, sourceVerificationSchema } from "../validators/source-job";
 
 function sourceJobOrderBy(sort: SourceJobListFilters["sort"]) {
-  if (sort === "updated_at") return desc(mqSourceJobs.updatedAt);
-  if (sort === "source_type") return asc(mqSourceJobs.sourceType);
-  if (sort === "status") return asc(mqSourceJobs.status);
-  return desc(mqSourceJobs.createdAt);
+  if (sort === "updated_at") return desc(mqWorkflowSourceJobs.updatedAt);
+  if (sort === "source_type") return asc(mqWorkflowSourceJobs.sourceType);
+  if (sort === "status") return asc(mqWorkflowSourceJobs.status);
+  return desc(mqWorkflowSourceJobs.createdAt);
 }
 
 function addCondition(conditions: SQL[], condition: SQL | undefined) {
@@ -53,43 +53,43 @@ export async function listSourceJobs(input?: unknown) {
     addCondition(
       conditions,
       or(
-        ilike(mqSourceJobs.sourceName, `%${filters.q}%`),
-        ilike(mqSourceJobs.sourceUrl, `%${filters.q}%`),
-        ilike(mqSourceJobs.localFileName, `%${filters.q}%`),
-        ilike(mqSourceJobs.archiveStorageUri, `%${filters.q}%`),
+        ilike(mqWorkflowSourceJobs.sourceName, `%${filters.q}%`),
+        ilike(mqWorkflowSourceJobs.sourceUrl, `%${filters.q}%`),
+        ilike(mqWorkflowSourceJobs.localFileName, `%${filters.q}%`),
+        ilike(mqWorkflowSourceJobs.archiveStorageUri, `%${filters.q}%`),
       ),
     );
   }
 
   if (filters.sourceType) {
-    conditions.push(eq(mqSourceJobs.sourceType, filters.sourceType));
+    conditions.push(eq(mqWorkflowSourceJobs.sourceType, filters.sourceType));
   }
 
   if (filters.status) {
-    conditions.push(eq(mqSourceJobs.status, filters.status));
+    conditions.push(eq(mqWorkflowSourceJobs.status, filters.status));
   }
 
   if (filters.entity) {
-    conditions.push(ilike(mqSourceJobs.entityHint, `%${filters.entity}%`));
+    conditions.push(ilike(mqWorkflowSourceJobs.entityHint, `%${filters.entity}%`));
   }
 
   if (filters.protocol) {
-    conditions.push(ilike(mqSourceJobs.protocolHint, `%${filters.protocol}%`));
+    conditions.push(ilike(mqWorkflowSourceJobs.protocolHint, `%${filters.protocol}%`));
   }
 
   if (filters.chain) {
-    conditions.push(sql`${filters.chain} = any(${mqSourceJobs.chainScope})`);
+    conditions.push(sql`${filters.chain} = any(${mqWorkflowSourceJobs.chainScope})`);
   }
 
   const db = getDb();
   const where = conditions.length ? and(...conditions) : sql`true`;
   const offset = (filters.page - 1) * filters.pageSize;
-  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(mqSourceJobs).where(where);
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(mqWorkflowSourceJobs).where(where);
   const rows = await db
     .select()
-    .from(mqSourceJobs)
+    .from(mqWorkflowSourceJobs)
     .where(where)
-    .orderBy(sourceJobOrderBy(filters.sort), desc(mqSourceJobs.id))
+    .orderBy(sourceJobOrderBy(filters.sort), desc(mqWorkflowSourceJobs.id))
     .limit(filters.pageSize)
     .offset(offset);
 
@@ -119,69 +119,69 @@ function distribution(rows: Array<{ label: string | null; count: number }>) {
 export async function getSourceJob(id: number, input: unknown = {}) {
   const db = getDb();
   const pagination = normalizeSourceJobDetailPagination(input);
-  const [sourceJob] = await db.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, id)).limit(1);
+  const [sourceJob] = await db.select().from(mqWorkflowSourceJobs).where(eq(mqWorkflowSourceJobs.id, id)).limit(1);
 
   if (!sourceJob) {
     return null;
   }
 
-  const confidenceLabel = sql<string>`case when ${mqAddressCandidates.confidenceScore} >= 85 then '85-100' when ${mqAddressCandidates.confidenceScore} >= 70 then '70-84' when ${mqAddressCandidates.confidenceScore} >= 40 then '40-69' else '0-39' end`;
+  const confidenceLabel = sql<string>`case when ${mqWorkflowAddressCandidates.confidenceScore} >= 85 then '85-100' when ${mqWorkflowAddressCandidates.confidenceScore} >= 70 then '70-84' when ${mqWorkflowAddressCandidates.confidenceScore} >= 40 then '40-69' else '0-39' end`;
   const [
     documents, candidates, downstreamBatches, verifications, downstreamRegistryRows, candidateSummary,
     candidateStatuses, candidateChains, candidateConfidences, evidenceSummary, evidenceTypes, evidenceTrusts,
   ] = await Promise.all([
-    db.select().from(mqSourceDocuments).where(eq(mqSourceDocuments.sourceJobId, id)),
-    db.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.sourceJobId, id)).orderBy(desc(mqAddressCandidates.createdAt), desc(mqAddressCandidates.id)).limit(pagination.pageSize).offset((pagination.candidatePage - 1) * pagination.pageSize),
-    db.select().from(mqLabelBatches).where(eq(mqLabelBatches.sourceJobId, id)).orderBy(desc(mqLabelBatches.createdAt)),
+    db.select().from(mqWorkflowSourceDocuments).where(eq(mqWorkflowSourceDocuments.sourceJobId, id)),
+    db.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.sourceJobId, id)).orderBy(desc(mqWorkflowAddressCandidates.createdAt), desc(mqWorkflowAddressCandidates.id)).limit(pagination.pageSize).offset((pagination.candidatePage - 1) * pagination.pageSize),
+    db.select().from(mqWorkflowLabelBatches).where(eq(mqWorkflowLabelBatches.sourceJobId, id)).orderBy(desc(mqWorkflowLabelBatches.createdAt)),
     db
       .select({
-        verification: mqSourceVerifications,
+        verification: mqWorkflowSourceVerifications,
         verifierEmail: mqUsers.email,
         verifierName: mqUsers.displayName,
       })
-      .from(mqSourceVerifications)
-      .leftJoin(mqUsers, eq(mqSourceVerifications.verifiedBy, mqUsers.id))
-      .where(eq(mqSourceVerifications.sourceJobId, id))
-      .orderBy(desc(mqSourceVerifications.createdAt)),
+      .from(mqWorkflowSourceVerifications)
+      .leftJoin(mqUsers, eq(mqWorkflowSourceVerifications.verifiedBy, mqUsers.id))
+      .where(eq(mqWorkflowSourceVerifications.sourceJobId, id))
+      .orderBy(desc(mqWorkflowSourceVerifications.createdAt)),
     db
       .select({
-        registry: mqAddressRegistry,
-        entityName: mqEntities.entityName,
-        protocolName: mqProtocols.protocolName,
-        roleCode: mqKvRoleDict.roleCode,
+        registry: mqRegistryAddressLabels,
+        entityName: mqDictEntities.entityName,
+        protocolName: mqDictProtocols.protocolName,
+        roleCode: mqDictRoles.roleCode,
       })
-      .from(mqAddressRegistry)
-      .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
-      .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
-      .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-      .where(eq(mqAddressRegistry.primarySourceJobId, id))
-      .orderBy(desc(mqAddressRegistry.createdAt)),
+      .from(mqRegistryAddressLabels)
+      .leftJoin(mqDictEntities, eq(mqRegistryAddressLabels.entityId, mqDictEntities.id))
+      .leftJoin(mqDictProtocols, eq(mqRegistryAddressLabels.protocolId, mqDictProtocols.id))
+      .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+      .where(eq(mqRegistryAddressLabels.primarySourceJobId, id))
+      .orderBy(desc(mqRegistryAddressLabels.createdAt)),
     db.select({
       totalCandidates: sql<number>`count(*)::int`,
-      evidenceCount: sql<number>`coalesce(sum(${mqAddressCandidates.evidenceCount}), 0)::int`,
-      approvedCount: sql<number>`count(*) filter (where ${mqAddressCandidates.candidateStatus} = 'approved')::int`,
-      pendingCount: sql<number>`count(*) filter (where ${mqAddressCandidates.candidateStatus} = 'pending_review')::int`,
-      duplicateCount: sql<number>`count(*) filter (where ${mqAddressCandidates.candidateStatus} = 'duplicate')::int`,
-      conflictCount: sql<number>`count(*) filter (where ${mqAddressCandidates.candidateStatus} = 'conflict_pending')::int`,
-    }).from(mqAddressCandidates).where(eq(mqAddressCandidates.sourceJobId, id)),
-    db.select({ label: mqAddressCandidates.candidateStatus, count: sql<number>`count(*)::int` }).from(mqAddressCandidates).where(eq(mqAddressCandidates.sourceJobId, id)).groupBy(mqAddressCandidates.candidateStatus),
-    db.select({ label: sql<string>`coalesce(${mqAddressCandidates.chainCode}, 'unknown')`, count: sql<number>`count(*)::int` }).from(mqAddressCandidates).where(eq(mqAddressCandidates.sourceJobId, id)).groupBy(mqAddressCandidates.chainCode),
-    db.select({ label: confidenceLabel, count: sql<number>`count(*)::int` }).from(mqAddressCandidates).where(eq(mqAddressCandidates.sourceJobId, id)).groupBy(confidenceLabel),
-    db.select({ totalEvidence: sql<number>`count(*)::int` }).from(mqAddressEvidence).innerJoin(mqAddressCandidates, eq(mqAddressEvidence.candidateId, mqAddressCandidates.id)).where(eq(mqAddressCandidates.sourceJobId, id)),
-    db.select({ label: mqAddressEvidence.evidenceType, count: sql<number>`count(*)::int` }).from(mqAddressEvidence).innerJoin(mqAddressCandidates, eq(mqAddressEvidence.candidateId, mqAddressCandidates.id)).where(eq(mqAddressCandidates.sourceJobId, id)).groupBy(mqAddressEvidence.evidenceType),
-    db.select({ label: mqAddressEvidence.trustTier, count: sql<number>`count(*)::int` }).from(mqAddressEvidence).innerJoin(mqAddressCandidates, eq(mqAddressEvidence.candidateId, mqAddressCandidates.id)).where(eq(mqAddressCandidates.sourceJobId, id)).groupBy(mqAddressEvidence.trustTier),
+      evidenceCount: sql<number>`coalesce(sum(${mqWorkflowAddressCandidates.evidenceCount}), 0)::int`,
+      approvedCount: sql<number>`count(*) filter (where ${mqWorkflowAddressCandidates.candidateStatus} = 'approved')::int`,
+      pendingCount: sql<number>`count(*) filter (where ${mqWorkflowAddressCandidates.candidateStatus} = 'pending_review')::int`,
+      duplicateCount: sql<number>`count(*) filter (where ${mqWorkflowAddressCandidates.candidateStatus} = 'duplicate')::int`,
+      conflictCount: sql<number>`count(*) filter (where ${mqWorkflowAddressCandidates.candidateStatus} = 'conflict_pending')::int`,
+    }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.sourceJobId, id)),
+    db.select({ label: mqWorkflowAddressCandidates.candidateStatus, count: sql<number>`count(*)::int` }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.sourceJobId, id)).groupBy(mqWorkflowAddressCandidates.candidateStatus),
+    db.select({ label: sql<string>`coalesce(${mqWorkflowAddressCandidates.chainCode}, 'unknown')`, count: sql<number>`count(*)::int` }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.sourceJobId, id)).groupBy(mqWorkflowAddressCandidates.chainCode),
+    db.select({ label: confidenceLabel, count: sql<number>`count(*)::int` }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.sourceJobId, id)).groupBy(confidenceLabel),
+    db.select({ totalEvidence: sql<number>`count(*)::int` }).from(mqWorkflowAddressEvidence).innerJoin(mqWorkflowAddressCandidates, eq(mqWorkflowAddressEvidence.candidateId, mqWorkflowAddressCandidates.id)).where(eq(mqWorkflowAddressCandidates.sourceJobId, id)),
+    db.select({ label: mqWorkflowAddressEvidence.evidenceType, count: sql<number>`count(*)::int` }).from(mqWorkflowAddressEvidence).innerJoin(mqWorkflowAddressCandidates, eq(mqWorkflowAddressEvidence.candidateId, mqWorkflowAddressCandidates.id)).where(eq(mqWorkflowAddressCandidates.sourceJobId, id)).groupBy(mqWorkflowAddressEvidence.evidenceType),
+    db.select({ label: mqWorkflowAddressEvidence.trustTier, count: sql<number>`count(*)::int` }).from(mqWorkflowAddressEvidence).innerJoin(mqWorkflowAddressCandidates, eq(mqWorkflowAddressEvidence.candidateId, mqWorkflowAddressCandidates.id)).where(eq(mqWorkflowAddressCandidates.sourceJobId, id)).groupBy(mqWorkflowAddressEvidence.trustTier),
   ]);
 
   const evidenceRows = await db.select({
-    evidence: mqAddressEvidence,
-    candidateAddress: mqAddressCandidates.normalizedAddress,
-    candidateMetadata: mqAddressCandidates.metadata,
-    candidateSourceJobId: mqAddressCandidates.sourceJobId,
-    candidateSourceDocumentId: mqAddressCandidates.sourceDocumentId,
-  }).from(mqAddressEvidence)
-    .innerJoin(mqAddressCandidates, eq(mqAddressEvidence.candidateId, mqAddressCandidates.id))
-    .where(eq(mqAddressCandidates.sourceJobId, id))
-    .orderBy(desc(mqAddressEvidence.createdAt), desc(mqAddressEvidence.id))
+    evidence: mqWorkflowAddressEvidence,
+    candidateAddress: mqWorkflowAddressCandidates.normalizedAddress,
+    candidateMetadata: mqWorkflowAddressCandidates.metadata,
+    candidateSourceJobId: mqWorkflowAddressCandidates.sourceJobId,
+    candidateSourceDocumentId: mqWorkflowAddressCandidates.sourceDocumentId,
+  }).from(mqWorkflowAddressEvidence)
+    .innerJoin(mqWorkflowAddressCandidates, eq(mqWorkflowAddressEvidence.candidateId, mqWorkflowAddressCandidates.id))
+    .where(eq(mqWorkflowAddressCandidates.sourceJobId, id))
+    .orderBy(desc(mqWorkflowAddressEvidence.createdAt), desc(mqWorkflowAddressEvidence.id))
     .limit(pagination.pageSize)
     .offset((pagination.evidencePage - 1) * pagination.pageSize);
   const verificationRows = verifications.map(row => row.verification);
@@ -236,7 +236,7 @@ function parseVerificationEvidence(value: string | undefined) {
 }
 
 function assertCandidateVerificationScopeMatches(
-  candidate: typeof mqAddressCandidates.$inferSelect | null,
+  candidate: typeof mqWorkflowAddressCandidates.$inferSelect | null,
   verification: {
     verificationScope: string;
     sourceSheet?: string;
@@ -270,8 +270,8 @@ export async function recordSourceVerification(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [sourceJob] = await tx.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, parsed.sourceJobId)).limit(1).for("update");
-    let candidateForScope: typeof mqAddressCandidates.$inferSelect | null = null;
+    const [sourceJob] = await tx.select().from(mqWorkflowSourceJobs).where(eq(mqWorkflowSourceJobs.id, parsed.sourceJobId)).limit(1).for("update");
+    let candidateForScope: typeof mqWorkflowAddressCandidates.$inferSelect | null = null;
     if (!sourceJob) {
       throw new Error("Source job not found.");
     }
@@ -279,8 +279,8 @@ export async function recordSourceVerification(input: unknown) {
     if (parsed.sourceDocumentId) {
       const [document] = await tx
         .select()
-        .from(mqSourceDocuments)
-        .where(and(eq(mqSourceDocuments.id, parsed.sourceDocumentId), eq(mqSourceDocuments.sourceJobId, parsed.sourceJobId)))
+        .from(mqWorkflowSourceDocuments)
+        .where(and(eq(mqWorkflowSourceDocuments.id, parsed.sourceDocumentId), eq(mqWorkflowSourceDocuments.sourceJobId, parsed.sourceJobId)))
         .limit(1);
       if (!document) {
         throw new Error("Source document does not belong to this source job.");
@@ -290,8 +290,8 @@ export async function recordSourceVerification(input: unknown) {
     if (parsed.candidateId) {
       const [candidate] = await tx
         .select()
-        .from(mqAddressCandidates)
-        .where(and(eq(mqAddressCandidates.id, parsed.candidateId), eq(mqAddressCandidates.sourceJobId, parsed.sourceJobId)))
+        .from(mqWorkflowAddressCandidates)
+        .where(and(eq(mqWorkflowAddressCandidates.id, parsed.candidateId), eq(mqWorkflowAddressCandidates.sourceJobId, parsed.sourceJobId)))
         .limit(1);
       if (!candidate) {
         throw new Error("Candidate does not belong to this source job.");
@@ -313,7 +313,7 @@ export async function recordSourceVerification(input: unknown) {
     const verificationEvidence = parseVerificationEvidence(parsed.verificationEvidenceJson);
     const evidenceKeys = Object.keys(verificationEvidence).sort((left, right) => left.localeCompare(right));
     const [verification] = await tx
-      .insert(mqSourceVerifications)
+      .insert(mqWorkflowSourceVerifications)
       .values({
         sourceJobId: parsed.sourceJobId,
         sourceDocumentId: parsed.sourceDocumentId ?? null,
@@ -341,7 +341,7 @@ export async function recordSourceVerification(input: unknown) {
       evidenceKeys,
     });
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       candidateId: parsed.candidateId ?? null,
       action: "source_verification_recorded",
       actorId: actor.id,
@@ -351,10 +351,10 @@ export async function recordSourceVerification(input: unknown) {
       metadata: decisionPayload,
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "source_verification_recorded",
-      targetTable: "mq_source_verifications",
+      targetTable: "mq_workflow_source_verifications",
       targetId: String(verification.id),
       payload: decisionPayload,
     });
@@ -369,7 +369,7 @@ export async function archiveSourceJob(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [before] = await tx.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, parsed.sourceJobId)).limit(1);
+    const [before] = await tx.select().from(mqWorkflowSourceJobs).where(eq(mqWorkflowSourceJobs.id, parsed.sourceJobId)).limit(1);
 
     if (!before) {
       throw new Error("Source job not found.");
@@ -387,20 +387,20 @@ export async function archiveSourceJob(input: unknown) {
     });
 
     const [updated] = await tx
-      .update(mqSourceJobs)
+      .update(mqWorkflowSourceJobs)
       .set({
         status: "archived",
         archiveStorageUri,
         metadata,
         updatedAt: new Date(),
       })
-      .where(eq(mqSourceJobs.id, parsed.sourceJobId))
+      .where(eq(mqWorkflowSourceJobs.id, parsed.sourceJobId))
       .returning();
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "source_job_archived",
-      targetTable: "mq_source_jobs",
+      targetTable: "mq_workflow_source_jobs",
       targetId: String(parsed.sourceJobId),
       payload: {
         beforeStatus: before.status,
@@ -424,7 +424,7 @@ type SourceJobTransaction = Parameters<Parameters<ReturnType<typeof getDb>["tran
 
 type SourceJobDeletionPlan = {
   preview: SourceJobDeletionPreview;
-  sourceJob: typeof mqSourceJobs.$inferSelect;
+  sourceJob: typeof mqWorkflowSourceJobs.$inferSelect;
   documentIds: number[];
   candidateIds: number[];
   batchIds: number[];
@@ -439,81 +439,81 @@ function ids(rows: Array<{ id: number }>) {
 async function loadSourceJobDeletionPlan(tx: SourceJobTransaction, sourceJobId: number): Promise<SourceJobDeletionPlan> {
   const [sourceJob] = await tx
     .select()
-    .from(mqSourceJobs)
-    .where(eq(mqSourceJobs.id, sourceJobId))
+    .from(mqWorkflowSourceJobs)
+    .where(eq(mqWorkflowSourceJobs.id, sourceJobId))
     .limit(1)
     .for("update");
   if (!sourceJob) throw new SourceJobDeletionError(404, "source_job_not_found", "Source job not found.");
 
-  const documents = await tx.select({ id: mqSourceDocuments.id }).from(mqSourceDocuments).where(eq(mqSourceDocuments.sourceJobId, sourceJobId));
+  const documents = await tx.select({ id: mqWorkflowSourceDocuments.id }).from(mqWorkflowSourceDocuments).where(eq(mqWorkflowSourceDocuments.sourceJobId, sourceJobId));
   const documentIds = ids(documents);
   const candidates = await tx
-    .select({ id: mqAddressCandidates.id, candidateStatus: mqAddressCandidates.candidateStatus })
-    .from(mqAddressCandidates)
-    .where(eq(mqAddressCandidates.sourceJobId, sourceJobId));
+    .select({ id: mqWorkflowAddressCandidates.id, candidateStatus: mqWorkflowAddressCandidates.candidateStatus })
+    .from(mqWorkflowAddressCandidates)
+    .where(eq(mqWorkflowAddressCandidates.sourceJobId, sourceJobId));
   const candidateIds = ids(candidates);
 
-  const directBatchConditions: SQL[] = [eq(mqLabelBatches.sourceJobId, sourceJobId)];
-  if (documentIds.length) directBatchConditions.push(inArray(mqLabelBatches.sourceDocumentId, documentIds));
-  const directBatches = await tx.select({ id: mqLabelBatches.id }).from(mqLabelBatches).where(or(...directBatchConditions));
+  const directBatchConditions: SQL[] = [eq(mqWorkflowLabelBatches.sourceJobId, sourceJobId)];
+  if (documentIds.length) directBatchConditions.push(inArray(mqWorkflowLabelBatches.sourceDocumentId, documentIds));
+  const directBatches = await tx.select({ id: mqWorkflowLabelBatches.id }).from(mqWorkflowLabelBatches).where(or(...directBatchConditions));
   const candidateBatchLinks = candidateIds.length
-    ? await tx.select({ id: mqLabelBatchCandidates.batchId }).from(mqLabelBatchCandidates).where(inArray(mqLabelBatchCandidates.candidateId, candidateIds))
+    ? await tx.select({ id: mqWorkflowLabelBatchCandidates.batchId }).from(mqWorkflowLabelBatchCandidates).where(inArray(mqWorkflowLabelBatchCandidates.candidateId, candidateIds))
     : [];
   const batchIds = [...new Set([...ids(directBatches), ...ids(candidateBatchLinks)])];
   const batches = batchIds.length
-    ? await tx.select({ id: mqLabelBatches.id, status: mqLabelBatches.status }).from(mqLabelBatches).where(inArray(mqLabelBatches.id, batchIds))
+    ? await tx.select({ id: mqWorkflowLabelBatches.id, status: mqWorkflowLabelBatches.status }).from(mqWorkflowLabelBatches).where(inArray(mqWorkflowLabelBatches.id, batchIds))
     : [];
 
   const evidenceConditions: SQL[] = [];
-  if (candidateIds.length) evidenceConditions.push(inArray(mqAddressEvidence.candidateId, candidateIds));
-  if (documentIds.length) evidenceConditions.push(inArray(mqAddressEvidence.sourceDocumentId, documentIds));
-  if (batchIds.length) evidenceConditions.push(inArray(mqAddressEvidence.batchId, batchIds));
+  if (candidateIds.length) evidenceConditions.push(inArray(mqWorkflowAddressEvidence.candidateId, candidateIds));
+  if (documentIds.length) evidenceConditions.push(inArray(mqWorkflowAddressEvidence.sourceDocumentId, documentIds));
+  if (batchIds.length) evidenceConditions.push(inArray(mqWorkflowAddressEvidence.batchId, batchIds));
   const evidence = evidenceConditions.length
-    ? await tx.select({ id: mqAddressEvidence.id, registryId: mqAddressEvidence.registryId, batchId: mqAddressEvidence.batchId }).from(mqAddressEvidence).where(or(...evidenceConditions))
+    ? await tx.select({ id: mqWorkflowAddressEvidence.id, registryId: mqWorkflowAddressEvidence.registryId, batchId: mqWorkflowAddressEvidence.batchId }).from(mqWorkflowAddressEvidence).where(or(...evidenceConditions))
     : [];
 
-  const verificationConditions: SQL[] = [eq(mqSourceVerifications.sourceJobId, sourceJobId)];
-  if (documentIds.length) verificationConditions.push(inArray(mqSourceVerifications.sourceDocumentId, documentIds));
-  if (candidateIds.length) verificationConditions.push(inArray(mqSourceVerifications.candidateId, candidateIds));
-  const verifications = await tx.select({ id: mqSourceVerifications.id }).from(mqSourceVerifications).where(or(...verificationConditions));
+  const verificationConditions: SQL[] = [eq(mqWorkflowSourceVerifications.sourceJobId, sourceJobId)];
+  if (documentIds.length) verificationConditions.push(inArray(mqWorkflowSourceVerifications.sourceDocumentId, documentIds));
+  if (candidateIds.length) verificationConditions.push(inArray(mqWorkflowSourceVerifications.candidateId, candidateIds));
+  const verifications = await tx.select({ id: mqWorkflowSourceVerifications.id }).from(mqWorkflowSourceVerifications).where(or(...verificationConditions));
 
   const approvalConditions: SQL[] = [];
-  if (candidateIds.length) approvalConditions.push(inArray(mqApprovalEvents.candidateId, candidateIds));
-  if (batchIds.length) approvalConditions.push(inArray(mqApprovalEvents.batchId, batchIds));
+  if (candidateIds.length) approvalConditions.push(inArray(mqWorkflowApprovalEvents.candidateId, candidateIds));
+  if (batchIds.length) approvalConditions.push(inArray(mqWorkflowApprovalEvents.batchId, batchIds));
   const approvalEvents = approvalConditions.length
-    ? await tx.select({ id: mqApprovalEvents.id, registryId: mqApprovalEvents.registryId, batchId: mqApprovalEvents.batchId }).from(mqApprovalEvents).where(or(...approvalConditions))
+    ? await tx.select({ id: mqWorkflowApprovalEvents.id, registryId: mqWorkflowApprovalEvents.registryId, batchId: mqWorkflowApprovalEvents.batchId }).from(mqWorkflowApprovalEvents).where(or(...approvalConditions))
     : [];
 
-  const registryConditions: SQL[] = [eq(mqAddressRegistry.primarySourceJobId, sourceJobId)];
-  if (batchIds.length) registryConditions.push(inArray(mqAddressRegistry.approvedBatchId, batchIds));
-  const registryRows = await tx.select({ id: mqAddressRegistry.id }).from(mqAddressRegistry).where(or(...registryConditions));
+  const registryConditions: SQL[] = [eq(mqRegistryAddressLabels.primarySourceJobId, sourceJobId)];
+  if (batchIds.length) registryConditions.push(inArray(mqRegistryAddressLabels.approvedBatchId, batchIds));
+  const registryRows = await tx.select({ id: mqRegistryAddressLabels.id }).from(mqRegistryAddressLabels).where(or(...registryConditions));
   const kvBuilds = batchIds.length
-    ? await tx.select({ id: mqKvBuilds.id }).from(mqKvBuilds).where(inArray(mqKvBuilds.lastCommittedBatchId, batchIds))
+    ? await tx.select({ id: mqBuildKvBuilds.id }).from(mqBuildKvBuilds).where(inArray(mqBuildKvBuilds.lastCommittedBatchId, batchIds))
     : [];
   const kvIndexManifests = batchIds.length
-    ? await tx.select({ id: mqKvIndexManifests.id }).from(mqKvIndexManifests).where(inArray(mqKvIndexManifests.lastCommittedBatchId, batchIds))
+    ? await tx.select({ id: mqBuildIndexManifests.id }).from(mqBuildIndexManifests).where(inArray(mqBuildIndexManifests.lastCommittedBatchId, batchIds))
     : [];
   const candidateReferences = candidateIds.length
     ? await tx
-        .select({ id: mqAddressCandidates.id, sourceJobId: mqAddressCandidates.sourceJobId })
-        .from(mqAddressCandidates)
-        .where(inArray(mqAddressCandidates.duplicateOfCandidateId, candidateIds))
+        .select({ id: mqWorkflowAddressCandidates.id, sourceJobId: mqWorkflowAddressCandidates.sourceJobId })
+        .from(mqWorkflowAddressCandidates)
+        .where(inArray(mqWorkflowAddressCandidates.duplicateOfCandidateId, candidateIds))
     : [];
   const externalCandidateReferences = candidateReferences.filter(candidate => candidate.sourceJobId !== sourceJobId);
   const supersedingBatches = batchIds.length
     ? await tx
-        .select({ id: mqLabelBatches.id })
-        .from(mqLabelBatches)
-        .where(and(inArray(mqLabelBatches.supersedesBatchId, batchIds), not(inArray(mqLabelBatches.id, batchIds))))
+        .select({ id: mqWorkflowLabelBatches.id })
+        .from(mqWorkflowLabelBatches)
+        .where(and(inArray(mqWorkflowLabelBatches.supersedesBatchId, batchIds), not(inArray(mqWorkflowLabelBatches.id, batchIds))))
     : [];
   const batchEvidence = batchIds.length
-    ? await tx.select({ id: mqLabelBatchEvidence.id }).from(mqLabelBatchEvidence).where(inArray(mqLabelBatchEvidence.batchId, batchIds))
+    ? await tx.select({ id: mqWorkflowLabelBatchEvidence.id }).from(mqWorkflowLabelBatchEvidence).where(inArray(mqWorkflowLabelBatchEvidence.batchId, batchIds))
     : [];
   const evidenceBatchLinks = evidence.length
     ? await tx
-        .select({ id: mqLabelBatchEvidence.id, batchId: mqLabelBatchEvidence.batchId })
-        .from(mqLabelBatchEvidence)
-        .where(inArray(mqLabelBatchEvidence.evidenceId, ids(evidence)))
+        .select({ id: mqWorkflowLabelBatchEvidence.id, batchId: mqWorkflowLabelBatchEvidence.batchId })
+        .from(mqWorkflowLabelBatchEvidence)
+        .where(inArray(mqWorkflowLabelBatchEvidence.evidenceId, ids(evidence)))
     : [];
   const linkedBatchIds = new Set(batchIds);
   const externalEvidenceBatchLinks = evidence.filter(row => row.batchId !== null && !linkedBatchIds.has(row.batchId));
@@ -579,10 +579,10 @@ export async function deletePendingSourceJob(input: unknown) {
     }
 
     const deletionTimestamp = new Date();
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "source_job_deleted",
-      targetTable: "mq_source_jobs",
+      targetTable: "mq_workflow_source_jobs",
       targetId: String(parsed.sourceJobId),
       payload: {
         sourceName: plan.sourceJob.sourceName,
@@ -594,21 +594,21 @@ export async function deletePendingSourceJob(input: unknown) {
       },
     });
 
-    if (plan.batchIds.length) await tx.delete(mqLabelBatchEvidence).where(inArray(mqLabelBatchEvidence.batchId, plan.batchIds));
+    if (plan.batchIds.length) await tx.delete(mqWorkflowLabelBatchEvidence).where(inArray(mqWorkflowLabelBatchEvidence.batchId, plan.batchIds));
     const approvalConditions: SQL[] = [];
-    if (plan.candidateIds.length) approvalConditions.push(inArray(mqApprovalEvents.candidateId, plan.candidateIds));
-    if (plan.batchIds.length) approvalConditions.push(inArray(mqApprovalEvents.batchId, plan.batchIds));
-    if (approvalConditions.length) await tx.delete(mqApprovalEvents).where(or(...approvalConditions));
+    if (plan.candidateIds.length) approvalConditions.push(inArray(mqWorkflowApprovalEvents.candidateId, plan.candidateIds));
+    if (plan.batchIds.length) approvalConditions.push(inArray(mqWorkflowApprovalEvents.batchId, plan.batchIds));
+    if (approvalConditions.length) await tx.delete(mqWorkflowApprovalEvents).where(or(...approvalConditions));
     const batchCandidateConditions: SQL[] = [];
-    if (plan.candidateIds.length) batchCandidateConditions.push(inArray(mqLabelBatchCandidates.candidateId, plan.candidateIds));
-    if (plan.batchIds.length) batchCandidateConditions.push(inArray(mqLabelBatchCandidates.batchId, plan.batchIds));
-    if (batchCandidateConditions.length) await tx.delete(mqLabelBatchCandidates).where(or(...batchCandidateConditions));
-    if (plan.evidenceIds.length) await tx.delete(mqAddressEvidence).where(inArray(mqAddressEvidence.id, plan.evidenceIds));
-    if (plan.verificationIds.length) await tx.delete(mqSourceVerifications).where(inArray(mqSourceVerifications.id, plan.verificationIds));
-    if (plan.batchIds.length) await tx.delete(mqLabelBatches).where(inArray(mqLabelBatches.id, plan.batchIds));
-    if (plan.candidateIds.length) await tx.delete(mqAddressCandidates).where(inArray(mqAddressCandidates.id, plan.candidateIds));
-    if (plan.documentIds.length) await tx.delete(mqSourceDocuments).where(inArray(mqSourceDocuments.id, plan.documentIds));
-    const deleted = await tx.delete(mqSourceJobs).where(eq(mqSourceJobs.id, parsed.sourceJobId)).returning({ id: mqSourceJobs.id });
+    if (plan.candidateIds.length) batchCandidateConditions.push(inArray(mqWorkflowLabelBatchCandidates.candidateId, plan.candidateIds));
+    if (plan.batchIds.length) batchCandidateConditions.push(inArray(mqWorkflowLabelBatchCandidates.batchId, plan.batchIds));
+    if (batchCandidateConditions.length) await tx.delete(mqWorkflowLabelBatchCandidates).where(or(...batchCandidateConditions));
+    if (plan.evidenceIds.length) await tx.delete(mqWorkflowAddressEvidence).where(inArray(mqWorkflowAddressEvidence.id, plan.evidenceIds));
+    if (plan.verificationIds.length) await tx.delete(mqWorkflowSourceVerifications).where(inArray(mqWorkflowSourceVerifications.id, plan.verificationIds));
+    if (plan.batchIds.length) await tx.delete(mqWorkflowLabelBatches).where(inArray(mqWorkflowLabelBatches.id, plan.batchIds));
+    if (plan.candidateIds.length) await tx.delete(mqWorkflowAddressCandidates).where(inArray(mqWorkflowAddressCandidates.id, plan.candidateIds));
+    if (plan.documentIds.length) await tx.delete(mqWorkflowSourceDocuments).where(inArray(mqWorkflowSourceDocuments.id, plan.documentIds));
+    const deleted = await tx.delete(mqWorkflowSourceJobs).where(eq(mqWorkflowSourceJobs.id, parsed.sourceJobId)).returning({ id: mqWorkflowSourceJobs.id });
     if (deleted.length !== 1) throw new Error("Source job deletion did not remove exactly one row.");
 
     return { sourceJobId: parsed.sourceJobId, deletedCounts: plan.preview.counts };

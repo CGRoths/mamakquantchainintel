@@ -20,7 +20,7 @@ const GATED_MUTATION_PAGES: Array<{ page: string; permissions: string[] }> = [
   { page: "registry/[id]/page.tsx", permissions: ["registry:edit"] },
   { page: "metric-groups/page.tsx", permissions: ["dictionary:edit", "batch:commit"] },
   { page: "kv-builds/page.tsx", permissions: ["batch:commit"] },
-  { page: "kv-builds/[id]/page.tsx", permissions: ["batch:commit"] },
+  { page: "kv-builds/[id]/page.tsx", permissions: ["kv:activate"] },
   { page: "discovery/jobs/page.tsx", permissions: ["discovery:create"] },
   { page: "dictionaries/entities/page.tsx", permissions: ["dictionary:edit"] },
   { page: "dictionaries/protocols/page.tsx", permissions: ["dictionary:edit"] },

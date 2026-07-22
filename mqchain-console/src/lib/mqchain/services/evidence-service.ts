@@ -2,14 +2,14 @@ import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressCandidates,
-  mqAddressEvidence,
-  mqAddressRegistry,
-  mqApprovalEvents,
-  mqAuditLog,
-  mqSourceDocuments,
-  mqSourceJobs,
-  mqSourceVerifications,
+  mqWorkflowAddressCandidates,
+  mqWorkflowAddressEvidence,
+  mqRegistryAddressLabels,
+  mqWorkflowApprovalEvents,
+  mqAuditEvents,
+  mqWorkflowSourceDocuments,
+  mqWorkflowSourceJobs,
+  mqWorkflowSourceVerifications,
   mqUsers,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
@@ -22,11 +22,11 @@ export const CANDIDATE_EVIDENCE_PERMISSION = "candidate:evidence";
 export const REGISTRY_EVIDENCE_PERMISSION = "registry:edit";
 
 export async function listEvidenceForCandidate(candidateId: number) {
-  return getDb().select().from(mqAddressEvidence).where(eq(mqAddressEvidence.candidateId, candidateId)).orderBy(desc(mqAddressEvidence.createdAt));
+  return getDb().select().from(mqWorkflowAddressEvidence).where(eq(mqWorkflowAddressEvidence.candidateId, candidateId)).orderBy(desc(mqWorkflowAddressEvidence.createdAt));
 }
 
 export async function listEvidenceForRegistry(registryId: number) {
-  return getDb().select().from(mqAddressEvidence).where(eq(mqAddressEvidence.registryId, registryId)).orderBy(desc(mqAddressEvidence.createdAt));
+  return getDb().select().from(mqWorkflowAddressEvidence).where(eq(mqWorkflowAddressEvidence.registryId, registryId)).orderBy(desc(mqWorkflowAddressEvidence.createdAt));
 }
 
 function addCondition(conditions: SQL[], condition: SQL | undefined) {
@@ -34,15 +34,15 @@ function addCondition(conditions: SQL[], condition: SQL | undefined) {
 }
 
 function evidenceOrderBy(sort: EvidenceLedgerListFilters["sort"]) {
-  if (sort === "type") return asc(mqAddressEvidence.evidenceType);
-  if (sort === "trust") return asc(mqAddressEvidence.trustTier);
-  return desc(mqAddressEvidence.createdAt);
+  if (sort === "type") return asc(mqWorkflowAddressEvidence.evidenceType);
+  if (sort === "trust") return asc(mqWorkflowAddressEvidence.trustTier);
+  return desc(mqWorkflowAddressEvidence.createdAt);
 }
 
 function sourceVerificationOrderBy(sort: EvidenceLedgerListFilters["sort"]) {
-  if (sort === "type") return asc(mqSourceVerifications.verificationScope);
-  if (sort === "trust") return asc(mqSourceVerifications.sourceTrust);
-  return desc(mqSourceVerifications.createdAt);
+  if (sort === "type") return asc(mqWorkflowSourceVerifications.verificationScope);
+  if (sort === "trust") return asc(mqWorkflowSourceVerifications.sourceTrust);
+  return desc(mqWorkflowSourceVerifications.createdAt);
 }
 
 function buildEvidenceConditions(filters: EvidenceLedgerListFilters) {
@@ -52,26 +52,26 @@ function buildEvidenceConditions(filters: EvidenceLedgerListFilters) {
     addCondition(
       conditions,
       or(
-        ilike(mqAddressEvidence.summary, `%${filters.q}%`),
-        ilike(mqAddressEvidence.sourceUrl, `%${filters.q}%`),
-        ilike(mqAddressEvidence.evidenceHash, `%${filters.q}%`),
-        ilike(mqAddressEvidence.storageUri, `%${filters.q}%`),
-        ilike(mqAddressCandidates.normalizedAddress, `%${filters.q}%`),
-        ilike(mqAddressRegistry.normalizedAddress, `%${filters.q}%`),
-        ilike(mqSourceJobs.sourceName, `%${filters.q}%`),
-        ilike(mqSourceJobs.sourceUrl, `%${filters.q}%`),
+        ilike(mqWorkflowAddressEvidence.summary, `%${filters.q}%`),
+        ilike(mqWorkflowAddressEvidence.sourceUrl, `%${filters.q}%`),
+        ilike(mqWorkflowAddressEvidence.evidenceHash, `%${filters.q}%`),
+        ilike(mqWorkflowAddressEvidence.storageUri, `%${filters.q}%`),
+        ilike(mqWorkflowAddressCandidates.normalizedAddress, `%${filters.q}%`),
+        ilike(mqRegistryAddressLabels.normalizedAddress, `%${filters.q}%`),
+        ilike(mqWorkflowSourceJobs.sourceName, `%${filters.q}%`),
+        ilike(mqWorkflowSourceJobs.sourceUrl, `%${filters.q}%`),
       ),
     );
   }
 
-  if (filters.evidenceType) conditions.push(eq(mqAddressEvidence.evidenceType, filters.evidenceType));
-  if (filters.trustTier) conditions.push(eq(mqAddressEvidence.trustTier, filters.trustTier));
-  if (filters.sourceType) conditions.push(eq(mqSourceJobs.sourceType, filters.sourceType));
-  if (filters.chain) addCondition(conditions, or(eq(mqAddressCandidates.chainCode, filters.chain), eq(mqAddressRegistry.chainCode, filters.chain)));
-  if (filters.candidateId) conditions.push(eq(mqAddressEvidence.candidateId, filters.candidateId));
-  if (filters.registryId) conditions.push(eq(mqAddressEvidence.registryId, filters.registryId));
-  if (filters.sourceJobId) conditions.push(eq(mqSourceJobs.id, filters.sourceJobId));
-  if (filters.sourceDocumentId) conditions.push(eq(mqAddressEvidence.sourceDocumentId, filters.sourceDocumentId));
+  if (filters.evidenceType) conditions.push(eq(mqWorkflowAddressEvidence.evidenceType, filters.evidenceType));
+  if (filters.trustTier) conditions.push(eq(mqWorkflowAddressEvidence.trustTier, filters.trustTier));
+  if (filters.sourceType) conditions.push(eq(mqWorkflowSourceJobs.sourceType, filters.sourceType));
+  if (filters.chain) addCondition(conditions, or(eq(mqWorkflowAddressCandidates.chainCode, filters.chain), eq(mqRegistryAddressLabels.chainCode, filters.chain)));
+  if (filters.candidateId) conditions.push(eq(mqWorkflowAddressEvidence.candidateId, filters.candidateId));
+  if (filters.registryId) conditions.push(eq(mqWorkflowAddressEvidence.registryId, filters.registryId));
+  if (filters.sourceJobId) conditions.push(eq(mqWorkflowSourceJobs.id, filters.sourceJobId));
+  if (filters.sourceDocumentId) conditions.push(eq(mqWorkflowAddressEvidence.sourceDocumentId, filters.sourceDocumentId));
 
   return conditions.length ? and(...conditions) : sql`true`;
 }
@@ -83,24 +83,24 @@ function buildSourceVerificationConditions(filters: EvidenceLedgerListFilters) {
     addCondition(
       conditions,
       or(
-        ilike(mqSourceVerifications.notes, `%${filters.q}%`),
-        ilike(mqSourceVerifications.sourceUrl, `%${filters.q}%`),
-        ilike(mqSourceVerifications.sourceSheet, `%${filters.q}%`),
-        ilike(mqAddressCandidates.normalizedAddress, `%${filters.q}%`),
-        ilike(mqSourceJobs.sourceName, `%${filters.q}%`),
-        ilike(mqSourceJobs.sourceUrl, `%${filters.q}%`),
+        ilike(mqWorkflowSourceVerifications.notes, `%${filters.q}%`),
+        ilike(mqWorkflowSourceVerifications.sourceUrl, `%${filters.q}%`),
+        ilike(mqWorkflowSourceVerifications.sourceSheet, `%${filters.q}%`),
+        ilike(mqWorkflowAddressCandidates.normalizedAddress, `%${filters.q}%`),
+        ilike(mqWorkflowSourceJobs.sourceName, `%${filters.q}%`),
+        ilike(mqWorkflowSourceJobs.sourceUrl, `%${filters.q}%`),
       ),
     );
   }
 
-  if (filters.sourceTrust) conditions.push(eq(mqSourceVerifications.sourceTrust, filters.sourceTrust));
-  if (filters.verificationStatus) conditions.push(eq(mqSourceVerifications.status, filters.verificationStatus));
-  if (filters.verificationScope) conditions.push(eq(mqSourceVerifications.verificationScope, filters.verificationScope));
-  if (filters.sourceType) conditions.push(eq(mqSourceJobs.sourceType, filters.sourceType));
-  if (filters.chain) conditions.push(eq(mqAddressCandidates.chainCode, filters.chain));
-  if (filters.candidateId) conditions.push(eq(mqSourceVerifications.candidateId, filters.candidateId));
-  if (filters.sourceJobId) conditions.push(eq(mqSourceVerifications.sourceJobId, filters.sourceJobId));
-  if (filters.sourceDocumentId) conditions.push(eq(mqSourceVerifications.sourceDocumentId, filters.sourceDocumentId));
+  if (filters.sourceTrust) conditions.push(eq(mqWorkflowSourceVerifications.sourceTrust, filters.sourceTrust));
+  if (filters.verificationStatus) conditions.push(eq(mqWorkflowSourceVerifications.status, filters.verificationStatus));
+  if (filters.verificationScope) conditions.push(eq(mqWorkflowSourceVerifications.verificationScope, filters.verificationScope));
+  if (filters.sourceType) conditions.push(eq(mqWorkflowSourceJobs.sourceType, filters.sourceType));
+  if (filters.chain) conditions.push(eq(mqWorkflowAddressCandidates.chainCode, filters.chain));
+  if (filters.candidateId) conditions.push(eq(mqWorkflowSourceVerifications.candidateId, filters.candidateId));
+  if (filters.sourceJobId) conditions.push(eq(mqWorkflowSourceVerifications.sourceJobId, filters.sourceJobId));
+  if (filters.sourceDocumentId) conditions.push(eq(mqWorkflowSourceVerifications.sourceDocumentId, filters.sourceDocumentId));
 
   return conditions.length ? and(...conditions) : sql`true`;
 }
@@ -114,62 +114,62 @@ export async function listEvidenceLedger(input?: unknown) {
 
   const evidenceBase = db
     .select({
-      evidence: mqAddressEvidence,
-      candidate: mqAddressCandidates,
-      registry: mqAddressRegistry,
-      sourceDocument: mqSourceDocuments,
-      sourceJob: mqSourceJobs,
+      evidence: mqWorkflowAddressEvidence,
+      candidate: mqWorkflowAddressCandidates,
+      registry: mqRegistryAddressLabels,
+      sourceDocument: mqWorkflowSourceDocuments,
+      sourceJob: mqWorkflowSourceJobs,
       creatorEmail: mqUsers.email,
       creatorName: mqUsers.displayName,
     })
-    .from(mqAddressEvidence)
-    .leftJoin(mqAddressCandidates, eq(mqAddressEvidence.candidateId, mqAddressCandidates.id))
-    .leftJoin(mqAddressRegistry, eq(mqAddressEvidence.registryId, mqAddressRegistry.id))
-    .leftJoin(mqSourceDocuments, eq(mqAddressEvidence.sourceDocumentId, mqSourceDocuments.id))
+    .from(mqWorkflowAddressEvidence)
+    .leftJoin(mqWorkflowAddressCandidates, eq(mqWorkflowAddressEvidence.candidateId, mqWorkflowAddressCandidates.id))
+    .leftJoin(mqRegistryAddressLabels, eq(mqWorkflowAddressEvidence.registryId, mqRegistryAddressLabels.id))
+    .leftJoin(mqWorkflowSourceDocuments, eq(mqWorkflowAddressEvidence.sourceDocumentId, mqWorkflowSourceDocuments.id))
     .leftJoin(
-      mqSourceJobs,
-      or(eq(mqAddressCandidates.sourceJobId, mqSourceJobs.id), eq(mqSourceDocuments.sourceJobId, mqSourceJobs.id)),
+      mqWorkflowSourceJobs,
+      or(eq(mqWorkflowAddressCandidates.sourceJobId, mqWorkflowSourceJobs.id), eq(mqWorkflowSourceDocuments.sourceJobId, mqWorkflowSourceJobs.id)),
     )
-    .leftJoin(mqUsers, eq(mqAddressEvidence.createdBy, mqUsers.id));
+    .leftJoin(mqUsers, eq(mqWorkflowAddressEvidence.createdBy, mqUsers.id));
 
   const verificationBase = db
     .select({
-      verification: mqSourceVerifications,
-      candidate: mqAddressCandidates,
-      sourceDocument: mqSourceDocuments,
-      sourceJob: mqSourceJobs,
+      verification: mqWorkflowSourceVerifications,
+      candidate: mqWorkflowAddressCandidates,
+      sourceDocument: mqWorkflowSourceDocuments,
+      sourceJob: mqWorkflowSourceJobs,
       verifierEmail: mqUsers.email,
       verifierName: mqUsers.displayName,
     })
-    .from(mqSourceVerifications)
-    .leftJoin(mqAddressCandidates, eq(mqSourceVerifications.candidateId, mqAddressCandidates.id))
-    .leftJoin(mqSourceDocuments, eq(mqSourceVerifications.sourceDocumentId, mqSourceDocuments.id))
-    .leftJoin(mqSourceJobs, eq(mqSourceVerifications.sourceJobId, mqSourceJobs.id))
-    .leftJoin(mqUsers, eq(mqSourceVerifications.verifiedBy, mqUsers.id));
+    .from(mqWorkflowSourceVerifications)
+    .leftJoin(mqWorkflowAddressCandidates, eq(mqWorkflowSourceVerifications.candidateId, mqWorkflowAddressCandidates.id))
+    .leftJoin(mqWorkflowSourceDocuments, eq(mqWorkflowSourceVerifications.sourceDocumentId, mqWorkflowSourceDocuments.id))
+    .leftJoin(mqWorkflowSourceJobs, eq(mqWorkflowSourceVerifications.sourceJobId, mqWorkflowSourceJobs.id))
+    .leftJoin(mqUsers, eq(mqWorkflowSourceVerifications.verifiedBy, mqUsers.id));
 
   const [evidenceCount, verificationCount, evidenceRows, verificationRows] = await Promise.all([
     db
-      .select({ total: sql<number>`count(distinct ${mqAddressEvidence.id})::int` })
-      .from(mqAddressEvidence)
-      .leftJoin(mqAddressCandidates, eq(mqAddressEvidence.candidateId, mqAddressCandidates.id))
-      .leftJoin(mqAddressRegistry, eq(mqAddressEvidence.registryId, mqAddressRegistry.id))
-      .leftJoin(mqSourceDocuments, eq(mqAddressEvidence.sourceDocumentId, mqSourceDocuments.id))
+      .select({ total: sql<number>`count(distinct ${mqWorkflowAddressEvidence.id})::int` })
+      .from(mqWorkflowAddressEvidence)
+      .leftJoin(mqWorkflowAddressCandidates, eq(mqWorkflowAddressEvidence.candidateId, mqWorkflowAddressCandidates.id))
+      .leftJoin(mqRegistryAddressLabels, eq(mqWorkflowAddressEvidence.registryId, mqRegistryAddressLabels.id))
+      .leftJoin(mqWorkflowSourceDocuments, eq(mqWorkflowAddressEvidence.sourceDocumentId, mqWorkflowSourceDocuments.id))
       .leftJoin(
-        mqSourceJobs,
-        or(eq(mqAddressCandidates.sourceJobId, mqSourceJobs.id), eq(mqSourceDocuments.sourceJobId, mqSourceJobs.id)),
+        mqWorkflowSourceJobs,
+        or(eq(mqWorkflowAddressCandidates.sourceJobId, mqWorkflowSourceJobs.id), eq(mqWorkflowSourceDocuments.sourceJobId, mqWorkflowSourceJobs.id)),
       )
       .where(evidenceWhere),
     db
-      .select({ total: sql<number>`count(distinct ${mqSourceVerifications.id})::int` })
-      .from(mqSourceVerifications)
-      .leftJoin(mqAddressCandidates, eq(mqSourceVerifications.candidateId, mqAddressCandidates.id))
-      .leftJoin(mqSourceDocuments, eq(mqSourceVerifications.sourceDocumentId, mqSourceDocuments.id))
-      .leftJoin(mqSourceJobs, eq(mqSourceVerifications.sourceJobId, mqSourceJobs.id))
+      .select({ total: sql<number>`count(distinct ${mqWorkflowSourceVerifications.id})::int` })
+      .from(mqWorkflowSourceVerifications)
+      .leftJoin(mqWorkflowAddressCandidates, eq(mqWorkflowSourceVerifications.candidateId, mqWorkflowAddressCandidates.id))
+      .leftJoin(mqWorkflowSourceDocuments, eq(mqWorkflowSourceVerifications.sourceDocumentId, mqWorkflowSourceDocuments.id))
+      .leftJoin(mqWorkflowSourceJobs, eq(mqWorkflowSourceVerifications.sourceJobId, mqWorkflowSourceJobs.id))
       .where(verificationWhere),
-    evidenceBase.where(evidenceWhere).orderBy(evidenceOrderBy(filters.sort), desc(mqAddressEvidence.id)).limit(filters.pageSize).offset(offset),
+    evidenceBase.where(evidenceWhere).orderBy(evidenceOrderBy(filters.sort), desc(mqWorkflowAddressEvidence.id)).limit(filters.pageSize).offset(offset),
     verificationBase
       .where(verificationWhere)
-      .orderBy(sourceVerificationOrderBy(filters.sort), desc(mqSourceVerifications.id))
+      .orderBy(sourceVerificationOrderBy(filters.sort), desc(mqWorkflowSourceVerifications.id))
       .limit(filters.pageSize)
       .offset(offset),
   ]);
@@ -197,7 +197,7 @@ export async function addCandidateEvidence(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [candidate] = await tx.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, parsed.candidateId)).limit(1);
+    const [candidate] = await tx.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId)).limit(1);
 
     if (!candidate) {
       throw new Error("Candidate not found.");
@@ -210,7 +210,7 @@ export async function addCandidateEvidence(input: unknown) {
     };
 
     const [evidence] = await tx
-      .insert(mqAddressEvidence)
+      .insert(mqWorkflowAddressEvidence)
       .values({
         candidateId: parsed.candidateId,
         sourceDocumentId: candidate.sourceDocumentId,
@@ -226,7 +226,7 @@ export async function addCandidateEvidence(input: unknown) {
       .returning();
 
     const [updatedCandidate] = await tx
-      .update(mqAddressCandidates)
+      .update(mqWorkflowAddressCandidates)
       .set({
         evidenceCount: candidate.evidenceCount + 1,
         metadata: {
@@ -235,10 +235,10 @@ export async function addCandidateEvidence(input: unknown) {
         },
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressCandidates.id, parsed.candidateId))
+      .where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       candidateId: parsed.candidateId,
       action: "candidate_evidence_added",
       actorId: actor.id,
@@ -248,10 +248,10 @@ export async function addCandidateEvidence(input: unknown) {
       metadata: { evidenceId: evidence.id, evidenceHash: evidence.evidenceHash, trustTier: parsed.trustTier },
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "candidate_evidence_added",
-      targetTable: "mq_address_candidates",
+      targetTable: "mq_workflow_address_candidates",
       targetId: String(parsed.candidateId),
       payload: { evidenceId: evidence.id, evidenceHash: evidence.evidenceHash },
     });
@@ -267,7 +267,7 @@ export async function addRegistryEvidence(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [registry] = await tx.select().from(mqAddressRegistry).where(eq(mqAddressRegistry.id, parsed.registryId)).limit(1);
+    const [registry] = await tx.select().from(mqRegistryAddressLabels).where(eq(mqRegistryAddressLabels.id, parsed.registryId)).limit(1);
 
     if (!registry) {
       throw new Error("Registry row not found.");
@@ -280,7 +280,7 @@ export async function addRegistryEvidence(input: unknown) {
     };
 
     const [evidence] = await tx
-      .insert(mqAddressEvidence)
+      .insert(mqWorkflowAddressEvidence)
       .values({
         registryId: parsed.registryId,
         evidenceType: parsed.evidenceType,
@@ -294,7 +294,7 @@ export async function addRegistryEvidence(input: unknown) {
       })
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       registryId: parsed.registryId,
       action: "registry_evidence_added",
       actorId: actor.id,
@@ -304,10 +304,10 @@ export async function addRegistryEvidence(input: unknown) {
       metadata: { evidenceId: evidence.id, evidenceHash: evidence.evidenceHash, trustTier: parsed.trustTier },
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "registry_evidence_added",
-      targetTable: "mq_address_registry",
+      targetTable: "mq_registry_address_labels",
       targetId: String(parsed.registryId),
       payload: { evidenceId: evidence.id, evidenceHash: evidence.evidenceHash },
     });

@@ -2,28 +2,41 @@ import { and, asc, desc, eq, gte, ilike, inArray, lte, or, sql, type SQL } from 
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressRegistry,
-  mqAuditLog,
-  mqKvBuilds,
-  mqKvCompiledEntries,
-  mqKvIndexManifests,
-  mqKvIndexShards,
-  mqKvValidationRuns,
-  mqMetricGroupMembers,
-  mqMetricGroupMembershipSnapshots,
+  mqRegistryAddressLabels,
+  mqAuditEvents,
+  mqBuildKvBuilds,
+  mqBuildCompiledEntries,
+  mqBuildIndexManifests,
+  mqBuildIndexShards,
+  mqBuildValidationRuns,
+  mqBuildMetricGroupMembers,
+  mqBuildMetricGroupMembershipSnapshots,
+  mqWorkflowLabelBatches,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { extractMetricGroupMembershipSnapshotManifest } from "../metric-group-preview";
 import { buildKvManifestActivationPreflight, extractKvIndexManifestRecords } from "../kv-manifest";
+import { REQUIRED_KV_INDEXES } from "../kv/contract";
+import { semanticHash } from "../kv/compiled-records";
 import { parseKvBuildListFilters, type KvBuildListFilters } from "../list-filters";
 import { createKvBuildManifestSchema, kvBuildIdSchema } from "../validators/kv-manifest";
 import { hashJson } from "./service-utils";
+import { loadFullKvCompilationSnapshot } from "./full-kv-build-service";
+
+export class KvActivationError extends Error {
+  readonly status = 409 as const;
+
+  constructor(readonly code: string, message: string, readonly details?: unknown) {
+    super(message);
+    this.name = "KvActivationError";
+  }
+}
 
 function kvBuildOrderBy(sort: KvBuildListFilters["sort"]) {
-  if (sort === "activated_at") return desc(mqKvBuilds.activatedAt);
-  if (sort === "row_count") return desc(mqKvBuilds.rowCount);
-  if (sort === "status") return asc(mqKvBuilds.status);
-  return desc(mqKvBuilds.createdAt);
+  if (sort === "activated_at") return desc(mqBuildKvBuilds.activatedAt);
+  if (sort === "row_count") return desc(mqBuildKvBuilds.rowCount);
+  if (sort === "status") return asc(mqBuildKvBuilds.status);
+  return desc(mqBuildKvBuilds.createdAt);
 }
 
 function addCondition(conditions: SQL[], condition: SQL | undefined) {
@@ -38,30 +51,30 @@ export async function listKvBuilds(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        ilike(mqKvBuilds.buildHash, `%${filters.q}%`),
-        ilike(mqKvBuilds.dictionaryVersion, `%${filters.q}%`),
-        ilike(mqKvBuilds.storageUri, `%${filters.q}%`),
-        sql`${mqKvBuilds.manifest}::text ilike ${`%${filters.q}%`}`,
-        sql`${mqKvBuilds.id}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqBuildKvBuilds.buildHash, `%${filters.q}%`),
+        ilike(mqBuildKvBuilds.dictionaryVersion, `%${filters.q}%`),
+        ilike(mqBuildKvBuilds.storageUri, `%${filters.q}%`),
+        sql`${mqBuildKvBuilds.manifest}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqBuildKvBuilds.id}::text ilike ${`%${filters.q}%`}`,
       ),
     );
   }
 
-  if (filters.status) conditions.push(eq(mqKvBuilds.status, filters.status));
-  if (filters.dictionaryVersion) conditions.push(ilike(mqKvBuilds.dictionaryVersion, `%${filters.dictionaryVersion}%`));
-  if (filters.storage) conditions.push(ilike(mqKvBuilds.storageUri, `%${filters.storage}%`));
-  if (typeof filters.minRows === "number") conditions.push(gte(mqKvBuilds.rowCount, filters.minRows));
-  if (typeof filters.maxRows === "number") conditions.push(lte(mqKvBuilds.rowCount, filters.maxRows));
+  if (filters.status) conditions.push(eq(mqBuildKvBuilds.status, filters.status));
+  if (filters.dictionaryVersion) conditions.push(ilike(mqBuildKvBuilds.dictionaryVersion, `%${filters.dictionaryVersion}%`));
+  if (filters.storage) conditions.push(ilike(mqBuildKvBuilds.storageUri, `%${filters.storage}%`));
+  if (typeof filters.minRows === "number") conditions.push(gte(mqBuildKvBuilds.rowCount, filters.minRows));
+  if (typeof filters.maxRows === "number") conditions.push(lte(mqBuildKvBuilds.rowCount, filters.maxRows));
 
   const db = getDb();
   const where = conditions.length ? and(...conditions) : sql`true`;
   const offset = (filters.page - 1) * filters.pageSize;
-  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(mqKvBuilds).where(where);
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(mqBuildKvBuilds).where(where);
   const rows = await db
     .select()
-    .from(mqKvBuilds)
+    .from(mqBuildKvBuilds)
     .where(where)
-    .orderBy(kvBuildOrderBy(filters.sort), desc(mqKvBuilds.id))
+    .orderBy(kvBuildOrderBy(filters.sort), desc(mqBuildKvBuilds.id))
     .limit(filters.pageSize)
     .offset(offset);
 
@@ -76,13 +89,13 @@ export async function listKvBuilds(input: unknown = {}) {
 }
 
 export async function getKvBuild(id: number) {
-  const [build] = await getDb().select().from(mqKvBuilds).where(eq(mqKvBuilds.id, id)).limit(1);
+  const [build] = await getDb().select().from(mqBuildKvBuilds).where(eq(mqBuildKvBuilds.id, id)).limit(1);
   return build ?? null;
 }
 
 export async function getKvBuildDetail(id: number) {
   const db = getDb();
-  const [build] = await db.select().from(mqKvBuilds).where(eq(mqKvBuilds.id, id)).limit(1);
+  const [build] = await db.select().from(mqBuildKvBuilds).where(eq(mqBuildKvBuilds.id, id)).limit(1);
 
   if (!build) {
     return null;
@@ -90,40 +103,60 @@ export async function getKvBuildDetail(id: number) {
 
   const indexManifests = await db
     .select()
-    .from(mqKvIndexManifests)
-    .where(eq(mqKvIndexManifests.buildId, build.id))
-    .orderBy(asc(mqKvIndexManifests.indexName), asc(mqKvIndexManifests.id));
+    .from(mqBuildIndexManifests)
+    .where(eq(mqBuildIndexManifests.buildId, build.id))
+    .orderBy(asc(mqBuildIndexManifests.indexName), asc(mqBuildIndexManifests.id));
   const indexManifestIds = indexManifests.map((indexManifest) => indexManifest.id);
   const indexShards = indexManifestIds.length
     ? await db
         .select()
-        .from(mqKvIndexShards)
-        .where(inArray(mqKvIndexShards.manifestId, indexManifestIds))
-        .orderBy(asc(mqKvIndexShards.manifestId), asc(mqKvIndexShards.shardKey), asc(mqKvIndexShards.shardId))
+        .from(mqBuildIndexShards)
+        .where(inArray(mqBuildIndexShards.manifestId, indexManifestIds))
+        .orderBy(asc(mqBuildIndexShards.manifestId), asc(mqBuildIndexShards.shardKey), asc(mqBuildIndexShards.shardId))
     : [];
   const membershipSnapshots = await db
     .select()
-    .from(mqMetricGroupMembershipSnapshots)
-    .where(eq(mqMetricGroupMembershipSnapshots.kvBuildId, build.id))
-    .orderBy(asc(mqMetricGroupMembershipSnapshots.metricGroupCode), asc(mqMetricGroupMembershipSnapshots.id));
+    .from(mqBuildMetricGroupMembershipSnapshots)
+    .where(eq(mqBuildMetricGroupMembershipSnapshots.kvBuildId, build.id))
+    .orderBy(asc(mqBuildMetricGroupMembershipSnapshots.metricGroupCode), asc(mqBuildMetricGroupMembershipSnapshots.id));
   const membershipSnapshotIds = membershipSnapshots.map((snapshot) => snapshot.id);
   const membershipRows = membershipSnapshotIds.length
     ? await db
         .select()
-        .from(mqMetricGroupMembers)
-        .where(inArray(mqMetricGroupMembers.snapshotId, membershipSnapshotIds))
-        .orderBy(asc(mqMetricGroupMembers.snapshotId), asc(mqMetricGroupMembers.chainCode), asc(mqMetricGroupMembers.normalizedAddress))
+        .from(mqBuildMetricGroupMembers)
+        .where(inArray(mqBuildMetricGroupMembers.snapshotId, membershipSnapshotIds))
+        .orderBy(asc(mqBuildMetricGroupMembers.snapshotId), asc(mqBuildMetricGroupMembers.chainCode), asc(mqBuildMetricGroupMembers.normalizedAddress))
     : [];
 
-  return { build, indexManifests, indexShards, membershipSnapshots, membershipRows };
+  const [latestValidation] = await db
+    .select()
+    .from(mqBuildValidationRuns)
+    .where(eq(mqBuildValidationRuns.buildId, build.id))
+    .orderBy(desc(mqBuildValidationRuns.createdAt), desc(mqBuildValidationRuns.id))
+    .limit(1);
+  const [currentActiveBuild] = await db
+    .select({ id: mqBuildKvBuilds.id })
+    .from(mqBuildKvBuilds)
+    .where(eq(mqBuildKvBuilds.status, "active"))
+    .limit(1);
+
+  return {
+    build,
+    indexManifests,
+    indexShards,
+    membershipSnapshots,
+    membershipRows,
+    latestValidation: latestValidation ?? null,
+    currentActiveBuildId: currentActiveBuild?.id ?? null,
+  };
 }
 
 export async function getActiveKvBuildDetail() {
   const [build] = await getDb()
     .select()
-    .from(mqKvBuilds)
-    .where(eq(mqKvBuilds.status, "active"))
-    .orderBy(desc(mqKvBuilds.activatedAt), desc(mqKvBuilds.id))
+    .from(mqBuildKvBuilds)
+    .where(eq(mqBuildKvBuilds.status, "active"))
+    .orderBy(desc(mqBuildKvBuilds.activatedAt), desc(mqBuildKvBuilds.id))
     .limit(1);
 
   return build ? getKvBuildDetail(build.id) : null;
@@ -159,7 +192,7 @@ export async function createKvBuildManifest(input: unknown) {
   const db = getDb();
   return db.transaction(async (tx) => {
     const [build] = await tx
-      .insert(mqKvBuilds)
+      .insert(mqBuildKvBuilds)
       .values({
         buildHash,
         dictionaryVersion: parsed.dictionaryVersion,
@@ -174,7 +207,7 @@ export async function createKvBuildManifest(input: unknown) {
     const indexRecords = extractKvIndexManifestRecords(manifest, parsed.storageUri);
     for (const record of indexRecords) {
       const [indexManifest] = await tx
-        .insert(mqKvIndexManifests)
+        .insert(mqBuildIndexManifests)
         .values({
           buildId: build.id,
           indexName: record.indexName,
@@ -190,7 +223,7 @@ export async function createKvBuildManifest(input: unknown) {
         .returning();
 
       if (indexManifest && record.shards.length) {
-        await tx.insert(mqKvIndexShards).values(
+        await tx.insert(mqBuildIndexShards).values(
           record.shards.map((shard) => ({
             manifestId: indexManifest.id,
             shardId: shard.shardId,
@@ -211,13 +244,13 @@ export async function createKvBuildManifest(input: unknown) {
       const registryRows = metricGroupSnapshotInput.registryIds.length
         ? await tx
             .select()
-            .from(mqAddressRegistry)
-            .where(inArray(mqAddressRegistry.id, metricGroupSnapshotInput.registryIds))
-            .orderBy(asc(mqAddressRegistry.chainCode), asc(mqAddressRegistry.normalizedAddress), asc(mqAddressRegistry.id))
+            .from(mqRegistryAddressLabels)
+            .where(inArray(mqRegistryAddressLabels.id, metricGroupSnapshotInput.registryIds))
+            .orderBy(asc(mqRegistryAddressLabels.chainCode), asc(mqRegistryAddressLabels.normalizedAddress), asc(mqRegistryAddressLabels.id))
         : [];
 
       const [snapshot] = await tx
-        .insert(mqMetricGroupMembershipSnapshots)
+        .insert(mqBuildMetricGroupMembershipSnapshots)
         .values({
           metricGroupId: metricGroupSnapshotInput.metricGroupId,
           kvBuildId: build.id,
@@ -235,7 +268,7 @@ export async function createKvBuildManifest(input: unknown) {
       metricGroupMemberCount = registryRows.length;
 
       if (registryRows.length) {
-        await tx.insert(mqMetricGroupMembers).values(
+        await tx.insert(mqBuildMetricGroupMembers).values(
           registryRows.map((row) => ({
             snapshotId: snapshot.id,
             metricGroupId: metricGroupSnapshotInput.metricGroupId,
@@ -257,10 +290,10 @@ export async function createKvBuildManifest(input: unknown) {
       }
     }
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "kv_build_manifest_created",
-      targetTable: "mq_kv_builds",
+      targetTable: "mq_build_kv_builds",
       targetId: String(build.id),
       payload: {
         buildHash,
@@ -279,36 +312,112 @@ export async function createKvBuildManifest(input: unknown) {
 }
 
 export async function activateKvBuildManifest(input: unknown) {
-  const actor = await assertPermission("batch:commit");
+  const actor = await assertPermission("kv:activate");
   const parsed = kvBuildIdSchema.parse(input);
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [build] = await tx.select().from(mqKvBuilds).where(eq(mqKvBuilds.id, parsed.buildId)).limit(1);
+    const [build] = await tx.select().from(mqBuildKvBuilds).where(eq(mqBuildKvBuilds.id, parsed.buildId)).limit(1).for("update");
 
     if (!build) {
       throw new Error("KV build manifest not found.");
     }
+    if (build.id === 5) throw new KvActivationError("protected_build", "Build 5 is a protected historical build and cannot be activated.");
+    if (build.status !== "compiled") throw new KvActivationError("build_not_compiled", "KV build activation requires compiled status.");
+    if (build.buildHash !== parsed.expectedBuildHash) throw new KvActivationError("build_hash_changed", "KV build hash changed after activation preview.");
+    if (build.dictionaryVersion !== parsed.expectedDictionaryVersion) throw new KvActivationError("build_dictionary_changed", "KV build dictionary version changed after activation preview.");
+
+    const [currentActiveBuild] = await tx
+      .select({ id: mqBuildKvBuilds.id })
+      .from(mqBuildKvBuilds)
+      .where(eq(mqBuildKvBuilds.status, "active"))
+      .limit(1)
+      .for("update");
+    if ((currentActiveBuild?.id ?? null) !== parsed.expectedCurrentActiveBuildId) {
+      throw new KvActivationError("active_build_changed", "Current active build changed after activation preview.");
+    }
 
     const preflight = buildKvManifestActivationPreflight(build);
     if (!preflight.canActivate) {
-      throw new Error(`KV build manifest failed activation preflight. ${preflight.blockers.join(" ")}`);
+      throw new KvActivationError("activation_preflight_failed", `KV build manifest failed activation preflight. ${preflight.blockers.join(" ")}`);
     }
     const [latestValidation] = await tx
       .select()
-      .from(mqKvValidationRuns)
-      .where(eq(mqKvValidationRuns.buildId, parsed.buildId))
-      .orderBy(desc(mqKvValidationRuns.createdAt), desc(mqKvValidationRuns.id))
+      .from(mqBuildValidationRuns)
+      .where(eq(mqBuildValidationRuns.buildId, parsed.buildId))
+      .orderBy(desc(mqBuildValidationRuns.createdAt), desc(mqBuildValidationRuns.id))
       .limit(1)
       .for("update");
     if (!latestValidation || latestValidation.status !== "passed" || latestValidation.validationType !== "three_way_u1_parity") {
-      throw new Error("KV build activation requires the latest three-way parity validation to be passed.");
+      throw new KvActivationError("validation_not_passed", "KV build activation requires the latest three-way parity validation to be passed.");
+    }
+    if (latestValidation.id !== parsed.expectedValidationRunId || latestValidation.reportHash !== parsed.expectedValidationReportHash) {
+      throw new KvActivationError("validation_changed", "KV validation result changed after activation preview.");
+    }
+    const manifest = build.manifest as Record<string, unknown>;
+    if (manifest.artifactType !== "rocksdb" || manifest.compileScope !== "full" || build.buildKind !== "base") {
+      throw new KvActivationError("invalid_artifact_kind", "KV activation requires a full production RocksDB base build.");
+    }
+    if (manifest.registrySnapshotHash !== parsed.expectedRegistrySnapshotHash) {
+      throw new KvActivationError("registry_expectation_mismatch", "KV registry snapshot expectation does not match the build manifest.");
+    }
+    const validationManifest = manifest.validation;
+    if (!validationManifest || typeof validationManifest !== "object" || Array.isArray(validationManifest)) {
+      throw new Error("KV build manifest is missing validation lineage.");
+    }
+    const validationRecord = validationManifest as Record<string, unknown>;
+    if (validationRecord.validationRunId !== latestValidation.id || validationRecord.reportHash !== latestValidation.reportHash) {
+      throw new Error("KV build validation lineage does not match the latest persisted validation.");
+    }
+    if (latestValidation.dictionaryVersion !== build.dictionaryVersion || latestValidation.registrySnapshotHash !== manifest.registrySnapshotHash) {
+      throw new Error("KV validation snapshot does not match the compiled build.");
+    }
+    if (!build.compileRequestBuildId || manifest.compileRequestBuildId !== build.compileRequestBuildId) {
+      throw new Error("KV build compile-request lineage is missing or mismatched.");
+    }
+
+    const canonicalSnapshot = await loadFullKvCompilationSnapshot(tx);
+    if (canonicalSnapshot.dictionaryVersion !== build.dictionaryVersion) throw new Error("KV build is stale: dictionary version changed.");
+    if (canonicalSnapshot.registrySnapshotHash !== manifest.registrySnapshotHash) throw new Error("KV build is stale: registry snapshot changed.");
+    const [latestCommittedBatch] = await tx
+      .select({ id: mqWorkflowLabelBatches.id })
+      .from(mqWorkflowLabelBatches)
+      .where(eq(mqWorkflowLabelBatches.status, "committed"))
+      .orderBy(desc(mqWorkflowLabelBatches.id))
+      .limit(1);
+    if ((latestCommittedBatch?.id ?? null) !== (build.lastCommittedBatchId ?? null)) {
+      throw new Error("KV build is stale: a newer committed batch exists.");
+    }
+
+    const indexManifests = await tx
+      .select()
+      .from(mqBuildIndexManifests)
+      .where(eq(mqBuildIndexManifests.buildId, build.id))
+      .for("update");
+    const compiledRows = await tx
+      .select({ indexName: mqBuildCompiledEntries.indexName, keyBytes: mqBuildCompiledEntries.keyBytes, valueBytes: mqBuildCompiledEntries.valueBytes })
+      .from(mqBuildCompiledEntries)
+      .where(eq(mqBuildCompiledEntries.buildId, build.id))
+      .orderBy(asc(mqBuildCompiledEntries.indexName), asc(mqBuildCompiledEntries.ordinal));
+    const expectedCounts = canonicalSnapshot.expectedCounts;
+    for (const required of REQUIRED_KV_INDEXES) {
+      const persisted = indexManifests.find((indexManifest) => indexManifest.indexName === required.indexName);
+      if (!persisted || persisted.status !== "compiled" || !persisted.contentHash) {
+        throw new Error(`KV activation requires compiled index ${required.indexName} with a semantic hash.`);
+      }
+      const rows = compiledRows.filter((row) => row.indexName === required.indexName);
+      const expectedCount = expectedCounts[required.key];
+      if (persisted.rowCount !== expectedCount || rows.length !== expectedCount) {
+        throw new Error(`KV activation index count mismatch for ${required.indexName}.`);
+      }
+      if (semanticHash(rows) !== persisted.contentHash) {
+        throw new Error(`KV activation semantic hash mismatch for ${required.indexName}.`);
+      }
     }
     const [{ compiledCount }] = await tx
       .select({ compiledCount: sql<number>`count(*)::int` })
-      .from(mqKvCompiledEntries)
-      .where(eq(mqKvCompiledEntries.buildId, parsed.buildId));
-    const manifest = build.manifest as Record<string, unknown>;
+      .from(mqBuildCompiledEntries)
+      .where(eq(mqBuildCompiledEntries.buildId, parsed.buildId));
     const reference = manifest.postgresCompiledReference;
     const expectedCompiledCount = reference && typeof reference === "object" && !Array.isArray(reference)
       ? (reference as Record<string, unknown>).rowCount
@@ -318,21 +427,21 @@ export async function activateKvBuildManifest(input: unknown) {
     }
 
     await tx
-      .update(mqKvBuilds)
+      .update(mqBuildKvBuilds)
       .set({ status: "superseded" })
-      .where(eq(mqKvBuilds.status, "active"));
+      .where(eq(mqBuildKvBuilds.status, "active"));
     await tx
-      .update(mqKvIndexManifests)
+      .update(mqBuildIndexManifests)
       .set({ status: "superseded" })
-      .where(eq(mqKvIndexManifests.status, "active"));
+      .where(eq(mqBuildIndexManifests.status, "active"));
     await tx
-      .update(mqMetricGroupMembershipSnapshots)
+      .update(mqBuildMetricGroupMembershipSnapshots)
       .set({ status: "superseded" })
-      .where(eq(mqMetricGroupMembershipSnapshots.status, "active"));
+      .where(eq(mqBuildMetricGroupMembershipSnapshots.status, "active"));
 
     const activatedAt = new Date();
     const [updated] = await tx
-      .update(mqKvBuilds)
+      .update(mqBuildKvBuilds)
       .set({
         status: "active",
         activatedAt,
@@ -342,21 +451,21 @@ export async function activateKvBuildManifest(input: unknown) {
           activatedBy: actor.email,
         },
       })
-      .where(eq(mqKvBuilds.id, parsed.buildId))
+      .where(eq(mqBuildKvBuilds.id, parsed.buildId))
       .returning();
     await tx
-      .update(mqKvIndexManifests)
+      .update(mqBuildIndexManifests)
       .set({ status: "active", activatedAt })
-      .where(eq(mqKvIndexManifests.buildId, parsed.buildId));
+      .where(eq(mqBuildIndexManifests.buildId, parsed.buildId));
     await tx
-      .update(mqMetricGroupMembershipSnapshots)
+      .update(mqBuildMetricGroupMembershipSnapshots)
       .set({ status: "active", activatedAt })
-      .where(eq(mqMetricGroupMembershipSnapshots.kvBuildId, parsed.buildId));
+      .where(eq(mqBuildMetricGroupMembershipSnapshots.kvBuildId, parsed.buildId));
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "kv_build_manifest_activated",
-      targetTable: "mq_kv_builds",
+      targetTable: "mq_build_kv_builds",
       targetId: String(updated.id),
       payload: { beforeStatus: build.status, afterStatus: updated.status, buildHash: updated.buildHash, preflight },
     });

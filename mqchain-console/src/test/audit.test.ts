@@ -23,7 +23,7 @@ describe("audit timeline", () => {
         source: "system",
         action: "key_prefix_deactivated",
         actorId: null,
-        targetTable: "mq_kv_key_prefix_dict",
+        targetTable: "mq_dict_legacy_key_prefixes",
         targetId: "257",
         payload: {
           before: { isActive: true, role: "admin" },
@@ -39,7 +39,7 @@ describe("audit timeline", () => {
         source: "system",
         action: "key_prefix_deactivated",
         actor: "system",
-        target: "mq_kv_key_prefix_dict:257",
+        target: "mq_dict_legacy_key_prefixes:257",
         reason: "1 field changed",
         createdAt: new Date("2026-07-02T02:00:00.000Z"),
       },

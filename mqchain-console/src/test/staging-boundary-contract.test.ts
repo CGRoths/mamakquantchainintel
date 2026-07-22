@@ -5,23 +5,23 @@ import { describe, expect, it } from "vitest";
 
 const CANONICAL_WRITE_TABLES = [
   {
-    symbol: "mqAddressRegistry",
+    symbol: "mqRegistryAddressLabels",
     allowedFiles: ["src/lib/mqchain/services/batch-service.ts", "src/lib/mqchain/services/registry-service.ts"],
   },
   {
-    symbol: "mqKvBuilds",
+    symbol: "mqBuildKvBuilds",
     allowedFiles: ["src/lib/mqchain/services/batch-service.ts", "src/lib/mqchain/services/kv-manifest-service.ts", "src/lib/mqchain/services/compiled-artifact-service.ts"],
   },
   {
-    symbol: "mqKvIndexManifests",
+    symbol: "mqBuildIndexManifests",
     allowedFiles: ["src/lib/mqchain/services/kv-manifest-service.ts", "src/lib/mqchain/services/compiled-artifact-service.ts"],
   },
   {
-    symbol: "mqMetricGroupMembers",
+    symbol: "mqBuildMetricGroupMembers",
     allowedFiles: ["src/lib/mqchain/services/kv-manifest-service.ts"],
   },
   {
-    symbol: "mqMetricGroupMembershipSnapshots",
+    symbol: "mqBuildMetricGroupMembershipSnapshots",
     allowedFiles: ["src/lib/mqchain/services/kv-manifest-service.ts"],
   },
 ] as const;

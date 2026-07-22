@@ -2,23 +2,23 @@ import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-o
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressCandidates,
-  mqAddressCodecs,
-  mqAddressEvidence,
-  mqAddressNamespaces,
-  mqAddressRegistry,
-  mqApprovalEvents,
-  mqAuditLog,
-  mqEntities,
-  mqKvBuilds,
-  mqKvRoleDict,
-  mqLabelBatchCandidates,
-  mqLabelBatchEvidence,
-  mqLabelBatches,
-  mqProtocols,
-  mqSourceDocuments,
-  mqSourceVerifications,
-  mqSourceJobs,
+  mqWorkflowAddressCandidates,
+  mqDictAddressCodecs,
+  mqWorkflowAddressEvidence,
+  mqDictAddressNamespaces,
+  mqRegistryAddressLabels,
+  mqWorkflowApprovalEvents,
+  mqAuditEvents,
+  mqDictEntities,
+  mqBuildKvBuilds,
+  mqDictRoles,
+  mqWorkflowLabelBatchCandidates,
+  mqWorkflowLabelBatchEvidence,
+  mqWorkflowLabelBatches,
+  mqDictProtocols,
+  mqWorkflowSourceDocuments,
+  mqWorkflowSourceVerifications,
+  mqWorkflowSourceJobs,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import {
@@ -32,6 +32,7 @@ import { assertBatchCandidatesStillApproved, assertSelectedCandidatesApproved, t
 import { buildBatchSourceProvenance } from "../batch-source";
 import { buildCandidateSourceVerificationContext } from "../candidate-detail";
 import { LABEL_STATUS } from "../constants";
+import { effectiveCategoryId } from "../effective-category";
 import { markHistoricalOnlyFlags } from "../flags";
 import { validateU1AddressKey } from "../kv/contract";
 import { parseBatchListFilters, type BatchListFilters } from "../list-filters";
@@ -54,14 +55,14 @@ export class BatchLifecycleError extends Error {
   }
 }
 
-function getApprovalDraft(candidate: typeof mqAddressCandidates.$inferSelect) {
+function getApprovalDraft(candidate: typeof mqWorkflowAddressCandidates.$inferSelect) {
   const metadata = candidate.metadata as { approvalDraft?: Record<string, unknown> } | null;
   return metadata?.approvalDraft ?? {};
 }
 
 async function buildBatchCandidateReadinessRows(
   tx: Pick<ReturnType<typeof getDb>, "select">,
-  candidates: (typeof mqAddressCandidates.$inferSelect)[],
+  candidates: (typeof mqWorkflowAddressCandidates.$inferSelect)[],
 ): Promise<BatchCandidateReadinessRow[]> {
   const candidateIds = candidates.map((candidate) => candidate.id);
   if (!candidateIds.length) {
@@ -74,14 +75,14 @@ async function buildBatchCandidateReadinessRows(
   const sourceDocumentIds = Array.from(
     new Set(candidates.map((candidate) => candidate.sourceDocumentId).filter((id): id is number => typeof id === "number")),
   );
-  const verificationRowsById = new Map<number, typeof mqSourceVerifications.$inferSelect>();
+  const verificationRowsById = new Map<number, typeof mqWorkflowSourceVerifications.$inferSelect>();
   const verificationQueries = [
-    tx.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.candidateId, candidateIds)),
+    tx.select().from(mqWorkflowSourceVerifications).where(inArray(mqWorkflowSourceVerifications.candidateId, candidateIds)),
     sourceJobIds.length
-      ? tx.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceJobId, sourceJobIds))
+      ? tx.select().from(mqWorkflowSourceVerifications).where(inArray(mqWorkflowSourceVerifications.sourceJobId, sourceJobIds))
       : Promise.resolve([]),
     sourceDocumentIds.length
-      ? tx.select().from(mqSourceVerifications).where(inArray(mqSourceVerifications.sourceDocumentId, sourceDocumentIds))
+      ? tx.select().from(mqWorkflowSourceVerifications).where(inArray(mqWorkflowSourceVerifications.sourceDocumentId, sourceDocumentIds))
       : Promise.resolve([]),
   ];
 
@@ -117,11 +118,11 @@ async function buildBatchCandidateReadinessRows(
 }
 
 function batchOrderBy(sort: BatchListFilters["sort"]) {
-  if (sort === "updated_at") return desc(mqLabelBatches.updatedAt);
-  if (sort === "status") return asc(mqLabelBatches.status);
-  if (sort === "accepted_count") return desc(mqLabelBatches.acceptedCount);
-  if (sort === "committed_at") return desc(mqLabelBatches.committedAt);
-  return desc(mqLabelBatches.createdAt);
+  if (sort === "updated_at") return desc(mqWorkflowLabelBatches.updatedAt);
+  if (sort === "status") return asc(mqWorkflowLabelBatches.status);
+  if (sort === "accepted_count") return desc(mqWorkflowLabelBatches.acceptedCount);
+  if (sort === "committed_at") return desc(mqWorkflowLabelBatches.committedAt);
+  return desc(mqWorkflowLabelBatches.createdAt);
 }
 
 function addCondition(conditions: SQL[], condition: SQL | undefined) {
@@ -136,26 +137,26 @@ export async function listBatches(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        ilike(mqLabelBatches.sourceName, `%${filters.q}%`),
-        ilike(mqLabelBatches.sourceUrl, `%${filters.q}%`),
-        ilike(mqLabelBatches.batchHash, `%${filters.q}%`),
-        ilike(mqLabelBatches.evidenceHash, `%${filters.q}%`),
-        ilike(mqLabelBatches.storageUri, `%${filters.q}%`),
-        sql`${mqLabelBatches.id}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqWorkflowLabelBatches.sourceName, `%${filters.q}%`),
+        ilike(mqWorkflowLabelBatches.sourceUrl, `%${filters.q}%`),
+        ilike(mqWorkflowLabelBatches.batchHash, `%${filters.q}%`),
+        ilike(mqWorkflowLabelBatches.evidenceHash, `%${filters.q}%`),
+        ilike(mqWorkflowLabelBatches.storageUri, `%${filters.q}%`),
+        sql`${mqWorkflowLabelBatches.id}::text ilike ${`%${filters.q}%`}`,
       ),
     );
   }
 
-  if (filters.status) conditions.push(eq(mqLabelBatches.status, filters.status));
-  if (filters.sourceType) conditions.push(ilike(mqLabelBatches.sourceType, `%${filters.sourceType}%`));
-  if (filters.labelAction) conditions.push(ilike(mqLabelBatches.labelAction, `%${filters.labelAction}%`));
+  if (filters.status) conditions.push(eq(mqWorkflowLabelBatches.status, filters.status));
+  if (filters.sourceType) conditions.push(ilike(mqWorkflowLabelBatches.sourceType, `%${filters.sourceType}%`));
+  if (filters.labelAction) conditions.push(ilike(mqWorkflowLabelBatches.labelAction, `%${filters.labelAction}%`));
   if (filters.entity) {
     addCondition(
       conditions,
       or(
-        sql`${mqLabelBatches.entityId}::text ilike ${`%${filters.entity}%`}`,
-        ilike(mqEntities.entityCode, `%${filters.entity}%`),
-        ilike(mqEntities.entityName, `%${filters.entity}%`),
+        sql`${mqWorkflowLabelBatches.entityId}::text ilike ${`%${filters.entity}%`}`,
+        ilike(mqDictEntities.entityCode, `%${filters.entity}%`),
+        ilike(mqDictEntities.entityName, `%${filters.entity}%`),
       ),
     );
   }
@@ -163,9 +164,9 @@ export async function listBatches(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        sql`${mqLabelBatches.protocolId}::text ilike ${`%${filters.protocol}%`}`,
-        ilike(mqProtocols.protocolCode, `%${filters.protocol}%`),
-        ilike(mqProtocols.protocolName, `%${filters.protocol}%`),
+        sql`${mqWorkflowLabelBatches.protocolId}::text ilike ${`%${filters.protocol}%`}`,
+        ilike(mqDictProtocols.protocolCode, `%${filters.protocol}%`),
+        ilike(mqDictProtocols.protocolName, `%${filters.protocol}%`),
       ),
     );
   }
@@ -173,9 +174,9 @@ export async function listBatches(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        sql`${mqLabelBatches.roleId}::text ilike ${`%${filters.role}%`}`,
-        ilike(mqKvRoleDict.roleCode, `%${filters.role}%`),
-        ilike(mqKvRoleDict.roleName, `%${filters.role}%`),
+        sql`${mqWorkflowLabelBatches.roleId}::text ilike ${`%${filters.role}%`}`,
+        ilike(mqDictRoles.roleCode, `%${filters.role}%`),
+        ilike(mqDictRoles.roleName, `%${filters.role}%`),
       ),
     );
   }
@@ -185,19 +186,19 @@ export async function listBatches(input: unknown = {}) {
   const offset = (filters.page - 1) * filters.pageSize;
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
-    .from(mqLabelBatches)
-    .leftJoin(mqEntities, eq(mqLabelBatches.entityId, mqEntities.id))
-    .leftJoin(mqProtocols, eq(mqLabelBatches.protocolId, mqProtocols.id))
-    .leftJoin(mqKvRoleDict, eq(mqLabelBatches.roleId, mqKvRoleDict.roleId))
+    .from(mqWorkflowLabelBatches)
+    .leftJoin(mqDictEntities, eq(mqWorkflowLabelBatches.entityId, mqDictEntities.id))
+    .leftJoin(mqDictProtocols, eq(mqWorkflowLabelBatches.protocolId, mqDictProtocols.id))
+    .leftJoin(mqDictRoles, eq(mqWorkflowLabelBatches.roleId, mqDictRoles.roleId))
     .where(where);
   const rows = await db
-    .select({ batch: mqLabelBatches, entity: mqEntities, protocol: mqProtocols, role: mqKvRoleDict })
-    .from(mqLabelBatches)
-    .leftJoin(mqEntities, eq(mqLabelBatches.entityId, mqEntities.id))
-    .leftJoin(mqProtocols, eq(mqLabelBatches.protocolId, mqProtocols.id))
-    .leftJoin(mqKvRoleDict, eq(mqLabelBatches.roleId, mqKvRoleDict.roleId))
+    .select({ batch: mqWorkflowLabelBatches, entity: mqDictEntities, protocol: mqDictProtocols, role: mqDictRoles })
+    .from(mqWorkflowLabelBatches)
+    .leftJoin(mqDictEntities, eq(mqWorkflowLabelBatches.entityId, mqDictEntities.id))
+    .leftJoin(mqDictProtocols, eq(mqWorkflowLabelBatches.protocolId, mqDictProtocols.id))
+    .leftJoin(mqDictRoles, eq(mqWorkflowLabelBatches.roleId, mqDictRoles.roleId))
     .where(where)
-    .orderBy(batchOrderBy(filters.sort), desc(mqLabelBatches.id))
+    .orderBy(batchOrderBy(filters.sort), desc(mqWorkflowLabelBatches.id))
     .limit(filters.pageSize)
     .offset(offset);
 
@@ -213,59 +214,59 @@ export async function listBatches(input: unknown = {}) {
 
 export async function getBatchDetail(batchId: number) {
   const db = getDb();
-  const [batch] = await db.select().from(mqLabelBatches).where(eq(mqLabelBatches.id, batchId)).limit(1);
+  const [batch] = await db.select().from(mqWorkflowLabelBatches).where(eq(mqWorkflowLabelBatches.id, batchId)).limit(1);
 
   if (!batch) {
     return null;
   }
 
   const candidateRows = await db
-    .select({ candidate: mqAddressCandidates })
-    .from(mqLabelBatchCandidates)
-    .innerJoin(mqAddressCandidates, eq(mqLabelBatchCandidates.candidateId, mqAddressCandidates.id))
-    .where(eq(mqLabelBatchCandidates.batchId, batchId))
-    .orderBy(desc(mqAddressCandidates.createdAt));
+    .select({ candidate: mqWorkflowAddressCandidates })
+    .from(mqWorkflowLabelBatchCandidates)
+    .innerJoin(mqWorkflowAddressCandidates, eq(mqWorkflowLabelBatchCandidates.candidateId, mqWorkflowAddressCandidates.id))
+    .where(eq(mqWorkflowLabelBatchCandidates.batchId, batchId))
+    .orderBy(desc(mqWorkflowAddressCandidates.createdAt));
 
   const candidates = candidateRows.map((row) => row.candidate);
   const candidateIds = candidates.map((candidate) => candidate.id);
   const candidateEvidenceQuery = candidateIds.length
     ? db
         .select()
-        .from(mqAddressEvidence)
-        .where(inArray(mqAddressEvidence.candidateId, candidateIds))
-        .orderBy(desc(mqAddressEvidence.createdAt))
+        .from(mqWorkflowAddressEvidence)
+        .where(inArray(mqWorkflowAddressEvidence.candidateId, candidateIds))
+        .orderBy(desc(mqWorkflowAddressEvidence.createdAt))
     : Promise.resolve([]);
 
   const [sourceJob, sourceDocument, entity, protocol, role, candidateEvidence, batchEvidence, approvalEvents, kvBuilds, registryRows] = await Promise.all([
-    batch.sourceJobId ? db.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, batch.sourceJobId)).limit(1) : Promise.resolve([]),
+    batch.sourceJobId ? db.select().from(mqWorkflowSourceJobs).where(eq(mqWorkflowSourceJobs.id, batch.sourceJobId)).limit(1) : Promise.resolve([]),
     batch.sourceDocumentId
-      ? db.select().from(mqSourceDocuments).where(eq(mqSourceDocuments.id, batch.sourceDocumentId)).limit(1)
+      ? db.select().from(mqWorkflowSourceDocuments).where(eq(mqWorkflowSourceDocuments.id, batch.sourceDocumentId)).limit(1)
       : Promise.resolve([]),
-    batch.entityId ? db.select().from(mqEntities).where(eq(mqEntities.id, batch.entityId)).limit(1) : Promise.resolve([]),
-    batch.protocolId ? db.select().from(mqProtocols).where(eq(mqProtocols.id, batch.protocolId)).limit(1) : Promise.resolve([]),
-    batch.roleId ? db.select().from(mqKvRoleDict).where(eq(mqKvRoleDict.roleId, batch.roleId)).limit(1) : Promise.resolve([]),
+    batch.entityId ? db.select().from(mqDictEntities).where(eq(mqDictEntities.id, batch.entityId)).limit(1) : Promise.resolve([]),
+    batch.protocolId ? db.select().from(mqDictProtocols).where(eq(mqDictProtocols.id, batch.protocolId)).limit(1) : Promise.resolve([]),
+    batch.roleId ? db.select().from(mqDictRoles).where(eq(mqDictRoles.roleId, batch.roleId)).limit(1) : Promise.resolve([]),
     candidateEvidenceQuery,
-    db.select().from(mqLabelBatchEvidence).where(eq(mqLabelBatchEvidence.batchId, batchId)).orderBy(desc(mqLabelBatchEvidence.createdAt)),
-    db.select().from(mqApprovalEvents).where(eq(mqApprovalEvents.batchId, batchId)).orderBy(desc(mqApprovalEvents.createdAt)).limit(50),
+    db.select().from(mqWorkflowLabelBatchEvidence).where(eq(mqWorkflowLabelBatchEvidence.batchId, batchId)).orderBy(desc(mqWorkflowLabelBatchEvidence.createdAt)),
+    db.select().from(mqWorkflowApprovalEvents).where(eq(mqWorkflowApprovalEvents.batchId, batchId)).orderBy(desc(mqWorkflowApprovalEvents.createdAt)).limit(50),
     db
       .select()
-      .from(mqKvBuilds)
-      .where(sql`${mqKvBuilds.manifest}->>'batchId' = ${String(batchId)}`)
-      .orderBy(desc(mqKvBuilds.createdAt))
+      .from(mqBuildKvBuilds)
+      .where(sql`${mqBuildKvBuilds.manifest}->>'batchId' = ${String(batchId)}`)
+      .orderBy(desc(mqBuildKvBuilds.createdAt))
       .limit(10),
     db
       .select({
-        registry: mqAddressRegistry,
-        entityName: mqEntities.entityName,
-        protocolName: mqProtocols.protocolName,
-        roleCode: mqKvRoleDict.roleCode,
+        registry: mqRegistryAddressLabels,
+        entityName: mqDictEntities.entityName,
+        protocolName: mqDictProtocols.protocolName,
+        roleCode: mqDictRoles.roleCode,
       })
-      .from(mqAddressRegistry)
-      .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
-      .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
-      .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-      .where(eq(mqAddressRegistry.approvedBatchId, batchId))
-      .orderBy(desc(mqAddressRegistry.createdAt)),
+      .from(mqRegistryAddressLabels)
+      .leftJoin(mqDictEntities, eq(mqRegistryAddressLabels.entityId, mqDictEntities.id))
+      .leftJoin(mqDictProtocols, eq(mqRegistryAddressLabels.protocolId, mqDictProtocols.id))
+      .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+      .where(eq(mqRegistryAddressLabels.approvedBatchId, batchId))
+      .orderBy(desc(mqRegistryAddressLabels.createdAt)),
   ]);
   const candidateReadiness = await buildBatchCandidateReadinessRows(db, candidates);
 
@@ -300,7 +301,7 @@ export async function createBatchFromCandidates(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const candidates = await tx.select().from(mqAddressCandidates).where(inArray(mqAddressCandidates.id, parsed.candidateIds));
+    const candidates = await tx.select().from(mqWorkflowAddressCandidates).where(inArray(mqWorkflowAddressCandidates.id, parsed.candidateIds));
 
     assertSelectedCandidatesApproved(parsed.candidateIds, await buildBatchCandidateReadinessRows(tx, candidates));
 
@@ -308,7 +309,7 @@ export async function createBatchFromCandidates(input: unknown) {
     const first = candidates[0];
     const firstDraft = getApprovalDraft(first);
     const [sourceJob] = first.sourceJobId
-      ? await tx.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, first.sourceJobId)).limit(1)
+      ? await tx.select().from(mqWorkflowSourceJobs).where(eq(mqWorkflowSourceJobs.id, first.sourceJobId)).limit(1)
       : [null];
     const source = buildBatchSourceProvenance({
       requestedName: parsed.sourceName,
@@ -317,7 +318,7 @@ export async function createBatchFromCandidates(input: unknown) {
     });
 
     const [batch] = await tx
-      .insert(mqLabelBatches)
+      .insert(mqWorkflowLabelBatches)
       .values({
         sourceJobId: first.sourceJobId,
         sourceDocumentId: first.sourceDocumentId,
@@ -341,9 +342,9 @@ export async function createBatchFromCandidates(input: unknown) {
       })
       .returning();
 
-    await tx.insert(mqLabelBatchCandidates).values(candidates.map((candidate) => ({ batchId: batch.id, candidateId: candidate.id })));
+    await tx.insert(mqWorkflowLabelBatchCandidates).values(candidates.map((candidate) => ({ batchId: batch.id, candidateId: candidate.id })));
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       batchId: batch.id,
       action: "batch_created",
       actorId: actor.id,
@@ -351,10 +352,10 @@ export async function createBatchFromCandidates(input: unknown) {
       afterJson: { candidateIds: candidates.map((candidate) => candidate.id) },
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "batch_created",
-      targetTable: "mq_label_batches",
+      targetTable: "mq_workflow_label_batches",
       targetId: String(batch.id),
       payload: buildBatchLifecycleAuditPayload({
         batchId: batch.id,
@@ -375,19 +376,19 @@ export async function approveBatch(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [before] = await tx.select().from(mqLabelBatches).where(eq(mqLabelBatches.id, parsed.batchId)).limit(1);
+    const [before] = await tx.select().from(mqWorkflowLabelBatches).where(eq(mqWorkflowLabelBatches.id, parsed.batchId)).limit(1);
 
     if (!before) {
       throw new Error("Batch not found.");
     }
 
     const [batch] = await tx
-      .update(mqLabelBatches)
+      .update(mqWorkflowLabelBatches)
       .set({ status: "approved", approvedBy: actor.id, approvedAt: new Date(), updatedAt: new Date() })
-      .where(eq(mqLabelBatches.id, parsed.batchId))
+      .where(eq(mqWorkflowLabelBatches.id, parsed.batchId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       batchId: batch.id,
       action: "batch_approved",
       actorId: actor.id,
@@ -396,10 +397,10 @@ export async function approveBatch(input: unknown) {
       afterJson: batch,
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "batch_approved",
-      targetTable: "mq_label_batches",
+      targetTable: "mq_workflow_label_batches",
       targetId: String(batch.id),
       payload: buildBatchLifecycleAuditPayload({
         batchId: batch.id,
@@ -420,7 +421,7 @@ async function updateBatchLifecycleStatus(input: unknown, status: "failed" | "su
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [batch] = await tx.select().from(mqLabelBatches).where(eq(mqLabelBatches.id, parsed.batchId)).limit(1);
+    const [batch] = await tx.select().from(mqWorkflowLabelBatches).where(eq(mqWorkflowLabelBatches.id, parsed.batchId)).limit(1);
 
     if (!batch) {
       throw new Error("Batch not found.");
@@ -435,16 +436,16 @@ async function updateBatchLifecycleStatus(input: unknown, status: "failed" | "su
     }
 
     const [updated] = await tx
-      .update(mqLabelBatches)
+      .update(mqWorkflowLabelBatches)
       .set({
         status,
         labelAction: status === "superseded" ? "supersede" : batch.labelAction,
         updatedAt: new Date(),
       })
-      .where(eq(mqLabelBatches.id, parsed.batchId))
+      .where(eq(mqWorkflowLabelBatches.id, parsed.batchId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       batchId: updated.id,
       action,
       actorId: actor.id,
@@ -453,10 +454,10 @@ async function updateBatchLifecycleStatus(input: unknown, status: "failed" | "su
       afterJson: updated,
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action,
-      targetTable: "mq_label_batches",
+      targetTable: "mq_workflow_label_batches",
       targetId: String(updated.id),
       payload: buildBatchLifecycleAuditPayload({
         batchId: updated.id,
@@ -485,7 +486,7 @@ export async function commitBatch(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [batch] = await tx.select().from(mqLabelBatches).where(eq(mqLabelBatches.id, parsed.batchId)).limit(1);
+    const [batch] = await tx.select().from(mqWorkflowLabelBatches).where(eq(mqWorkflowLabelBatches.id, parsed.batchId)).limit(1);
 
     if (!batch) {
       throw new Error("Batch not found.");
@@ -501,11 +502,11 @@ export async function commitBatch(input: unknown) {
     }
 
     const rows = await tx
-      .select({ candidate: mqAddressCandidates, role: mqKvRoleDict })
-      .from(mqLabelBatchCandidates)
-      .innerJoin(mqAddressCandidates, eq(mqLabelBatchCandidates.candidateId, mqAddressCandidates.id))
-      .leftJoin(mqKvRoleDict, eq(mqAddressCandidates.suggestedRoleId, mqKvRoleDict.roleId))
-      .where(eq(mqLabelBatchCandidates.batchId, parsed.batchId));
+      .select({ candidate: mqWorkflowAddressCandidates, role: mqDictRoles })
+      .from(mqWorkflowLabelBatchCandidates)
+      .innerJoin(mqWorkflowAddressCandidates, eq(mqWorkflowLabelBatchCandidates.candidateId, mqWorkflowAddressCandidates.id))
+      .leftJoin(mqDictRoles, eq(mqWorkflowAddressCandidates.suggestedRoleId, mqDictRoles.roleId))
+      .where(eq(mqWorkflowLabelBatchCandidates.batchId, parsed.batchId));
 
     if (!rows.length) {
       throw new Error("Batch has no candidates.");
@@ -532,10 +533,10 @@ export async function commitBatch(input: unknown) {
       // Fail closed on the canonical U1 identity. Never reconstruct or guess a
       // missing namespace/codec/payload during commit.
       const [namespace] = candidate.namespaceId
-        ? await tx.select().from(mqAddressNamespaces).where(eq(mqAddressNamespaces.id, candidate.namespaceId)).limit(1)
+        ? await tx.select().from(mqDictAddressNamespaces).where(eq(mqDictAddressNamespaces.id, candidate.namespaceId)).limit(1)
         : [null];
       const [codec] = candidate.addressCodecId
-        ? await tx.select().from(mqAddressCodecs).where(eq(mqAddressCodecs.id, candidate.addressCodecId)).limit(1)
+        ? await tx.select().from(mqDictAddressCodecs).where(eq(mqDictAddressCodecs.id, candidate.addressCodecId)).limit(1)
         : [null];
       const u1Blockers = validateU1AddressKey(candidate, { namespace: namespace ?? null, codec: codec ?? null });
 
@@ -548,15 +549,15 @@ export async function commitBatch(input: unknown) {
 
       let role = row.role;
       if (!role || role.roleId !== roleId) {
-        [role] = await tx.select().from(mqKvRoleDict).where(eq(mqKvRoleDict.roleId, roleId)).limit(1);
+        [role] = await tx.select().from(mqDictRoles).where(eq(mqDictRoles.roleId, roleId)).limit(1);
       }
       if (!role) {
         throw new Error(`Candidate ${candidate.id} references missing role ${roleId}.`);
       }
 
-      let supersededRegistry: typeof mqAddressRegistry.$inferSelect | null = null;
+      let supersededRegistry: typeof mqRegistryAddressLabels.$inferSelect | null = null;
       if (supersedesRegistryId) {
-        const [registry] = await tx.select().from(mqAddressRegistry).where(eq(mqAddressRegistry.id, supersedesRegistryId)).limit(1);
+        const [registry] = await tx.select().from(mqRegistryAddressLabels).where(eq(mqRegistryAddressLabels.id, supersedesRegistryId)).limit(1);
 
         if (!registry) {
           throw new Error(`Candidate ${candidate.id} supersedes missing registry row ${supersedesRegistryId}.`);
@@ -590,13 +591,13 @@ export async function commitBatch(input: unknown) {
 
       const existingRegistryRows = await tx
         .select()
-        .from(mqAddressRegistry)
+        .from(mqRegistryAddressLabels)
         .where(
           and(
-            eq(mqAddressRegistry.chainCode, candidate.chainCode),
-            eq(mqAddressRegistry.normalizedAddress, candidate.normalizedAddress),
-            eq(mqAddressRegistry.roleId, roleId),
-            eq(mqAddressRegistry.isActive, true),
+            eq(mqRegistryAddressLabels.chainCode, candidate.chainCode),
+            eq(mqRegistryAddressLabels.normalizedAddress, candidate.normalizedAddress),
+            eq(mqRegistryAddressLabels.roleId, roleId),
+            eq(mqRegistryAddressLabels.isActive, true),
           ),
         );
       const existingConflict = findRegistryCommitConflict(
@@ -629,7 +630,7 @@ export async function commitBatch(input: unknown) {
       }
 
       const [registry] = await tx
-        .insert(mqAddressRegistry)
+        .insert(mqRegistryAddressLabels)
         .values({
           normalizedAddress: candidate.normalizedAddress,
           rawAddress: candidate.rawAddress,
@@ -640,7 +641,7 @@ export async function commitBatch(input: unknown) {
           payloadHex: candidate.payloadHex,
           entityId,
           protocolId: optionalNumber(draft.protocolId) ?? candidate.suggestedProtocolId,
-          categoryId: optionalNumber(draft.categoryId) ?? role?.categoryId ?? null,
+          categoryId: effectiveCategoryId(optionalNumber(draft.categoryId), role?.categoryId),
           roleId,
           componentId: optionalNumber(draft.componentId) ?? candidate.suggestedComponentId,
           confidenceScore: optionalNumber(draft.confidenceScore) ?? candidate.confidenceScore,
@@ -676,7 +677,7 @@ export async function commitBatch(input: unknown) {
           supersededRegistry.validToBlock ??
           (replacementFromBlock && replacementFromBlock > 1 ? replacementFromBlock - 1 : supersededRegistry.lastSeenBlock ?? candidate.firstSeenBlock);
         const [superseded] = await tx
-          .update(mqAddressRegistry)
+          .update(mqRegistryAddressLabels)
           .set({
             isActive: false,
             flags: markHistoricalOnlyFlags(supersededRegistry.flags),
@@ -691,10 +692,10 @@ export async function commitBatch(input: unknown) {
             },
             updatedAt: new Date(),
           })
-          .where(eq(mqAddressRegistry.id, supersededRegistry.id))
+          .where(eq(mqRegistryAddressLabels.id, supersededRegistry.id))
           .returning();
 
-        await tx.insert(mqApprovalEvents).values({
+        await tx.insert(mqWorkflowApprovalEvents).values({
           candidateId: candidate.id,
           registryId: superseded.id,
           batchId: batch.id,
@@ -706,26 +707,26 @@ export async function commitBatch(input: unknown) {
           metadata: { replacementRegistryId: registry.id },
         });
 
-        await tx.insert(mqAuditLog).values({
+        await tx.insert(mqAuditEvents).values({
           actorId: actor.id,
           action: "registry_label_superseded_by_candidate",
-          targetTable: "mq_address_registry",
+          targetTable: "mq_registry_address_labels",
           targetId: String(superseded.id),
           payload: { before: supersededRegistry, after: superseded, replacementRegistryId: registry.id },
         });
       }
 
       await tx
-        .update(mqAddressEvidence)
+        .update(mqWorkflowAddressEvidence)
         .set({ registryId: registry.id, batchId: batch.id })
-        .where(eq(mqAddressEvidence.candidateId, candidate.id));
+        .where(eq(mqWorkflowAddressEvidence.candidateId, candidate.id));
 
-      const evidenceRows = await tx.select().from(mqAddressEvidence).where(eq(mqAddressEvidence.candidateId, candidate.id));
+      const evidenceRows = await tx.select().from(mqWorkflowAddressEvidence).where(eq(mqWorkflowAddressEvidence.candidateId, candidate.id));
       if (!evidenceRows.length) {
         throw new Error(`Candidate ${candidate.id} must have at least one evidence row before registry commit.`);
       }
       if (evidenceRows.length) {
-        await tx.insert(mqLabelBatchEvidence).values(
+        await tx.insert(mqWorkflowLabelBatchEvidence).values(
           evidenceRows.map((evidence) => ({
             batchId: batch.id,
             evidenceId: evidence.id,
@@ -736,7 +737,7 @@ export async function commitBatch(input: unknown) {
         );
       }
 
-      await tx.insert(mqApprovalEvents).values({
+      await tx.insert(mqWorkflowApprovalEvents).values({
         candidateId: candidate.id,
         registryId: registry.id,
         batchId: batch.id,
@@ -759,7 +760,7 @@ export async function commitBatch(input: unknown) {
     const buildHash = fullRequest.buildHash;
 
     const [kvBuild] = await tx
-      .insert(mqKvBuilds)
+      .insert(mqBuildKvBuilds)
       .values({
         buildHash,
         dictionaryVersion,
@@ -772,12 +773,12 @@ export async function commitBatch(input: unknown) {
       .returning();
 
     const [updatedBatch] = await tx
-      .update(mqLabelBatches)
+      .update(mqWorkflowLabelBatches)
       .set({ status: "committed", committedAt: new Date(), updatedAt: new Date(), acceptedCount: registryIds.length })
-      .where(eq(mqLabelBatches.id, batch.id))
+      .where(eq(mqWorkflowLabelBatches.id, batch.id))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       batchId: batch.id,
       action: "batch_committed",
       actorId: actor.id,
@@ -786,10 +787,10 @@ export async function commitBatch(input: unknown) {
       afterJson: { ...updatedBatch, registryIds, dictionaryVersion },
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "kv_build_manifest_created",
-      targetTable: "mq_kv_builds",
+      targetTable: "mq_build_kv_builds",
       targetId: String(kvBuild.id),
       payload: buildBatchKvHandoffAuditPayload({
         batchId: batch.id,
@@ -802,10 +803,10 @@ export async function commitBatch(input: unknown) {
       }),
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "batch_committed",
-      targetTable: "mq_label_batches",
+      targetTable: "mq_workflow_label_batches",
       targetId: String(batch.id),
       payload: buildBatchLifecycleAuditPayload({
         batchId: batch.id,
@@ -825,7 +826,7 @@ export async function commitBatch(input: unknown) {
 export async function getBatchCandidateCount(batchId: number) {
   const [row] = await getDb()
     .select({ count: sql<number>`count(*)::int` })
-    .from(mqLabelBatchCandidates)
-    .where(eq(mqLabelBatchCandidates.batchId, batchId));
+    .from(mqWorkflowLabelBatchCandidates)
+    .where(eq(mqWorkflowLabelBatchCandidates.batchId, batchId));
   return row?.count ?? 0;
 }

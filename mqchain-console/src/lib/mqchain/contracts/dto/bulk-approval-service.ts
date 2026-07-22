@@ -12,6 +12,9 @@ export type BulkApprovalBlockerSummaryRow = {
 };
 
 export declare function previewBulkCandidateApproval(input: unknown): Promise<{
+    selectionType: "explicit_ids" | "source_sheet" | "source_job";
+    sourceJobId: number | null;
+    sourceSheet: string | null;
     selectedCount: number;
     eligibleCount: number;
     blockedCount: number;
@@ -21,12 +24,20 @@ export declare function previewBulkCandidateApproval(input: unknown): Promise<{
     blockerSummary: BulkApprovalBlockerSummaryRow[];
     sourceJobIds: number[];
     dictionaryVersion: string;
+    candidateSnapshotHash: string;
+    sourceVerificationSnapshotHash: string;
     previewHash: string;
     mode: BulkApprovalMode;
+    blockerPage: number;
+    blockerPageSize: number;
+    blockerTotalPages: number;
 }>;
 
 export declare function executeBulkCandidateApproval(input: unknown): Promise<{
     bulkOperationId: string;
+    selectionType: "explicit_ids" | "source_sheet" | "source_job";
+    sourceJobId: number | null;
+    sourceSheet: string | null;
     mode: BulkApprovalMode;
     selectedCount: number;
     eligibleCount: number;
@@ -37,6 +48,8 @@ export declare function executeBulkCandidateApproval(input: unknown): Promise<{
     blockerSummary: BulkApprovalBlockerSummaryRow[];
     sourceJobIds: number[];
     dictionaryVersion: string;
+    candidateSnapshotHash: string;
+    sourceVerificationSnapshotHash: string;
     previewHash: string;
     reason: string;
     batchCreated: false;

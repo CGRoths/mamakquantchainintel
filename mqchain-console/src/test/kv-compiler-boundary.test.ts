@@ -44,10 +44,10 @@ describe("external compiler boundary", () => {
 
   it("serves MQNODE lookups only from the active RocksDB artifact", () => {
     const service = read("src/lib/mqchain/services/activated-artifact-resolver.ts");
-    expect(service).toContain('eq(mqKvBuilds.status, "active")');
+    expect(service).toContain('eq(mqBuildKvBuilds.status, "active")');
     expect(service).toContain("new RocksDbResolver");
-    expect(service).not.toContain("mqKvCompiledEntries");
-    expect(service).not.toContain("mqAddressRegistry");
+    expect(service).not.toContain("mqBuildCompiledEntries");
+    expect(service).not.toContain("mqRegistryAddressLabels");
     const origin = read("origin/app.ts");
     expect(origin).toContain('pathname === "/v1/mqnode/u1/resolve"');
     expect(origin).toContain('authorized(actor, "view"');

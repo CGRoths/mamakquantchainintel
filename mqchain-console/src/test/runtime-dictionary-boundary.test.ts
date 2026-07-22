@@ -30,7 +30,7 @@ describe("runtime dictionary dashboard boundary", () => {
     expect(rerun).toContain("suggestedComponentId");
     expect(rerun).toContain("snapshot.components");
     expect(rerun).not.toContain("candidateStatus:");
-    expect(rerun).not.toMatch(/delete\(mqAddressEvidence|update\(mqApprovalEvents/);
+    expect(rerun).not.toMatch(/delete\(mqWorkflowAddressEvidence|update\(mqWorkflowApprovalEvents/);
   });
 
   it("uses the authoritative evaluator for database metric dashboard counts", () => {

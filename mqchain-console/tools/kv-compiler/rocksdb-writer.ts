@@ -29,21 +29,30 @@ export async function writeRocksDbStagingArtifact(input: {
   artifactRoot: string;
   compileRequestHash: string;
   records: readonly CompiledU1Record[];
+  chunkSize?: number;
 }) {
   const stagingRoot = path.join(path.resolve(input.artifactRoot), "staging");
   const stagingDirectory = path.join(stagingRoot, input.compileRequestHash);
   assertChild(stagingRoot, stagingDirectory);
   await rm(stagingDirectory, { recursive: true, force: true });
   await mkdir(stagingDirectory, { recursive: true });
+  const chunkSize = input.chunkSize ?? Number(process.env.MQCHAIN_COMPILER_CHUNK_SIZE ?? 500);
+  if (!Number.isSafeInteger(chunkSize) || chunkSize < 1 || chunkSize > 10_000) throw new Error("compiler_chunk_size_invalid");
 
   try {
     for (const indexName of COMPILED_INDEX_NAMES) {
       const db = rocksdb(indexDirectory(stagingDirectory, indexName));
       await call(callback => db.open({ createIfMissing: true, errorIfExists: true }, callback));
       try {
-        const operations = input.records
-          .filter(record => record.indexName === indexName)
-          .map(record => ({ type: "put" as const, key: record.keyBytes, value: record.valueBytes }));
+        let operations: Array<{ type: "put"; key: Buffer; value: Buffer }> = [];
+        for (const record of input.records) {
+          if (record.indexName !== indexName) continue;
+          operations.push({ type: "put", key: record.keyBytes, value: record.valueBytes });
+          if (operations.length >= chunkSize) {
+            await call(callback => db.batch(operations, { sync: true }, callback));
+            operations = [];
+          }
+        }
         if (operations.length) await call(callback => db.batch(operations, { sync: true }, callback));
       } finally {
         await call(callback => db.close(callback));

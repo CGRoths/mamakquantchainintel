@@ -430,17 +430,12 @@ export function buildKvManifestActivationPreflight(build: KvBuildActivationCandi
   const manifest = isRecord(build.manifest) ? build.manifest : null;
   const checks: KvManifestPreflightCheck[] = [];
   const isCompiled = build.status === "compiled";
-  const isActive = build.status === "active";
 
   checks.push({
     key: "status",
     label: "Compiled status",
-    status: isCompiled || isActive ? "pass" : "fail",
-    detail: isCompiled
-      ? "Manifest is compiled and ready for activation."
-      : isActive
-        ? "Manifest is the active serving artifact."
-        : "Only compiled manifests can become active.",
+    status: isCompiled ? "pass" : "fail",
+    detail: isCompiled ? "Manifest is compiled and ready for activation." : "Only compiled manifests can become active.",
   });
 
   checks.push({
@@ -491,6 +486,15 @@ export function buildKvManifestActivationPreflight(build: KvBuildActivationCandi
       detail: isPreviewOrPartialArtifact(manifest)
         ? "Preview, partial, or test artifacts must never be activated as the production serving artifact."
         : "Artifact is a full production build.",
+    });
+
+    checks.push({
+      key: "compileScope",
+      label: "Full compile scope",
+      status: manifest.compileScope === "full" ? "pass" : "fail",
+      detail: manifest.compileScope === "full"
+        ? "Manifest covers the full canonical production snapshot."
+        : "Production activation requires compileScope full.",
     });
 
     checks.push(schemaVersionCheck(manifest, "dictionarySchemaVersion", "Dictionary schema version"));

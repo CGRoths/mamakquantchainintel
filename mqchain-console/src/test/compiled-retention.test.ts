@@ -26,7 +26,7 @@ describe("compiled-entry retention", () => {
     const source = readFileSync(path.join(process.cwd(), "src/lib/mqchain/services/compiled-retention-service.ts"), "utf8");
     expect(source).toContain('mode: "dry_run"');
     expect(source).toContain("expectedPlanHash");
-    expect(source).toContain("delete(mqKvCompiledEntries)");
-    expect(source).not.toMatch(/delete\((mqAddressRegistry|mqAddressEvidence|mqKvBuilds|mqKvIndexManifests|mqAuditLog)/);
+    expect(source).toContain("delete(mqBuildCompiledEntries)");
+    expect(source).not.toMatch(/delete\((mqRegistryAddressLabels|mqWorkflowAddressEvidence|mqBuildKvBuilds|mqBuildIndexManifests|mqAuditEvents)/);
   });
 });

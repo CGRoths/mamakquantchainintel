@@ -1,7 +1,7 @@
 import { desc, eq, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
-import { mqAddressCandidates, mqAddressEvidence, mqAddressRegistry, mqApprovalEvents, mqAuditLog, mqKvRoleDict, mqSourceVerifications } from "@/db/schema";
+import { mqWorkflowAddressCandidates, mqWorkflowAddressEvidence, mqRegistryAddressLabels, mqWorkflowApprovalEvents, mqAuditEvents, mqDictRoles, mqWorkflowSourceVerifications } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { buildCandidateSourceVerificationContext, isCandidateSourceVerificationSatisfied } from "../candidate-detail";
 import { CANDIDATE_APPROVAL_BLOCKER_LABELS } from "../candidate-approval";
@@ -21,15 +21,15 @@ import {
 } from "../validators/approval";
 import { optionalNumber } from "./service-utils";
 
-function candidateMetadata(candidate: typeof mqAddressCandidates.$inferSelect) {
+function candidateMetadata(candidate: typeof mqWorkflowAddressCandidates.$inferSelect) {
   return (candidate.metadata ?? {}) as { approvalDraft?: Record<string, unknown> };
 }
 
 async function assertCandidateHasAttachedEvidence(tx: Pick<ReturnType<typeof getDb>, "select">, candidateId: number) {
   const [row] = await tx
     .select({ value: sql<number>`count(*)::int` })
-    .from(mqAddressEvidence)
-    .where(eq(mqAddressEvidence.candidateId, candidateId));
+    .from(mqWorkflowAddressEvidence)
+    .where(eq(mqWorkflowAddressEvidence.candidateId, candidateId));
 
   if (!row?.value) {
     throw new Error(`Candidate ${candidateId} must have at least one evidence row before approval.`);
@@ -38,13 +38,13 @@ async function assertCandidateHasAttachedEvidence(tx: Pick<ReturnType<typeof get
 
 async function assertCandidateSourceVerified(
   tx: Pick<ReturnType<typeof getDb>, "select">,
-  candidate: typeof mqAddressCandidates.$inferSelect,
+  candidate: typeof mqWorkflowAddressCandidates.$inferSelect,
 ) {
-  const verificationRowsById = new Map<number, typeof mqSourceVerifications.$inferSelect>();
+  const verificationRowsById = new Map<number, typeof mqWorkflowSourceVerifications.$inferSelect>();
   const candidateVerifications = await tx
     .select()
-    .from(mqSourceVerifications)
-    .where(eq(mqSourceVerifications.candidateId, candidate.id));
+    .from(mqWorkflowSourceVerifications)
+    .where(eq(mqWorkflowSourceVerifications.candidateId, candidate.id));
 
   for (const verification of candidateVerifications) {
     verificationRowsById.set(verification.id, verification);
@@ -53,8 +53,8 @@ async function assertCandidateSourceVerified(
   if (candidate.sourceJobId) {
     const sourceJobVerifications = await tx
       .select()
-      .from(mqSourceVerifications)
-      .where(eq(mqSourceVerifications.sourceJobId, candidate.sourceJobId));
+      .from(mqWorkflowSourceVerifications)
+      .where(eq(mqWorkflowSourceVerifications.sourceJobId, candidate.sourceJobId));
 
     for (const verification of sourceJobVerifications) {
       verificationRowsById.set(verification.id, verification);
@@ -64,8 +64,8 @@ async function assertCandidateSourceVerified(
   if (candidate.sourceDocumentId) {
     const sourceDocumentVerifications = await tx
       .select()
-      .from(mqSourceVerifications)
-      .where(eq(mqSourceVerifications.sourceDocumentId, candidate.sourceDocumentId));
+      .from(mqWorkflowSourceVerifications)
+      .where(eq(mqWorkflowSourceVerifications.sourceDocumentId, candidate.sourceDocumentId));
 
     for (const verification of sourceDocumentVerifications) {
       verificationRowsById.set(verification.id, verification);
@@ -89,8 +89,8 @@ async function assertCandidateSourceVerified(
 }
 
 function baseApprovalDraft(
-  candidate: typeof mqAddressCandidates.$inferSelect,
-  role: typeof mqKvRoleDict.$inferSelect | null,
+  candidate: typeof mqWorkflowAddressCandidates.$inferSelect,
+  role: typeof mqDictRoles.$inferSelect | null,
   existingDraft: Record<string, unknown>,
 ) {
   return {
@@ -115,14 +115,14 @@ export async function approveCandidate(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [candidate] = await tx.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, parsed.candidateId)).limit(1);
+    const [candidate] = await tx.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId)).limit(1);
 
     if (!candidate) {
       throw new Error("Candidate not found.");
     }
     await assertCandidateHasAttachedEvidence(tx, candidate.id);
     const sourceVerification = await assertCandidateSourceVerified(tx, candidate);
-    const [role] = await tx.select().from(mqKvRoleDict).where(eq(mqKvRoleDict.roleId, parsed.roleId)).limit(1);
+    const [role] = await tx.select().from(mqDictRoles).where(eq(mqDictRoles.roleId, parsed.roleId)).limit(1);
     if (!role) throw new Error("Resolved role not found.");
 
     const metricEligibility = validateMetricEligibility({
@@ -155,7 +155,7 @@ export async function approveCandidate(input: unknown) {
     };
 
     const [updated] = await tx
-      .update(mqAddressCandidates)
+      .update(mqWorkflowAddressCandidates)
       .set({
         candidateStatus: "approved",
         suggestedEntityId: parsed.entityId,
@@ -169,10 +169,10 @@ export async function approveCandidate(input: unknown) {
         },
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressCandidates.id, parsed.candidateId))
+      .where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       candidateId: parsed.candidateId,
       action: "candidate_approved",
       actorId: actor.id,
@@ -182,10 +182,10 @@ export async function approveCandidate(input: unknown) {
       metadata: { approvalDraft, metricEligible: metricEligibility.eligible },
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "candidate_approved",
-      targetTable: "mq_address_candidates",
+      targetTable: "mq_workflow_address_candidates",
       targetId: String(parsed.candidateId),
       payload: buildCandidateReviewAuditPayload({
         candidateId: parsed.candidateId,
@@ -234,7 +234,7 @@ export async function approveCandidateAsSuggested(input: unknown) {
     };
 
     const [updated] = await tx
-      .update(mqAddressCandidates)
+      .update(mqWorkflowAddressCandidates)
       .set({
         candidateStatus: "approved",
         metadata: {
@@ -243,10 +243,10 @@ export async function approveCandidateAsSuggested(input: unknown) {
         },
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressCandidates.id, parsed.candidateId))
+      .where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       candidateId: parsed.candidateId,
       action: "candidate_approved_as_suggested",
       actorId: actor.id,
@@ -256,10 +256,10 @@ export async function approveCandidateAsSuggested(input: unknown) {
       metadata: { approvalDraft },
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "candidate_approved_as_suggested",
-      targetTable: "mq_address_candidates",
+      targetTable: "mq_workflow_address_candidates",
       targetId: String(parsed.candidateId),
       payload: buildCandidateReviewAuditPayload({
         candidateId: parsed.candidateId,
@@ -281,14 +281,14 @@ export async function rejectCandidate(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [candidate] = await tx.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, parsed.candidateId)).limit(1);
+    const [candidate] = await tx.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId)).limit(1);
 
     if (!candidate) {
       throw new Error("Candidate not found.");
     }
 
     const [updated] = await tx
-      .update(mqAddressCandidates)
+      .update(mqWorkflowAddressCandidates)
       .set({
         candidateStatus: "rejected",
         metadata: {
@@ -297,10 +297,10 @@ export async function rejectCandidate(input: unknown) {
         },
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressCandidates.id, parsed.candidateId))
+      .where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       candidateId: parsed.candidateId,
       action: "candidate_rejected",
       actorId: actor.id,
@@ -309,10 +309,10 @@ export async function rejectCandidate(input: unknown) {
       afterJson: updated,
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "candidate_rejected",
-      targetTable: "mq_address_candidates",
+      targetTable: "mq_workflow_address_candidates",
       targetId: String(parsed.candidateId),
       payload: buildCandidateReviewAuditPayload({
         candidateId: parsed.candidateId,
@@ -333,14 +333,14 @@ async function markCandidateStatus(input: unknown, status: "needs_more_evidence"
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [candidate] = await tx.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, parsed.candidateId)).limit(1);
+    const [candidate] = await tx.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId)).limit(1);
 
     if (!candidate) {
       throw new Error("Candidate not found.");
     }
 
     const [updated] = await tx
-      .update(mqAddressCandidates)
+      .update(mqWorkflowAddressCandidates)
       .set({
         candidateStatus: status,
         metadata: {
@@ -349,10 +349,10 @@ async function markCandidateStatus(input: unknown, status: "needs_more_evidence"
         },
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressCandidates.id, parsed.candidateId))
+      .where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       candidateId: parsed.candidateId,
       action,
       actorId: actor.id,
@@ -361,10 +361,10 @@ async function markCandidateStatus(input: unknown, status: "needs_more_evidence"
       afterJson: updated,
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action,
-      targetTable: "mq_address_candidates",
+      targetTable: "mq_workflow_address_candidates",
       targetId: String(parsed.candidateId),
       payload: { beforeStatus: candidate.candidateStatus, afterStatus: status, reason: parsed.reason },
     });
@@ -391,15 +391,15 @@ export async function markCandidateDuplicate(input: unknown) {
   }
 
   return db.transaction(async (tx) => {
-    const [candidate] = await tx.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, parsed.candidateId)).limit(1);
-    const [duplicateOf] = await tx.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, parsed.duplicateOfCandidateId)).limit(1);
+    const [candidate] = await tx.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId)).limit(1);
+    const [duplicateOf] = await tx.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.id, parsed.duplicateOfCandidateId)).limit(1);
 
     if (!candidate || !duplicateOf) {
       throw new Error("Candidate or duplicate target not found.");
     }
 
     const [updated] = await tx
-      .update(mqAddressCandidates)
+      .update(mqWorkflowAddressCandidates)
       .set({
         candidateStatus: "duplicate",
         duplicateOfCandidateId: parsed.duplicateOfCandidateId,
@@ -409,10 +409,10 @@ export async function markCandidateDuplicate(input: unknown) {
         },
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressCandidates.id, parsed.candidateId))
+      .where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       candidateId: parsed.candidateId,
       action: "candidate_marked_duplicate",
       actorId: actor.id,
@@ -422,10 +422,10 @@ export async function markCandidateDuplicate(input: unknown) {
       metadata: { duplicateOfCandidateId: parsed.duplicateOfCandidateId },
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "candidate_marked_duplicate",
-      targetTable: "mq_address_candidates",
+      targetTable: "mq_workflow_address_candidates",
       targetId: String(parsed.candidateId),
       payload: { duplicateOfCandidateId: parsed.duplicateOfCandidateId, reason: parsed.reason },
     });
@@ -440,8 +440,8 @@ export async function markCandidateSupersedesRegistry(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [candidate] = await tx.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, parsed.candidateId)).limit(1);
-    const [registry] = await tx.select().from(mqAddressRegistry).where(eq(mqAddressRegistry.id, parsed.supersedesRegistryId)).limit(1);
+    const [candidate] = await tx.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId)).limit(1);
+    const [registry] = await tx.select().from(mqRegistryAddressLabels).where(eq(mqRegistryAddressLabels.id, parsed.supersedesRegistryId)).limit(1);
 
     if (!candidate || !registry) {
       throw new Error("Candidate or registry row not found.");
@@ -456,7 +456,7 @@ export async function markCandidateSupersedesRegistry(input: unknown) {
     const metadata = candidateMetadata(candidate);
     const existingDraft = metadata.approvalDraft ?? {};
     const roleId = optionalNumber(existingDraft.roleId) ?? candidate.suggestedRoleId;
-    const [role] = roleId ? await tx.select().from(mqKvRoleDict).where(eq(mqKvRoleDict.roleId, roleId)).limit(1) : [null];
+    const [role] = roleId ? await tx.select().from(mqDictRoles).where(eq(mqDictRoles.roleId, roleId)).limit(1) : [null];
     const approvalDraft = {
       ...baseApprovalDraft(candidate, role ?? null, existingDraft),
       labelAction: "supersede",
@@ -470,7 +470,7 @@ export async function markCandidateSupersedesRegistry(input: unknown) {
     }
 
     const [updated] = await tx
-      .update(mqAddressCandidates)
+      .update(mqWorkflowAddressCandidates)
       .set({
         candidateStatus: "approved",
         suggestedEntityId: optionalNumber(approvalDraft.entityId),
@@ -483,10 +483,10 @@ export async function markCandidateSupersedesRegistry(input: unknown) {
         },
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressCandidates.id, parsed.candidateId))
+      .where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       candidateId: parsed.candidateId,
       registryId: parsed.supersedesRegistryId,
       action: "candidate_marked_supersedes_registry",
@@ -497,10 +497,10 @@ export async function markCandidateSupersedesRegistry(input: unknown) {
       metadata: { approvalDraft, supersedesRegistryId: parsed.supersedesRegistryId },
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "candidate_marked_supersedes_registry",
-      targetTable: "mq_address_candidates",
+      targetTable: "mq_workflow_address_candidates",
       targetId: String(parsed.candidateId),
       payload: { supersedesRegistryId: parsed.supersedesRegistryId, reason: parsed.reason },
     });
@@ -515,7 +515,7 @@ export async function markCandidateHistoricalOnly(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [candidate] = await tx.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, parsed.candidateId)).limit(1);
+    const [candidate] = await tx.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId)).limit(1);
 
     if (!candidate) {
       throw new Error("Candidate not found.");
@@ -526,7 +526,7 @@ export async function markCandidateHistoricalOnly(input: unknown) {
     const metadata = candidateMetadata(candidate);
     const existingDraft = metadata.approvalDraft ?? {};
     const roleId = optionalNumber(existingDraft.roleId) ?? candidate.suggestedRoleId;
-    const [role] = roleId ? await tx.select().from(mqKvRoleDict).where(eq(mqKvRoleDict.roleId, roleId)).limit(1) : [null];
+    const [role] = roleId ? await tx.select().from(mqDictRoles).where(eq(mqDictRoles.roleId, roleId)).limit(1) : [null];
     const baseDraft = baseApprovalDraft(candidate, role ?? null, existingDraft);
     const approvalDraft = {
       ...baseDraft,
@@ -544,7 +544,7 @@ export async function markCandidateHistoricalOnly(input: unknown) {
     }
 
     const [updated] = await tx
-      .update(mqAddressCandidates)
+      .update(mqWorkflowAddressCandidates)
       .set({
         candidateStatus: "approved",
         suggestedEntityId: optionalNumber(approvalDraft.entityId),
@@ -557,10 +557,10 @@ export async function markCandidateHistoricalOnly(input: unknown) {
         },
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressCandidates.id, parsed.candidateId))
+      .where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       candidateId: parsed.candidateId,
       action: "candidate_marked_historical_only",
       actorId: actor.id,
@@ -570,10 +570,10 @@ export async function markCandidateHistoricalOnly(input: unknown) {
       metadata: { approvalDraft },
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "candidate_marked_historical_only",
-      targetTable: "mq_address_candidates",
+      targetTable: "mq_workflow_address_candidates",
       targetId: String(parsed.candidateId),
       payload: { validFromBlock: approvalDraft.validFromBlock, validToBlock: approvalDraft.validToBlock, reason: parsed.reason },
     });
@@ -588,7 +588,7 @@ export async function markCandidateMetricIneligible(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [candidate] = await tx.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, parsed.candidateId)).limit(1);
+    const [candidate] = await tx.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId)).limit(1);
 
     if (!candidate) {
       throw new Error("Candidate not found.");
@@ -599,7 +599,7 @@ export async function markCandidateMetricIneligible(input: unknown) {
     const existingFlags = Number(existingDraft.flags ?? 0);
 
     const [updated] = await tx
-      .update(mqAddressCandidates)
+      .update(mqWorkflowAddressCandidates)
       .set({
         metadata: {
           ...metadata,
@@ -613,10 +613,10 @@ export async function markCandidateMetricIneligible(input: unknown) {
         },
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressCandidates.id, parsed.candidateId))
+      .where(eq(mqWorkflowAddressCandidates.id, parsed.candidateId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       candidateId: parsed.candidateId,
       action: "candidate_marked_metric_ineligible",
       actorId: actor.id,
@@ -625,10 +625,10 @@ export async function markCandidateMetricIneligible(input: unknown) {
       afterJson: updated,
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "candidate_marked_metric_ineligible",
-      targetTable: "mq_address_candidates",
+      targetTable: "mq_workflow_address_candidates",
       targetId: String(parsed.candidateId),
       payload: { reason: parsed.reason },
     });
@@ -638,5 +638,5 @@ export async function markCandidateMetricIneligible(input: unknown) {
 }
 
 export async function listApprovalEvents(limit = 100) {
-  return getDb().select().from(mqApprovalEvents).orderBy(desc(mqApprovalEvents.createdAt)).limit(limit);
+  return getDb().select().from(mqWorkflowApprovalEvents).orderBy(desc(mqWorkflowApprovalEvents.createdAt)).limit(limit);
 }

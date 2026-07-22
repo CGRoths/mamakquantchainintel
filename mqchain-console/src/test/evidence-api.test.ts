@@ -30,7 +30,7 @@ describe("evidence ledger API payloads", () => {
             sourceUrl: "https://github.com/aave/deployments",
             sourceDocumentId: 13,
             evidenceHash: "hash-evidence",
-            storageUri: "postgres://mq_address_evidence/41",
+            storageUri: "postgres://mq_workflow_address_evidence/41",
             confidenceDelta: 10,
             trustTier: "official",
             summary: "official deployment file",
@@ -55,7 +55,7 @@ describe("evidence ledger API payloads", () => {
             id: 13,
             sourceJobId: 12,
             documentType: "github_file",
-            storageUri: "postgres://mq_source_documents/13",
+            storageUri: "postgres://mq_workflow_source_documents/13",
             contentHash: "hash-document",
           },
           sourceJob: {
@@ -104,7 +104,7 @@ describe("evidence ledger API payloads", () => {
             id: 13,
             sourceJobId: 12,
             documentType: "github_file",
-            storageUri: "postgres://mq_source_documents/13",
+            storageUri: "postgres://mq_workflow_source_documents/13",
             contentHash: "hash-document",
           },
           sourceJob: {

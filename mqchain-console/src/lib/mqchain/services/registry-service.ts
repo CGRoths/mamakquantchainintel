@@ -2,21 +2,21 @@ import { and, asc, desc, eq, gte, ilike, lte, ne, or, sql, type SQL } from "driz
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressCandidates,
-  mqAddressEvidence,
-  mqAddressRegistry,
-  mqApprovalEvents,
-  mqAuditLog,
-  mqCategoryDict,
-  mqDiscoveryJobs,
-  mqEntities,
-  mqKvRoleDict,
-  mqLabelBatches,
-  mqMetricGroupRules,
-  mqMetricGroups,
-  mqProtocols,
-  mqSourceDocuments,
-  mqSourceJobs,
+  mqWorkflowAddressCandidates,
+  mqWorkflowAddressEvidence,
+  mqRegistryAddressLabels,
+  mqWorkflowApprovalEvents,
+  mqAuditEvents,
+  mqDictCategories,
+  mqWorkflowDiscoveryJobs,
+  mqDictEntities,
+  mqDictRoles,
+  mqWorkflowLabelBatches,
+  mqPolicyMetricGroupRules,
+  mqDictMetricGroups,
+  mqDictProtocols,
+  mqWorkflowSourceDocuments,
+  mqWorkflowSourceJobs,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { LABEL_STATUS } from "../constants";
@@ -31,15 +31,15 @@ import { addRegistrySecondaryRoleSchema, registryEditSchema, registryIdSchema, r
 import { optionalNumber } from "./service-utils";
 
 function registryOrderBy(sort: RegistryListFilters["sort"]) {
-  if (sort === "confidence") return desc(mqAddressRegistry.confidenceScore);
-  if (sort === "quality") return desc(mqAddressRegistry.qualityTier);
-  if (sort === "address") return asc(mqAddressRegistry.normalizedAddress);
-  return desc(mqAddressRegistry.createdAt);
+  if (sort === "confidence") return desc(mqRegistryAddressLabels.confidenceScore);
+  if (sort === "quality") return desc(mqRegistryAddressLabels.qualityTier);
+  if (sort === "address") return asc(mqRegistryAddressLabels.normalizedAddress);
+  return desc(mqRegistryAddressLabels.createdAt);
 }
 
 function flagCondition(bit: number, expected = true) {
   const mask = 1 << bit;
-  return expected ? sql`(${mqAddressRegistry.flags} & ${mask}) <> 0` : sql`(${mqAddressRegistry.flags} & ${mask}) = 0`;
+  return expected ? sql`(${mqRegistryAddressLabels.flags} & ${mask}) <> 0` : sql`(${mqRegistryAddressLabels.flags} & ${mask}) = 0`;
 }
 
 function addCondition(conditions: SQL[], condition: SQL | undefined) {
@@ -54,36 +54,36 @@ export async function listRegistry(input?: unknown) {
     addCondition(
       conditions,
       or(
-        ilike(mqAddressRegistry.normalizedAddress, `%${filters.q}%`),
-        ilike(mqAddressRegistry.rawAddress, `%${filters.q}%`),
-        ilike(mqAddressRegistry.notes, `%${filters.q}%`),
+        ilike(mqRegistryAddressLabels.normalizedAddress, `%${filters.q}%`),
+        ilike(mqRegistryAddressLabels.rawAddress, `%${filters.q}%`),
+        ilike(mqRegistryAddressLabels.notes, `%${filters.q}%`),
       ),
     );
   }
 
   if (filters.chain) {
-    conditions.push(eq(mqAddressRegistry.chainCode, filters.chain));
+    conditions.push(eq(mqRegistryAddressLabels.chainCode, filters.chain));
   }
 
   if (filters.entity) {
-    addCondition(conditions, or(ilike(mqEntities.entityCode, `%${filters.entity}%`), ilike(mqEntities.entityName, `%${filters.entity}%`)));
+    addCondition(conditions, or(ilike(mqDictEntities.entityCode, `%${filters.entity}%`), ilike(mqDictEntities.entityName, `%${filters.entity}%`)));
   }
 
   if (filters.protocol) {
     addCondition(
       conditions,
-      or(ilike(mqProtocols.protocolCode, `%${filters.protocol}%`), ilike(mqProtocols.protocolName, `%${filters.protocol}%`)),
+      or(ilike(mqDictProtocols.protocolCode, `%${filters.protocol}%`), ilike(mqDictProtocols.protocolName, `%${filters.protocol}%`)),
     );
   }
 
   if (filters.role) {
-    addCondition(conditions, or(ilike(mqKvRoleDict.roleCode, `%${filters.role}%`), ilike(mqKvRoleDict.roleName, `%${filters.role}%`)));
+    addCondition(conditions, or(ilike(mqDictRoles.roleCode, `%${filters.role}%`), ilike(mqDictRoles.roleName, `%${filters.role}%`)));
   }
 
   if (filters.category) {
     addCondition(
       conditions,
-      or(ilike(mqCategoryDict.categoryCode, `%${filters.category}%`), ilike(mqCategoryDict.categoryName, `%${filters.category}%`)),
+      or(ilike(mqDictCategories.categoryCode, `%${filters.category}%`), ilike(mqDictCategories.categoryName, `%${filters.category}%`)),
     );
   }
 
@@ -94,27 +94,27 @@ export async function listRegistry(input?: unknown) {
   }
 
   if (filters.active === "active") {
-    conditions.push(eq(mqAddressRegistry.isActive, true));
+    conditions.push(eq(mqRegistryAddressLabels.isActive, true));
   } else if (filters.active === "inactive") {
-    conditions.push(eq(mqAddressRegistry.isActive, false));
+    conditions.push(eq(mqRegistryAddressLabels.isActive, false));
   } else if (filters.active === "historical") {
-    addCondition(conditions, or(eq(mqAddressRegistry.labelStatus, LABEL_STATUS.inactiveHistorical), flagCondition(FLAG_BITS.historicalOnly, true)));
+    addCondition(conditions, or(eq(mqRegistryAddressLabels.labelStatus, LABEL_STATUS.inactiveHistorical), flagCondition(FLAG_BITS.historicalOnly, true)));
   }
 
   if (filters.minConfidence !== undefined) {
-    conditions.push(gte(mqAddressRegistry.confidenceScore, filters.minConfidence));
+    conditions.push(gte(mqRegistryAddressLabels.confidenceScore, filters.minConfidence));
   }
 
   if (filters.maxConfidence !== undefined) {
-    conditions.push(lte(mqAddressRegistry.confidenceScore, filters.maxConfidence));
+    conditions.push(lte(mqRegistryAddressLabels.confidenceScore, filters.maxConfidence));
   }
 
   if (filters.qualityTier !== undefined) {
-    conditions.push(eq(mqAddressRegistry.qualityTier, filters.qualityTier));
+    conditions.push(eq(mqRegistryAddressLabels.qualityTier, filters.qualityTier));
   }
 
   if (filters.sourceBatch !== undefined) {
-    conditions.push(eq(mqAddressRegistry.approvedBatchId, filters.sourceBatch));
+    conditions.push(eq(mqRegistryAddressLabels.approvedBatchId, filters.sourceBatch));
   }
 
   if (filters.conflicts === "true") {
@@ -126,30 +126,30 @@ export async function listRegistry(input?: unknown) {
   const offset = (filters.page - 1) * filters.pageSize;
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
-    .from(mqAddressRegistry)
-    .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
-    .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
-    .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-    .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId))
+    .from(mqRegistryAddressLabels)
+    .leftJoin(mqDictEntities, eq(mqRegistryAddressLabels.entityId, mqDictEntities.id))
+    .leftJoin(mqDictProtocols, eq(mqRegistryAddressLabels.protocolId, mqDictProtocols.id))
+    .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+        .leftJoin(mqDictCategories, eq(mqDictCategories.categoryId, sql<number>`coalesce(${mqRegistryAddressLabels.categoryId}, ${mqDictRoles.categoryId})`))
     .where(where);
 
   const rows = await db
     .select({
-      registry: mqAddressRegistry,
-      entityName: mqEntities.entityName,
-      entityCode: mqEntities.entityCode,
-      protocolCode: mqProtocols.protocolCode,
-      protocolName: mqProtocols.protocolName,
-      roleCode: mqKvRoleDict.roleCode,
-      categoryCode: mqCategoryDict.categoryCode,
+      registry: mqRegistryAddressLabels,
+      entityName: mqDictEntities.entityName,
+      entityCode: mqDictEntities.entityCode,
+      protocolCode: mqDictProtocols.protocolCode,
+      protocolName: mqDictProtocols.protocolName,
+      roleCode: mqDictRoles.roleCode,
+      categoryCode: mqDictCategories.categoryCode,
     })
-    .from(mqAddressRegistry)
-    .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
-    .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
-    .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-    .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId))
+    .from(mqRegistryAddressLabels)
+    .leftJoin(mqDictEntities, eq(mqRegistryAddressLabels.entityId, mqDictEntities.id))
+    .leftJoin(mqDictProtocols, eq(mqRegistryAddressLabels.protocolId, mqDictProtocols.id))
+    .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+    .leftJoin(mqDictCategories, eq(mqDictCategories.categoryId, sql<number>`coalesce(${mqRegistryAddressLabels.categoryId}, ${mqDictRoles.categoryId})`))
     .where(where)
-    .orderBy(registryOrderBy(filters.sort), asc(mqAddressRegistry.id))
+    .orderBy(registryOrderBy(filters.sort), asc(mqRegistryAddressLabels.id))
     .limit(filters.pageSize)
     .offset(offset);
 
@@ -167,18 +167,18 @@ export async function getRegistryDetail(id: number) {
   const db = getDb();
   const [registryDetail] = await db
     .select({
-      registry: mqAddressRegistry,
-      entity: mqEntities,
-      protocol: mqProtocols,
-      role: mqKvRoleDict,
-      category: mqCategoryDict,
+      registry: mqRegistryAddressLabels,
+      entity: mqDictEntities,
+      protocol: mqDictProtocols,
+      role: mqDictRoles,
+      category: mqDictCategories,
     })
-    .from(mqAddressRegistry)
-    .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
-    .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
-    .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-    .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId))
-    .where(eq(mqAddressRegistry.id, id))
+    .from(mqRegistryAddressLabels)
+    .leftJoin(mqDictEntities, eq(mqRegistryAddressLabels.entityId, mqDictEntities.id))
+    .leftJoin(mqDictProtocols, eq(mqRegistryAddressLabels.protocolId, mqDictProtocols.id))
+    .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+    .leftJoin(mqDictCategories, eq(mqDictCategories.categoryId, sql<number>`coalesce(${mqRegistryAddressLabels.categoryId}, ${mqDictRoles.categoryId})`))
+    .where(eq(mqRegistryAddressLabels.id, id))
     .limit(1);
 
   if (!registryDetail) {
@@ -186,15 +186,15 @@ export async function getRegistryDetail(id: number) {
   }
 
   const registry = registryDetail.registry;
-  const discoveryConditions: SQL[] = [eq(mqDiscoveryJobs.seedAddress, registry.normalizedAddress)];
+  const discoveryConditions: SQL[] = [eq(mqWorkflowDiscoveryJobs.seedAddress, registry.normalizedAddress)];
   if (registry.rawAddress && registry.rawAddress !== registry.normalizedAddress) {
-    discoveryConditions.push(eq(mqDiscoveryJobs.seedAddress, registry.rawAddress));
+    discoveryConditions.push(eq(mqWorkflowDiscoveryJobs.seedAddress, registry.rawAddress));
   }
   if (registry.entityId) {
-    discoveryConditions.push(eq(mqDiscoveryJobs.entityId, registry.entityId));
+    discoveryConditions.push(eq(mqWorkflowDiscoveryJobs.entityId, registry.entityId));
   }
   if (registry.protocolId) {
-    discoveryConditions.push(eq(mqDiscoveryJobs.protocolId, registry.protocolId));
+    discoveryConditions.push(eq(mqWorkflowDiscoveryJobs.protocolId, registry.protocolId));
   }
   const primaryCandidateId = extractRegistryCandidateId(registry.metadata);
 
@@ -210,65 +210,65 @@ export async function getRegistryDetail(id: number) {
     metricGroups,
     metricGroupRules,
   ] = await Promise.all([
-    db.select().from(mqAddressEvidence).where(eq(mqAddressEvidence.registryId, id)).orderBy(desc(mqAddressEvidence.createdAt)),
+    db.select().from(mqWorkflowAddressEvidence).where(eq(mqWorkflowAddressEvidence.registryId, id)).orderBy(desc(mqWorkflowAddressEvidence.createdAt)),
     registry.approvedBatchId
-      ? db.select().from(mqLabelBatches).where(eq(mqLabelBatches.id, registry.approvedBatchId)).limit(1)
+      ? db.select().from(mqWorkflowLabelBatches).where(eq(mqWorkflowLabelBatches.id, registry.approvedBatchId)).limit(1)
       : Promise.resolve([]),
     registry.primarySourceJobId
-      ? db.select().from(mqSourceJobs).where(eq(mqSourceJobs.id, registry.primarySourceJobId)).limit(1)
+      ? db.select().from(mqWorkflowSourceJobs).where(eq(mqWorkflowSourceJobs.id, registry.primarySourceJobId)).limit(1)
       : Promise.resolve([]),
     primaryCandidateId
-      ? db.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.id, primaryCandidateId)).limit(1)
+      ? db.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.id, primaryCandidateId)).limit(1)
       : Promise.resolve([]),
     db
       .select()
-      .from(mqApprovalEvents)
+      .from(mqWorkflowApprovalEvents)
       .where(
         registry.approvedBatchId
-          ? or(eq(mqApprovalEvents.registryId, id), eq(mqApprovalEvents.batchId, registry.approvedBatchId))
-          : eq(mqApprovalEvents.registryId, id),
+          ? or(eq(mqWorkflowApprovalEvents.registryId, id), eq(mqWorkflowApprovalEvents.batchId, registry.approvedBatchId))
+          : eq(mqWorkflowApprovalEvents.registryId, id),
       )
-      .orderBy(desc(mqApprovalEvents.createdAt))
+      .orderBy(desc(mqWorkflowApprovalEvents.createdAt))
       .limit(50),
     db
       .select()
-      .from(mqAddressCandidates)
-      .where(and(eq(mqAddressCandidates.normalizedAddress, registry.normalizedAddress), eq(mqAddressCandidates.chainCode, registry.chainCode)))
-      .orderBy(desc(mqAddressCandidates.createdAt))
+      .from(mqWorkflowAddressCandidates)
+      .where(and(eq(mqWorkflowAddressCandidates.normalizedAddress, registry.normalizedAddress), eq(mqWorkflowAddressCandidates.chainCode, registry.chainCode)))
+      .orderBy(desc(mqWorkflowAddressCandidates.createdAt))
       .limit(20),
     db
       .select()
-      .from(mqDiscoveryJobs)
-      .where(and(eq(mqDiscoveryJobs.chainCode, registry.chainCode), or(...discoveryConditions)!))
-      .orderBy(desc(mqDiscoveryJobs.createdAt))
+      .from(mqWorkflowDiscoveryJobs)
+      .where(and(eq(mqWorkflowDiscoveryJobs.chainCode, registry.chainCode), or(...discoveryConditions)!))
+      .orderBy(desc(mqWorkflowDiscoveryJobs.createdAt))
       .limit(20),
     db
       .select({
-        registry: mqAddressRegistry,
-        entityName: mqEntities.entityName,
-        protocolName: mqProtocols.protocolName,
-        roleCode: mqKvRoleDict.roleCode,
+        registry: mqRegistryAddressLabels,
+        entityName: mqDictEntities.entityName,
+        protocolName: mqDictProtocols.protocolName,
+        roleCode: mqDictRoles.roleCode,
       })
-      .from(mqAddressRegistry)
-      .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
-      .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
-      .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
+      .from(mqRegistryAddressLabels)
+      .leftJoin(mqDictEntities, eq(mqRegistryAddressLabels.entityId, mqDictEntities.id))
+      .leftJoin(mqDictProtocols, eq(mqRegistryAddressLabels.protocolId, mqDictProtocols.id))
+      .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
       .where(
         and(
-          eq(mqAddressRegistry.chainCode, registry.chainCode),
-          eq(mqAddressRegistry.normalizedAddress, registry.normalizedAddress),
-          ne(mqAddressRegistry.id, registry.id),
+          eq(mqRegistryAddressLabels.chainCode, registry.chainCode),
+          eq(mqRegistryAddressLabels.normalizedAddress, registry.normalizedAddress),
+          ne(mqRegistryAddressLabels.id, registry.id),
         ),
       )
-      .orderBy(desc(mqAddressRegistry.isActive), desc(mqAddressRegistry.createdAt))
+      .orderBy(desc(mqRegistryAddressLabels.isActive), desc(mqRegistryAddressLabels.createdAt))
       .limit(20),
-    db.select().from(mqMetricGroups).where(eq(mqMetricGroups.isActive, true)).orderBy(desc(mqMetricGroups.createdAt)),
-    db.select().from(mqMetricGroupRules),
+    db.select().from(mqDictMetricGroups).where(eq(mqDictMetricGroups.isActive, true)).orderBy(desc(mqDictMetricGroups.createdAt)),
+    db.select().from(mqPolicyMetricGroupRules),
   ]);
   const provenanceCandidate = primaryCandidate[0] ?? null;
   const sourceDocumentId = provenanceCandidate?.sourceDocumentId ?? sourceBatch[0]?.sourceDocumentId ?? null;
   const [primarySourceDocument] = sourceDocumentId
-    ? await db.select().from(mqSourceDocuments).where(eq(mqSourceDocuments.id, sourceDocumentId)).limit(1)
+    ? await db.select().from(mqWorkflowSourceDocuments).where(eq(mqWorkflowSourceDocuments.id, sourceDocumentId)).limit(1)
     : [];
 
   const metricGroupMatches = matchingMetricGroupsForRow(
@@ -325,14 +325,14 @@ export async function updateRegistryLabel(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [before] = await tx.select().from(mqAddressRegistry).where(eq(mqAddressRegistry.id, parsed.registryId)).limit(1);
+    const [before] = await tx.select().from(mqRegistryAddressLabels).where(eq(mqRegistryAddressLabels.id, parsed.registryId)).limit(1);
 
     if (!before) {
       throw new Error("Registry row not found.");
     }
 
     const [updated] = await tx
-      .update(mqAddressRegistry)
+      .update(mqRegistryAddressLabels)
       .set({
         entityId: parsed.entityId,
         protocolId: optionalNumber(parsed.protocolId),
@@ -354,10 +354,10 @@ export async function updateRegistryLabel(input: unknown) {
         },
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressRegistry.id, parsed.registryId))
+      .where(eq(mqRegistryAddressLabels.id, parsed.registryId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       registryId: parsed.registryId,
       action: "registry_label_updated",
       actorId: actor.id,
@@ -366,10 +366,10 @@ export async function updateRegistryLabel(input: unknown) {
       afterJson: updated,
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "registry_label_updated",
-      targetTable: "mq_address_registry",
+      targetTable: "mq_registry_address_labels",
       targetId: String(parsed.registryId),
       payload: { before, after: updated },
     });
@@ -384,7 +384,7 @@ export async function addRegistrySecondaryRole(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [before] = await tx.select().from(mqAddressRegistry).where(eq(mqAddressRegistry.id, parsed.registryId)).limit(1);
+    const [before] = await tx.select().from(mqRegistryAddressLabels).where(eq(mqRegistryAddressLabels.id, parsed.registryId)).limit(1);
 
     if (!before) {
       throw new Error("Registry row not found.");
@@ -394,7 +394,7 @@ export async function addRegistrySecondaryRole(input: unknown) {
       throw new Error("Primary role is already assigned to this registry label.");
     }
 
-    const [role] = await tx.select().from(mqKvRoleDict).where(eq(mqKvRoleDict.roleId, parsed.roleId)).limit(1);
+    const [role] = await tx.select().from(mqDictRoles).where(eq(mqDictRoles.roleId, parsed.roleId)).limit(1);
     if (!role) {
       throw new Error("Secondary role not found.");
     }
@@ -409,7 +409,7 @@ export async function addRegistrySecondaryRole(input: unknown) {
     });
 
     const [updated] = await tx
-      .update(mqAddressRegistry)
+      .update(mqRegistryAddressLabels)
       .set({
         flags: setFlag(before.flags, FLAG_BITS.hasSecondaryRoles),
         metadata: {
@@ -419,10 +419,10 @@ export async function addRegistrySecondaryRole(input: unknown) {
         },
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressRegistry.id, parsed.registryId))
+      .where(eq(mqRegistryAddressLabels.id, parsed.registryId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       registryId: parsed.registryId,
       action: "registry_secondary_role_added",
       actorId: actor.id,
@@ -431,10 +431,10 @@ export async function addRegistrySecondaryRole(input: unknown) {
       afterJson: updated,
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "registry_secondary_role_added",
-      targetTable: "mq_address_registry",
+      targetTable: "mq_registry_address_labels",
       targetId: String(parsed.registryId),
       payload: { before, after: updated, secondaryRole: { roleId: role.roleId, roleCode: role.roleCode }, reason: parsed.reason },
     });
@@ -450,8 +450,8 @@ export async function supersedeRegistryLabel(input: unknown) {
 
   return db.transaction(async (tx) => {
     const [[before], [replacement]] = await Promise.all([
-      tx.select().from(mqAddressRegistry).where(eq(mqAddressRegistry.id, parsed.registryId)).limit(1),
-      tx.select().from(mqAddressRegistry).where(eq(mqAddressRegistry.id, parsed.replacementRegistryId)).limit(1),
+      tx.select().from(mqRegistryAddressLabels).where(eq(mqRegistryAddressLabels.id, parsed.registryId)).limit(1),
+      tx.select().from(mqRegistryAddressLabels).where(eq(mqRegistryAddressLabels.id, parsed.replacementRegistryId)).limit(1),
     ]);
 
     if (!before) {
@@ -477,7 +477,7 @@ export async function supersedeRegistryLabel(input: unknown) {
     const nowIso = new Date().toISOString();
     const validToBlock = inferSupersededValidToBlock(before, replacement, optionalNumber(parsed.validToBlock));
     const [updated] = await tx
-      .update(mqAddressRegistry)
+      .update(mqRegistryAddressLabels)
       .set({
         isActive: false,
         flags: markHistoricalOnlyFlags(before.flags),
@@ -490,10 +490,10 @@ export async function supersedeRegistryLabel(input: unknown) {
         }),
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressRegistry.id, before.id))
+      .where(eq(mqRegistryAddressLabels.id, before.id))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       registryId: before.id,
       action: "registry_label_superseded",
       actorId: actor.id,
@@ -502,10 +502,10 @@ export async function supersedeRegistryLabel(input: unknown) {
       afterJson: updated,
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "registry_label_superseded",
-      targetTable: "mq_address_registry",
+      targetTable: "mq_registry_address_labels",
       targetId: String(before.id),
       payload: { before, after: updated, replacementRegistryId: replacement.id, reason: parsed.reason },
     });
@@ -520,14 +520,14 @@ export async function deactivateRegistryLabel(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [before] = await tx.select().from(mqAddressRegistry).where(eq(mqAddressRegistry.id, parsed.registryId)).limit(1);
+    const [before] = await tx.select().from(mqRegistryAddressLabels).where(eq(mqRegistryAddressLabels.id, parsed.registryId)).limit(1);
 
     if (!before) {
       throw new Error("Registry row not found.");
     }
 
     const [updated] = await tx
-      .update(mqAddressRegistry)
+      .update(mqRegistryAddressLabels)
       .set({
         isActive: false,
         metadata: {
@@ -538,10 +538,10 @@ export async function deactivateRegistryLabel(input: unknown) {
         },
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressRegistry.id, parsed.registryId))
+      .where(eq(mqRegistryAddressLabels.id, parsed.registryId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       registryId: parsed.registryId,
       action: "registry_label_deactivated",
       actorId: actor.id,
@@ -550,10 +550,10 @@ export async function deactivateRegistryLabel(input: unknown) {
       afterJson: updated,
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "registry_label_deactivated",
-      targetTable: "mq_address_registry",
+      targetTable: "mq_registry_address_labels",
       targetId: String(parsed.registryId),
       payload: { before, after: updated, reason: parsed.reason },
     });
@@ -568,14 +568,14 @@ export async function markRegistryHistorical(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [before] = await tx.select().from(mqAddressRegistry).where(eq(mqAddressRegistry.id, parsed.registryId)).limit(1);
+    const [before] = await tx.select().from(mqRegistryAddressLabels).where(eq(mqRegistryAddressLabels.id, parsed.registryId)).limit(1);
 
     if (!before) {
       throw new Error("Registry row not found.");
     }
 
     const [updated] = await tx
-      .update(mqAddressRegistry)
+      .update(mqRegistryAddressLabels)
       .set({
         isActive: false,
         labelStatus: LABEL_STATUS.inactiveHistorical,
@@ -589,10 +589,10 @@ export async function markRegistryHistorical(input: unknown) {
         },
         updatedAt: new Date(),
       })
-      .where(eq(mqAddressRegistry.id, parsed.registryId))
+      .where(eq(mqRegistryAddressLabels.id, parsed.registryId))
       .returning();
 
-    await tx.insert(mqApprovalEvents).values({
+    await tx.insert(mqWorkflowApprovalEvents).values({
       registryId: parsed.registryId,
       action: "registry_label_marked_historical",
       actorId: actor.id,
@@ -601,10 +601,10 @@ export async function markRegistryHistorical(input: unknown) {
       afterJson: updated,
     });
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "registry_label_marked_historical",
-      targetTable: "mq_address_registry",
+      targetTable: "mq_registry_address_labels",
       targetId: String(parsed.registryId),
       payload: { before, after: updated, reason: parsed.reason },
     });

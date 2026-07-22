@@ -4,28 +4,28 @@ import { eq, sql } from "drizzle-orm";
 
 import { closeDb, getDb } from "../src/db/client";
 import {
-  mqCategoryDict,
-  mqAddressCodecs,
-  mqAddressNamespaces,
-  mqAssetNamespaces,
-  mqAssets,
+  mqDictCategories,
+  mqDictAddressCodecs,
+  mqDictAddressNamespaces,
+  mqRegistryAssetNamespaces,
+  mqDictAssets,
   mqCatalogSources,
-  mqChainCapabilities,
-  mqChainAliases,
-  mqChainNetworks,
-  mqDictionaryIdRanges,
-  mqDictionaryVersions,
-  mqEntities,
-  mqKvKeyPrefixDict,
-  mqKvRoleDict,
-  mqMetricGroupRules,
-  mqMetricGroups,
-  mqProtocolComponents,
-  mqProtocolDeployments,
-  mqProtocols,
-  mqTagDict,
-  mqTokenContracts,
-  mqTokenStandards,
+  mqPolicyChainCapabilities,
+  mqCatalogChainAliases,
+  mqDictChainNetworks,
+  mqGovernanceDictionaryIdRanges,
+  mqGovernanceDictionaryVersions,
+  mqDictEntities,
+  mqDictLegacyKeyPrefixes,
+  mqDictRoles,
+  mqPolicyMetricGroupRules,
+  mqDictMetricGroups,
+  mqDictProtocolComponents,
+  mqDictProtocolDeployments,
+  mqDictProtocols,
+  mqDictTags,
+  mqRegistryTokenContracts,
+  mqDictTokenStandards,
   mqUsers,
 } from "../src/db/schema";
 import { assertStableCatalogIds, loadAndValidateU1Catalog } from "../src/lib/mqchain/catalog/u1";
@@ -60,7 +60,7 @@ async function main() {
         },
       });
 
-    const existingCategories = await tx.select().from(mqCategoryDict);
+    const existingCategories = await tx.select().from(mqDictCategories);
     const categoryPlans = planStableDictionaryIds(
       seedCategories.map(([categoryId, categoryCode]) => ({ preferredId: categoryId, code: categoryCode })),
       existingCategories.map((category) => ({ id: category.categoryId, code: category.categoryCode })),
@@ -83,16 +83,16 @@ async function main() {
       const existing = existingCategories.find((category) => category.categoryCode === categoryCode);
 
       if (existing) {
-        await tx.update(mqCategoryDict).set(values).where(eq(mqCategoryDict.categoryCode, categoryCode));
+        await tx.update(mqDictCategories).set(values).where(eq(mqDictCategories.categoryCode, categoryCode));
       } else {
-        await tx.insert(mqCategoryDict).values({ categoryId: actualCategoryId, categoryCode, ...values });
+        await tx.insert(mqDictCategories).values({ categoryId: actualCategoryId, categoryCode, ...values });
       }
     }
 
     for (const [entityCode, entityName, entityType, preferredCategoryId] of seedEntities) {
       const categoryCode = categoryCodeByPreferredId.get(preferredCategoryId);
       await tx
-        .insert(mqEntities)
+        .insert(mqDictEntities)
         .values({
           entityCode,
           entityName,
@@ -100,7 +100,7 @@ async function main() {
           categoryId: categoryCode ? categoryIdByCode.get(categoryCode) ?? null : null,
         })
         .onConflictDoUpdate({
-          target: mqEntities.entityCode,
+          target: mqDictEntities.entityCode,
           set: {
             entityName,
             entityType,
@@ -111,12 +111,12 @@ async function main() {
         });
     }
 
-    const entities = await tx.select().from(mqEntities);
+    const entities = await tx.select().from(mqDictEntities);
     const entityIdByCode = new Map(entities.map((entity) => [entity.entityCode, entity.id]));
 
     for (const [entityCode, protocolCode, protocolName, protocolType, chainScope] of seedProtocols) {
       await tx
-        .insert(mqProtocols)
+        .insert(mqDictProtocols)
         .values({
           entityId: entityIdByCode.get(entityCode),
           protocolCode,
@@ -125,7 +125,7 @@ async function main() {
           chainScope: [...chainScope],
         })
         .onConflictDoUpdate({
-          target: mqProtocols.protocolCode,
+          target: mqDictProtocols.protocolCode,
           set: {
             entityId: entityIdByCode.get(entityCode),
             protocolName,
@@ -139,15 +139,15 @@ async function main() {
 
     for (const [prefixCode, chainCode, chainName, chainFamily, addressFamily, codec, payloadLen, evmChainId] of seedPrefixes) {
       await tx
-        .insert(mqKvKeyPrefixDict)
+        .insert(mqDictLegacyKeyPrefixes)
         .values({ prefixCode, chainCode, chainName, chainFamily, addressFamily, codec, payloadLen, evmChainId })
         .onConflictDoUpdate({
-          target: mqKvKeyPrefixDict.prefixCode,
+          target: mqDictLegacyKeyPrefixes.prefixCode,
           set: { chainCode, chainName, chainFamily, addressFamily, codec, payloadLen, evmChainId, isActive: true, updatedAt: new Date() },
         });
     }
 
-    const existingRoles = await tx.select().from(mqKvRoleDict);
+    const existingRoles = await tx.select().from(mqDictRoles);
     const rolePlans = planStableDictionaryIds(
       seedRoles.map((role) => ({ preferredId: role.roleId, code: role.roleCode })),
       existingRoles.map((role) => ({ id: role.roleId, code: role.roleCode })),
@@ -170,15 +170,15 @@ async function main() {
       const existing = existingRoles.find((existingRole) => existingRole.roleCode === role.roleCode);
 
       if (existing) {
-        await tx.update(mqKvRoleDict).set(values).where(eq(mqKvRoleDict.roleCode, role.roleCode));
+        await tx.update(mqDictRoles).set(values).where(eq(mqDictRoles.roleCode, role.roleCode));
       } else {
-        await tx.insert(mqKvRoleDict).values({ roleId: roleIdByCode.get(role.roleCode) ?? role.roleId, roleCode: role.roleCode, ...values });
+        await tx.insert(mqDictRoles).values({ roleId: roleIdByCode.get(role.roleCode) ?? role.roleId, roleCode: role.roleCode, ...values });
       }
     }
 
     for (const metricGroup of seedMetricGroups) {
       const [group] = await tx
-        .insert(mqMetricGroups)
+        .insert(mqDictMetricGroups)
         .values({
           metricGroupCode: metricGroup.metricGroupCode,
           metricGroupName: metricGroup.metricGroupName,
@@ -187,7 +187,7 @@ async function main() {
           requireMetricEligible: metricGroup.requireMetricEligible,
         })
         .onConflictDoUpdate({
-          target: mqMetricGroups.metricGroupCode,
+          target: mqDictMetricGroups.metricGroupCode,
           set: {
             metricGroupName: metricGroup.metricGroupName,
             chainCode: metricGroup.chainCode,
@@ -200,13 +200,13 @@ async function main() {
         .returning();
 
       const [existingRule] = await tx
-        .select({ id: mqMetricGroupRules.id })
-        .from(mqMetricGroupRules)
-        .where(eq(mqMetricGroupRules.metricGroupId, group.id))
+        .select({ id: mqPolicyMetricGroupRules.id })
+        .from(mqPolicyMetricGroupRules)
+        .where(eq(mqPolicyMetricGroupRules.metricGroupId, group.id))
         .limit(1);
 
       if (!existingRule) {
-        await tx.insert(mqMetricGroupRules).values({ metricGroupId: group.id, ruleJson: metricGroup.ruleJson });
+        await tx.insert(mqPolicyMetricGroupRules).values({ metricGroupId: group.id, ruleJson: metricGroup.ruleJson });
       }
     }
 
@@ -227,7 +227,7 @@ async function main() {
     }
 
     const categoryRows = u1Catalog.rows.get("categories.csv") ?? [];
-    const currentCategories = await tx.select().from(mqCategoryDict);
+    const currentCategories = await tx.select().from(mqDictCategories);
     assertStableCatalogIds(
       "category",
       categoryRows.map((row) => ({ id: Number(row.category_id), code: row.category_code })),
@@ -242,11 +242,11 @@ async function main() {
         isActive: row.is_active === "true",
         updatedAt: new Date(),
       };
-      await tx.insert(mqCategoryDict).values({ categoryId: Number(row.category_id), categoryCode: row.category_code, ...values }).onConflictDoUpdate({ target: mqCategoryDict.categoryCode, set: values });
+      await tx.insert(mqDictCategories).values({ categoryId: Number(row.category_id), categoryCode: row.category_code, ...values }).onConflictDoUpdate({ target: mqDictCategories.categoryCode, set: values });
     }
 
     const entityRows = u1Catalog.rows.get("entities.csv") ?? [];
-    const currentEntities = await tx.select().from(mqEntities);
+    const currentEntities = await tx.select().from(mqDictEntities);
     assertStableCatalogIds(
       "entity",
       entityRows.map((row) => ({ id: Number(row.entity_id), code: row.entity_code })),
@@ -261,11 +261,11 @@ async function main() {
         isActive: row.is_active === "true",
         updatedAt: new Date(),
       };
-      await tx.insert(mqEntities).values({ id: Number(row.entity_id), entityCode: row.entity_code, ...values }).onConflictDoUpdate({ target: mqEntities.entityCode, set: values });
+      await tx.insert(mqDictEntities).values({ id: Number(row.entity_id), entityCode: row.entity_code, ...values }).onConflictDoUpdate({ target: mqDictEntities.entityCode, set: values });
     }
 
     const protocolRows = u1Catalog.rows.get("protocols.csv") ?? [];
-    const currentProtocols = await tx.select().from(mqProtocols);
+    const currentProtocols = await tx.select().from(mqDictProtocols);
     assertStableCatalogIds(
       "protocol",
       protocolRows.map((row) => ({ id: Number(row.protocol_id), code: row.protocol_code })),
@@ -279,11 +279,11 @@ async function main() {
         isActive: row.is_active === "true",
         updatedAt: new Date(),
       };
-      await tx.insert(mqProtocols).values({ id: Number(row.protocol_id), protocolCode: row.protocol_code, ...values }).onConflictDoUpdate({ target: mqProtocols.protocolCode, set: values });
+      await tx.insert(mqDictProtocols).values({ id: Number(row.protocol_id), protocolCode: row.protocol_code, ...values }).onConflictDoUpdate({ target: mqDictProtocols.protocolCode, set: values });
     }
 
     const roleRows = u1Catalog.rows.get("roles.csv") ?? [];
-    const currentRoles = await tx.select().from(mqKvRoleDict);
+    const currentRoles = await tx.select().from(mqDictRoles);
     assertStableCatalogIds(
       "role",
       roleRows.map((row) => ({ id: Number(row.role_id), code: row.role_code })),
@@ -301,14 +301,14 @@ async function main() {
         isActive: row.is_active === "true",
         updatedAt: new Date(),
       };
-      await tx.insert(mqKvRoleDict).values({ roleId: Number(row.role_id), roleCode: row.role_code, ...values }).onConflictDoUpdate({ target: mqKvRoleDict.roleCode, set: values });
+      await tx.insert(mqDictRoles).values({ roleId: Number(row.role_id), roleCode: row.role_code, ...values }).onConflictDoUpdate({ target: mqDictRoles.roleCode, set: values });
     }
 
     const networkRows = u1Catalog.rows.get("chain_networks.csv") ?? [];
     assertStableCatalogIds(
       "network",
       networkRows.map((row) => ({ id: Number(row.chain_network_id), code: row.network_code })),
-      (await tx.select().from(mqChainNetworks)).map((row) => ({ id: row.id, code: row.networkCode })),
+      (await tx.select().from(mqDictChainNetworks)).map((row) => ({ id: row.id, code: row.networkCode })),
     );
     for (const row of networkRows) {
       const values = {
@@ -325,14 +325,14 @@ async function main() {
         notes: row.notes || null,
         updatedAt: new Date(),
       };
-      await tx.insert(mqChainNetworks).values({ id: Number(row.chain_network_id), ...values }).onConflictDoUpdate({ target: mqChainNetworks.id, set: values });
+      await tx.insert(mqDictChainNetworks).values({ id: Number(row.chain_network_id), ...values }).onConflictDoUpdate({ target: mqDictChainNetworks.id, set: values });
     }
 
     const codecRows = u1Catalog.rows.get("address_codecs.csv") ?? [];
     assertStableCatalogIds(
       "address codec",
       codecRows.map((row) => ({ id: Number(row.address_codec_id), code: row.codec_code })),
-      (await tx.select().from(mqAddressCodecs)).map((row) => ({ id: row.id, code: row.codecCode })),
+      (await tx.select().from(mqDictAddressCodecs)).map((row) => ({ id: row.id, code: row.codecCode })),
     );
     for (const row of codecRows) {
       const values = {
@@ -356,14 +356,14 @@ async function main() {
         notes: row.notes || null,
         updatedAt: new Date(),
       };
-      await tx.insert(mqAddressCodecs).values({ id: Number(row.address_codec_id), ...values }).onConflictDoUpdate({ target: mqAddressCodecs.id, set: values });
+      await tx.insert(mqDictAddressCodecs).values({ id: Number(row.address_codec_id), ...values }).onConflictDoUpdate({ target: mqDictAddressCodecs.id, set: values });
     }
 
     const namespaceRows = u1Catalog.rows.get("address_namespaces.csv") ?? [];
     assertStableCatalogIds(
       "address namespace",
       namespaceRows.map((row) => ({ id: Number(row.namespace_id), code: row.namespace_code })),
-      (await tx.select().from(mqAddressNamespaces)).map((row) => ({ id: row.id, code: row.namespaceCode })),
+      (await tx.select().from(mqDictAddressNamespaces)).map((row) => ({ id: row.id, code: row.namespaceCode })),
     );
     for (const row of namespaceRows) {
       const values = {
@@ -381,56 +381,56 @@ async function main() {
         notes: row.notes || null,
         updatedAt: new Date(),
       };
-      await tx.insert(mqAddressNamespaces).values({ id: Number(row.namespace_id), ...values }).onConflictDoUpdate({ target: mqAddressNamespaces.id, set: values });
+      await tx.insert(mqDictAddressNamespaces).values({ id: Number(row.namespace_id), ...values }).onConflictDoUpdate({ target: mqDictAddressNamespaces.id, set: values });
     }
 
     await tx.execute(sql`
-      update mq_address_candidates candidate
+      update mq_workflow_address_candidates candidate
       set namespace_id = namespace.namespace_id,
           address_codec_id = namespace.address_codec_id
-      from mq_address_namespaces namespace
+      from mq_dict_address_namespaces namespace
       where candidate.prefix_code = namespace.legacy_prefix_code
-        and (select count(*) from mq_address_namespaces sibling where sibling.legacy_prefix_code = candidate.prefix_code) = 1
+        and (select count(*) from mq_dict_address_namespaces sibling where sibling.legacy_prefix_code = candidate.prefix_code) = 1
         and (candidate.namespace_id is distinct from namespace.namespace_id
           or candidate.address_codec_id is distinct from namespace.address_codec_id)
     `);
     await tx.execute(sql`
-      update mq_address_registry registry
+      update mq_registry_address_labels registry
       set namespace_id = namespace.namespace_id,
           address_codec_id = namespace.address_codec_id
-      from mq_address_namespaces namespace
+      from mq_dict_address_namespaces namespace
       where registry.prefix_code = namespace.legacy_prefix_code
-        and (select count(*) from mq_address_namespaces sibling where sibling.legacy_prefix_code = registry.prefix_code) = 1
+        and (select count(*) from mq_dict_address_namespaces sibling where sibling.legacy_prefix_code = registry.prefix_code) = 1
         and (registry.namespace_id is distinct from namespace.namespace_id
           or registry.address_codec_id is distinct from namespace.address_codec_id)
     `);
     await tx.execute(sql`
-      update mq_address_candidates
+      update mq_workflow_address_candidates
       set namespace_id = case when substring(payload_hex from 1 for 2) = '00' then 3 else 47 end,
           address_codec_id = case when substring(payload_hex from 1 for 2) = '00' then 12 else 13 end
       where prefix_code = 18 and payload_hex ~ '^(0[0-9a-f]|10)'
     `);
     await tx.execute(sql`
-      update mq_address_registry
+      update mq_registry_address_labels
       set namespace_id = case when substring(payload_hex from 1 for 2) = '00' then 3 else 47 end,
           address_codec_id = case when substring(payload_hex from 1 for 2) = '00' then 12 else 13 end
       where prefix_code = 18 and payload_hex ~ '^(0[0-9a-f]|10)'
     `);
     await tx.execute(sql`
-      update mq_metric_group_members member
+      update mq_build_metric_group_members member
       set namespace_id = registry.namespace_id,
           address_codec_id = registry.address_codec_id,
           payload_hex = registry.payload_hex
-      from mq_address_registry registry
+      from mq_registry_address_labels registry
       where member.registry_id = registry.id
         and (member.namespace_id is distinct from registry.namespace_id
           or member.address_codec_id is distinct from registry.address_codec_id
           or member.payload_hex is distinct from registry.payload_hex)
     `);
     await tx.execute(sql`
-      update mq_address_registry registry
+      update mq_registry_address_labels registry
       set category_id = role.category_id
-      from mq_kv_role_dict role
+      from mq_dict_roles role
       where registry.role_id = role.role_id and registry.category_id is null
     `);
 
@@ -453,10 +453,10 @@ async function main() {
         lastVerifiedAt: row.last_verified_at ? new Date(`${row.last_verified_at}T00:00:00Z`) : null,
         updatedAt: new Date(),
       };
-      await tx.insert(mqChainCapabilities).values({ chainNetworkId: Number(row.chain_network_id), ...values }).onConflictDoUpdate({ target: mqChainCapabilities.chainNetworkId, set: values });
+      await tx.insert(mqPolicyChainCapabilities).values({ chainNetworkId: Number(row.chain_network_id), ...values }).onConflictDoUpdate({ target: mqPolicyChainCapabilities.chainNetworkId, set: values });
     }
 
-    const existingAliases = await tx.select().from(mqChainAliases);
+    const existingAliases = await tx.select().from(mqCatalogChainAliases);
     const existingAliasIdentityById = new Map(existingAliases.map((row) => [row.id, `${row.sourceScope}\u0000${row.rawChainName}\u0000${row.addressType}`]));
     for (const row of u1Catalog.rows.get("chain_aliases.csv") ?? []) {
       const id = Number(row.alias_id);
@@ -480,7 +480,7 @@ async function main() {
         approvalNotes: row.approval_notes || null,
         updatedAt: new Date(),
       };
-      await tx.insert(mqChainAliases).values({ id, ...values }).onConflictDoUpdate({ target: mqChainAliases.id, set: values });
+      await tx.insert(mqCatalogChainAliases).values({ id, ...values }).onConflictDoUpdate({ target: mqCatalogChainAliases.id, set: values });
     }
 
     for (const row of u1Catalog.rows.get("id_ranges.csv") ?? []) {
@@ -495,27 +495,27 @@ async function main() {
         notes: row.notes || null,
         updatedAt: new Date(),
       };
-      await tx.insert(mqDictionaryIdRanges).values({ id: Number(row.range_id), ...values }).onConflictDoUpdate({ target: mqDictionaryIdRanges.id, set: values });
+      await tx.insert(mqGovernanceDictionaryIdRanges).values({ id: Number(row.range_id), ...values }).onConflictDoUpdate({ target: mqGovernanceDictionaryIdRanges.id, set: values });
     }
 
     for (const row of u1Catalog.rows.get("tags.csv") ?? []) {
       const values = { tagCode: row.tag_code, tagName: row.tag_name, tagGroup: row.tag_group || null, isActive: row.is_active === "true", sourceId: Number(row.source_id), updatedAt: new Date() };
-      await tx.insert(mqTagDict).values({ id: Number(row.tag_id), ...values }).onConflictDoUpdate({ target: mqTagDict.id, set: values });
+      await tx.insert(mqDictTags).values({ id: Number(row.tag_id), ...values }).onConflictDoUpdate({ target: mqDictTags.id, set: values });
     }
 
     for (const row of u1Catalog.rows.get("assets.csv") ?? []) {
       const values = { assetCode: row.asset_code, assetName: row.asset_name, assetType: row.asset_type, symbol: row.symbol, isActive: row.is_active === "true", sourceId: Number(row.source_id), verifiedAt: row.verified_at ? new Date(`${row.verified_at}T00:00:00Z`) : null, notes: row.notes || null, updatedAt: new Date() };
-      await tx.insert(mqAssets).values({ id: Number(row.asset_id), ...values }).onConflictDoUpdate({ target: mqAssets.id, set: values });
+      await tx.insert(mqDictAssets).values({ id: Number(row.asset_id), ...values }).onConflictDoUpdate({ target: mqDictAssets.id, set: values });
     }
 
     for (const row of u1Catalog.rows.get("token_standards.csv") ?? []) {
       const values = { standardCode: row.standard_code, standardName: row.standard_name, chainFamily: row.chain_family, isActive: row.is_active === "true", sourceId: Number(row.source_id), verifiedAt: row.verified_at ? new Date(`${row.verified_at}T00:00:00Z`) : null, notes: row.notes || null, updatedAt: new Date() };
-      await tx.insert(mqTokenStandards).values({ id: Number(row.standard_id), ...values }).onConflictDoUpdate({ target: mqTokenStandards.id, set: values });
+      await tx.insert(mqDictTokenStandards).values({ id: Number(row.standard_id), ...values }).onConflictDoUpdate({ target: mqDictTokenStandards.id, set: values });
     }
 
     for (const row of u1Catalog.rows.get("asset_namespaces.csv") ?? []) {
       const values = { assetId: Number(row.asset_id), namespaceId: Number(row.namespace_id), standardId: Number(row.standard_id), status: row.status, sourceId: Number(row.source_id), verifiedAt: row.verified_at ? new Date(`${row.verified_at}T00:00:00Z`) : null, notes: row.notes || null, updatedAt: new Date() };
-      await tx.insert(mqAssetNamespaces).values({ id: Number(row.asset_namespace_id), ...values }).onConflictDoUpdate({ target: mqAssetNamespaces.id, set: values });
+      await tx.insert(mqRegistryAssetNamespaces).values({ id: Number(row.asset_namespace_id), ...values }).onConflictDoUpdate({ target: mqRegistryAssetNamespaces.id, set: values });
     }
 
     for (const row of u1Catalog.rows.get("token_contracts.csv") ?? []) {
@@ -533,7 +533,7 @@ async function main() {
         notes: row.notes || null,
         updatedAt: new Date(),
       };
-      await tx.insert(mqTokenContracts).values({ id: Number(row.token_contract_id), ...values }).onConflictDoUpdate({ target: mqTokenContracts.id, set: values });
+      await tx.insert(mqRegistryTokenContracts).values({ id: Number(row.token_contract_id), ...values }).onConflictDoUpdate({ target: mqRegistryTokenContracts.id, set: values });
     }
 
     for (const row of u1Catalog.rows.get("protocol_deployments.csv") ?? []) {
@@ -547,7 +547,7 @@ async function main() {
         notes: row.notes || null,
         updatedAt: new Date(),
       };
-      await tx.insert(mqProtocolDeployments).values({ id: Number(row.deployment_id), deploymentCode: row.deployment_code, ...values }).onConflictDoUpdate({ target: mqProtocolDeployments.deploymentCode, set: values });
+      await tx.insert(mqDictProtocolDeployments).values({ id: Number(row.deployment_id), deploymentCode: row.deployment_code, ...values }).onConflictDoUpdate({ target: mqDictProtocolDeployments.deploymentCode, set: values });
     }
 
     for (const row of u1Catalog.rows.get("protocol_components.csv") ?? []) {
@@ -570,11 +570,11 @@ async function main() {
         notes: row.notes || null,
         updatedAt: new Date(),
       };
-      await tx.insert(mqProtocolComponents).values({ id: Number(row.component_id), componentCode: row.component_code, ...values }).onConflictDoUpdate({ target: mqProtocolComponents.componentCode, set: values });
+      await tx.insert(mqDictProtocolComponents).values({ id: Number(row.component_id), componentCode: row.component_code, ...values }).onConflictDoUpdate({ target: mqDictProtocolComponents.componentCode, set: values });
     }
 
     const metricRows = u1Catalog.rows.get("metric_groups.csv") ?? [];
-    const currentMetricGroups = await tx.select().from(mqMetricGroups);
+    const currentMetricGroups = await tx.select().from(mqDictMetricGroups);
     assertStableCatalogIds(
       "metric group",
       metricRows.map((row) => ({ id: Number(row.metric_group_id), code: row.metric_group_code })),
@@ -582,7 +582,7 @@ async function main() {
     );
     for (const row of metricRows) {
       const values = { metricGroupName: row.metric_group_name, namespaceId: row.namespace_id ? Number(row.namespace_id) : null, minConfidence: Number(row.min_confidence), requireMetricEligible: row.require_metric_eligible === "true", isActive: row.is_active === "true", updatedAt: new Date() };
-      await tx.insert(mqMetricGroups).values({ id: Number(row.metric_group_id), metricGroupCode: row.metric_group_code, ...values }).onConflictDoUpdate({ target: mqMetricGroups.metricGroupCode, set: values });
+      await tx.insert(mqDictMetricGroups).values({ id: Number(row.metric_group_id), metricGroupCode: row.metric_group_code, ...values }).onConflictDoUpdate({ target: mqDictMetricGroups.metricGroupCode, set: values });
     }
 
     for (const rule of u1Catalog.metricRules) {
@@ -597,26 +597,26 @@ async function main() {
         updatedAt: new Date(),
       };
       await tx
-        .insert(mqMetricGroupRules)
+        .insert(mqPolicyMetricGroupRules)
         .values({ metricGroupId: rule.metric_group_id, ruleVersion: rule.rule_version, ...values })
         .onConflictDoUpdate({
-          target: [mqMetricGroupRules.metricGroupId, mqMetricGroupRules.ruleVersion],
+          target: [mqPolicyMetricGroupRules.metricGroupId, mqPolicyMetricGroupRules.ruleVersion],
           set: values,
         });
     }
 
-    await tx.insert(mqDictionaryVersions).values({
+    await tx.insert(mqGovernanceDictionaryVersions).values({
       versionHash: u1Catalog.dictionaryVersion,
       catalogHash: u1Catalog.dictionaryVersion,
       catalogPath: "data/catalog/u1",
       status: "active",
       summary: { catalog: "u1", files: u1Catalog.rows.size },
       activatedAt: new Date(),
-    }).onConflictDoNothing({ target: mqDictionaryVersions.versionHash });
+    }).onConflictDoNothing({ target: mqGovernanceDictionaryVersions.versionHash });
 
-    await tx.execute(sql`select setval(pg_get_serial_sequence('mq_entities', 'id'), greatest((select max(id) from mq_entities), 1), true)`);
-    await tx.execute(sql`select setval(pg_get_serial_sequence('mq_protocols', 'id'), greatest((select max(id) from mq_protocols), 1), true)`);
-    await tx.execute(sql`select setval(pg_get_serial_sequence('mq_metric_groups', 'id'), greatest((select max(id) from mq_metric_groups), 1), true)`);
+    await tx.execute(sql`select setval(pg_get_serial_sequence('mq_dict_entities', 'id'), greatest((select max(id) from mq_dict_entities), 1), true)`);
+    await tx.execute(sql`select setval(pg_get_serial_sequence('mq_dict_protocols', 'id'), greatest((select max(id) from mq_dict_protocols), 1), true)`);
+    await tx.execute(sql`select setval(pg_get_serial_sequence('mq_dict_metric_groups', 'id'), greatest((select max(id) from mq_dict_metric_groups), 1), true)`);
   });
 
   console.log(`Seed complete. Owner account: ${ownerEmail}. Password loaded from MQCHAIN_SEED_OWNER_PASSWORD.`);

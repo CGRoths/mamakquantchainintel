@@ -1,7 +1,7 @@
 import { asc, eq, inArray } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
-import { mqAddressRegistry, mqKvRoleDict } from "@/db/schema";
+import { mqRegistryAddressLabels, mqDictRoles } from "@/db/schema";
 
 import { compileU1RecordStream } from "../kv/compiled-records";
 import { resolveCurrentRecordBatch, resolveMetricRecordBatch, resolveTimelineRecordBatch, type TimelineLookup } from "../kv/decoded-record";
@@ -15,11 +15,11 @@ export class CanonicalPostgresResolver {
     return this.db.transaction(async tx => {
       const snapshot = await loadFullKvCompilationSnapshot(tx);
       const rows = snapshot.registryIds.length ? await tx
-        .select({ registry: mqAddressRegistry, resolvedCategoryId: mqKvRoleDict.categoryId })
-        .from(mqAddressRegistry)
-        .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-        .where(inArray(mqAddressRegistry.id, [...snapshot.registryIds]))
-        .orderBy(asc(mqAddressRegistry.id)) : [];
+        .select({ registry: mqRegistryAddressLabels, resolvedCategoryId: mqDictRoles.categoryId })
+        .from(mqRegistryAddressLabels)
+        .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+        .where(inArray(mqRegistryAddressLabels.id, [...snapshot.registryIds]))
+        .orderBy(asc(mqRegistryAddressLabels.id)) : [];
       return compileU1RecordStream({ rows: rows.map(row => ({ ...row.registry, resolvedCategoryId: row.resolvedCategoryId })), currentRegistryIds: snapshot.currentRegistryIds, timelineRegistryIds: snapshot.timelineRegistryIds, metricMemberships: snapshot.metricMemberships });
     }, { isolationLevel: "repeatable read", accessMode: "read only" });
   }

@@ -29,6 +29,7 @@ describe("MQCHAIN schema check constraints", () => {
     const schema = readProjectFile("src", "db", "schema.ts");
 
     expect(schema).toContain("function sqlStringList");
+    // Physical table renames intentionally preserve existing constraint names.
     expect(schema).toContain('"ck_mq_source_jobs_source_type"');
     expect(schema).toContain("sqlStringList(SOURCE_TYPES)");
     expect(schema).toContain("sqlStringList(SOURCE_JOB_STATUSES)");

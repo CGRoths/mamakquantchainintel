@@ -1,0 +1,3186 @@
+{
+  "schemaVersion": "MQCHAIN-TABLE-REFERENCE-INVENTORY-1",
+  "startingHead": "34ae0c5ae04c4523850ea418e2f34424ff476ec3",
+  "generatedBeforeImplementationEdits": true,
+  "scope": {
+    "excluded": [
+      "node_modules/**",
+      ".next/**",
+      "build/**",
+      "reports/table-reference-inventory.pre-rename.json"
+    ]
+  },
+  "tables": [
+    {
+      "oldPhysicalName": "mq_users",
+      "newPhysicalName": null,
+      "action": "keep",
+      "referenceCount": 35,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 323
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 332
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 346
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 346
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 356
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 356
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 357
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 357
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 358
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 358
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 361
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 361
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 363
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 363
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 374
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 374
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 375
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 375
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 379
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 379
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 38
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 38
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6939
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6940
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6942
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7172
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7173
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7175
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7814
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7815
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7876
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7877
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7886
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7887
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7888
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_catalog_sources",
+      "newPhysicalName": null,
+      "action": "keep",
+      "referenceCount": 21,
+      "references": [
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5786
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5787
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5789
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6048
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6049
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6051
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6319
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6320
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6322
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6497
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6498
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6500
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7279
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7280
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7282
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7662
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7663
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7665
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7781
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7782
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7784
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_chain_networks",
+      "newPhysicalName": "mq_dict_chain_networks",
+      "action": "rename",
+      "referenceCount": 0,
+      "references": []
+    },
+    {
+      "oldPhysicalName": "mq_address_namespaces",
+      "newPhysicalName": "mq_dict_address_namespaces",
+      "action": "rename",
+      "referenceCount": 15,
+      "references": [
+        {
+          "file": "drizzle/0008_chilly_doctor_octopus.sql",
+          "line": 1
+        },
+        {
+          "file": "drizzle/0008_chilly_doctor_octopus.sql",
+          "line": 2
+        },
+        {
+          "file": "drizzle/0008_chilly_doctor_octopus.sql",
+          "line": 2
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5909
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5910
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5912
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6267
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6268
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6270
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6484
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6485
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6487
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7610
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7611
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7613
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_address_codecs",
+      "newPhysicalName": "mq_dict_address_codecs",
+      "action": "rename",
+      "referenceCount": 6,
+      "references": [
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6280
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6281
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6283
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7623
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7624
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7626
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_entities",
+      "newPhysicalName": "mq_dict_entities",
+      "action": "rename",
+      "referenceCount": 26,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 142
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 153
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 338
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 338
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 348
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 348
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 359
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 359
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 362
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 362
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 371
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 371
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 377
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 377
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 403
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 403
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 404
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 404
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 34
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 34
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6631
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6632
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6634
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7649
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7650
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7652
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_protocols",
+      "newPhysicalName": "mq_dict_protocols",
+      "action": "rename",
+      "referenceCount": 33,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 276
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 287
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 339
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 339
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 349
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 349
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 360
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 360
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 372
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 372
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 377
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 377
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 417
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 417
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 418
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 418
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6241
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6242
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6244
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6471
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6472
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6474
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6530
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6531
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6599
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6600
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6614
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6615
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6631
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6632
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6633
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6647
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6648
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_protocol_deployments",
+      "newPhysicalName": "mq_dict_protocol_deployments",
+      "action": "rename",
+      "referenceCount": 23,
+      "references": [
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6254
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6255
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6257
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6364
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6365
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6439
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6440
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6454
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6455
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6471
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6472
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6473
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6484
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6485
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6486
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6497
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6498
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6499
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6513
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6514
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6523
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6524
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6525
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_protocol_components",
+      "newPhysicalName": "mq_dict_protocol_components",
+      "action": "rename",
+      "referenceCount": 42,
+      "references": [
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6068
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6069
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6197
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6198
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6224
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6225
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6241
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6242
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6243
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6254
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6255
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6256
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6267
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6268
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6269
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6280
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6281
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6282
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6293
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6294
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6295
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6306
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6307
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6308
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6319
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6320
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6321
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6335
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6336
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6345
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6346
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6347
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6349
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6350
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6351
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6353
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6354
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6355
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6357
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6358
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6359
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6359
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_category_dict",
+      "newPhysicalName": "mq_dict_categories",
+      "action": "rename",
+      "referenceCount": 10,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 101
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 112
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 362
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 362
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 364
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 364
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 400
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6306
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6307
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6309
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_kv_role_dict",
+      "newPhysicalName": "mq_dict_roles",
+      "action": "rename",
+      "referenceCount": 17,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 185
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 199
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 340
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 340
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 350
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 350
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 364
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 364
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 373
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 373
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 408
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 409
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 35
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 35
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6293
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6294
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6296
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_tag_dict",
+      "newPhysicalName": "mq_dict_tags",
+      "action": "rename",
+      "referenceCount": 15,
+      "references": [
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7205
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7206
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7262
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7263
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7279
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7280
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7281
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7295
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7296
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7305
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7306
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7307
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7432
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7433
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7435
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_tagset_dict",
+      "newPhysicalName": "mq_dict_tagsets",
+      "action": "rename",
+      "referenceCount": 12,
+      "references": [
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7312
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7313
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7353
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7354
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7360
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7361
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7370
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7371
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7372
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7419
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7420
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7422
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_tagset_members",
+      "newPhysicalName": "mq_map_tagset_members",
+      "action": "rename",
+      "referenceCount": 12,
+      "references": [
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7377
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7378
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7402
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7403
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7419
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7420
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7421
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7432
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7433
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7434
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7447
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7448
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_metric_groups",
+      "newPhysicalName": "mq_dict_metric_groups",
+      "action": "rename",
+      "referenceCount": 25,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 262
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 273
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 376
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 376
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 416
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 416
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 32
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 32
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 36
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 36
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5773
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5774
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5776
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5815
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5816
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5892
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5893
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5909
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5910
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5911
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5925
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5926
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5935
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5936
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5937
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_assets",
+      "newPhysicalName": "mq_dict_assets",
+      "action": "rename",
+      "referenceCount": 3,
+      "references": [
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7597
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7598
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7600
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_token_standards",
+      "newPhysicalName": "mq_dict_token_standards",
+      "action": "rename",
+      "referenceCount": 15,
+      "references": [
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7636
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7637
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7639
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7695
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7696
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7764
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7765
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7781
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7782
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7783
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7797
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7798
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7807
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7808
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7809
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_kv_key_prefix_dict",
+      "newPhysicalName": "mq_dict_legacy_key_prefixes",
+      "action": "rename",
+      "referenceCount": 8,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 170
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 337
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 337
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 347
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 347
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 406
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 407
+        },
+        {
+          "file": "docs/MQCHAIN_KV_CONTRACT_U1.md",
+          "line": 255
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_metric_group_rules",
+      "newPhysicalName": "mq_policy_metric_group_rules",
+      "action": "rename",
+      "referenceCount": 23,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 255
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 376
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 376
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 415
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 415
+        },
+        {
+          "file": "drizzle/0004_source_verifications.sql:21:mq_source_verification…198694 tokens truncated…rizzle/meta/0007_snapshot.json",
+          "line": 5658
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5659
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5735
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5736
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5756
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5757
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5773
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5774
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5775
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5786
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5787
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5788
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5804
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5805
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5806
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5808
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5809
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5810
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_chain_capabilities",
+      "newPhysicalName": "mq_policy_chain_capabilities",
+      "action": "rename",
+      "referenceCount": 0,
+      "references": []
+    },
+    {
+      "oldPhysicalName": "mq_address_registry",
+      "newPhysicalName": "mq_registry_address_labels",
+      "action": "rename",
+      "referenceCount": 25,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 49
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 343
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 343
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 347
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 347
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 348
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 348
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 349
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 349
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 350
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 350
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 351
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 351
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 352
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 352
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 354
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 354
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 389
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 390
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 391
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 392
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 393
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 394
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 33
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 33
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_address_tags",
+      "newPhysicalName": "mq_registry_address_tags",
+      "action": "rename",
+      "referenceCount": 0,
+      "references": []
+    },
+    {
+      "oldPhysicalName": "mq_token_contracts",
+      "newPhysicalName": "mq_registry_token_contracts",
+      "action": "rename",
+      "referenceCount": 34,
+      "references": [
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7460
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7461
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7553
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7554
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7580
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7581
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7597
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7598
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7599
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7610
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7611
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7612
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7623
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7624
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7625
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7636
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7637
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7638
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7649
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7650
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7651
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7662
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7663
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7664
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7680
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7681
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7682
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7684
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7685
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7686
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7688
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7689
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7690
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7690
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_asset_namespaces",
+      "newPhysicalName": "mq_registry_asset_namespaces",
+      "action": "rename",
+      "referenceCount": 0,
+      "references": []
+    },
+    {
+      "oldPhysicalName": "mq_source_jobs",
+      "newPhysicalName": "mq_workflow_source_jobs",
+      "action": "rename",
+      "referenceCount": 42,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 304
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 335
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 335
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 351
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 351
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 369
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 369
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 378
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 378
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 379
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 379
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 421
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 421
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 422
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 422
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 423
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 423
+        },
+        {
+          "file": "drizzle/0004_source_verifications.sql",
+          "line": 17
+        },
+        {
+          "file": "drizzle/0004_source_verifications.sql",
+          "line": 17
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6765
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6766
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6768
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6785
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6786
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6892
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6893
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6907
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6908
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6922
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6923
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6939
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6940
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6941
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6957
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6958
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6959
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6961
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6962
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6963
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7133
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7134
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7136
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_source_documents",
+      "newPhysicalName": "mq_workflow_source_documents",
+      "action": "rename",
+      "referenceCount": 27,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 290
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 336
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 336
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 345
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 345
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 370
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 370
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 378
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 378
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 419
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 419
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 420
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 420
+        },
+        {
+          "file": "drizzle/0004_source_verifications.sql",
+          "line": 19
+        },
+        {
+          "file": "drizzle/0004_source_verifications.sql",
+          "line": 19
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6659
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6660
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6733
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6734
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6748
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6749
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6765
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6766
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6767
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7146
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7147
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7149
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_discovery_jobs",
+      "newPhysicalName": "mq_workflow_discovery_jobs",
+      "action": "rename",
+      "referenceCount": 13,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 124
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 341
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 341
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 359
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 359
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 360
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 360
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 361
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 361
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 401
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 401
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 402
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 402
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_address_candidates",
+      "newPhysicalName": "mq_workflow_address_candidates",
+      "action": "rename",
+      "referenceCount": 29,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 1
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 335
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 335
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 336
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 336
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 337
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 337
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 338
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 338
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 339
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 339
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 340
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 340
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 341
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 341
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 342
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 342
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 353
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 353
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 366
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 366
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 380
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 381
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 382
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 383
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 384
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7159
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7160
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7162
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_address_evidence",
+      "newPhysicalName": "mq_workflow_address_evidence",
+      "action": "rename",
+      "referenceCount": 17,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 31
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 342
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 342
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 343
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 343
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 344
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 344
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 345
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 345
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 346
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 346
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 368
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 368
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 385
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 386
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 387
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 388
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_source_verifications",
+      "newPhysicalName": "mq_workflow_source_verifications",
+      "action": "rename",
+      "referenceCount": 38,
+      "references": [
+        {
+          "file": "drizzle/0004_source_verifications.sql",
+          "line": 1
+        },
+        {
+          "file": "drizzle/0004_source_verifications.sql",
+          "line": 17
+        },
+        {
+          "file": "drizzle/0004_source_verifications.sql",
+          "line": 17
+        },
+        {
+          "file": "drizzle/0004_source_verifications.sql",
+          "line": 19
+        },
+        {
+          "file": "drizzle/0004_source_verifications.sql",
+          "line": 19
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6968
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6969
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7056
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7057
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7071
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7072
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7086
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7087
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7101
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7102
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7116
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7117
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7133
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7134
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7135
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7146
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7147
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7148
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7159
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7160
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7161
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7172
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7173
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7174
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7190
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7191
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7192
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7194
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7195
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7196
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7198
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7199
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 7200
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_label_batches",
+      "newPhysicalName": "mq_workflow_label_batches",
+      "action": "rename",
+      "referenceCount": 28,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 219
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 344
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 344
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 352
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 352
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 355
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 355
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 365
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 365
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 367
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 367
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 369
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 369
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 370
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 370
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 371
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 371
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 372
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 372
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 373
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 373
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 374
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 374
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 375
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 375
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 412
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 413
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 414
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_label_batch_candidates",
+      "newPhysicalName": "mq_workflow_label_batch_candidates",
+      "action": "rename",
+      "referenceCount": 7,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 202
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 206
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 365
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 365
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 366
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 366
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 410
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_label_batch_evidence",
+      "newPhysicalName": "mq_workflow_label_batch_evidence",
+      "action": "rename",
+      "referenceCount": 6,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 209
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 367
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 367
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 368
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 368
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 411
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_approval_events",
+      "newPhysicalName": "mq_workflow_approval_events",
+      "action": "rename",
+      "referenceCount": 24,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 77
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 353
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 353
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 354
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 354
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 355
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 355
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 356
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 356
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 395
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 395
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 396
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 396
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 397
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 397
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 8
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 8
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 10
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 11
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 14
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 14
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 16
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 17
+        },
+        {
+          "file": "docs/MQCHAIN_BULK_APPROVAL.md",
+          "line": 190
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_chain_aliases",
+      "newPhysicalName": "mq_catalog_chain_aliases",
+      "action": "rename",
+      "referenceCount": 0,
+      "references": []
+    },
+    {
+      "oldPhysicalName": "mq_external_identifiers",
+      "newPhysicalName": "mq_catalog_external_identifiers",
+      "action": "rename",
+      "referenceCount": 0,
+      "references": []
+    },
+    {
+      "oldPhysicalName": "mq_name_aliases",
+      "newPhysicalName": "mq_catalog_name_aliases",
+      "action": "rename",
+      "referenceCount": 5,
+      "references": [
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5942
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 5943
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6048
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6049
+        },
+        {
+          "file": "drizzle/meta/0007_snapshot.json",
+          "line": 6050
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_dictionary_versions",
+      "newPhysicalName": "mq_governance_dictionary_versions",
+      "action": "rename",
+      "referenceCount": 6,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 115
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 121
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 358
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 358
+        },
+        {
+          "file": "docs/MQCHAIN_KV_CONTRACT_U1.md",
+          "line": 129
+        },
+        {
+          "file": "docs/MQCHAIN_KV_CONTRACT_U1.md",
+          "line": 252
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_dictionary_proposals",
+      "newPhysicalName": "mq_governance_dictionary_proposals",
+      "action": "rename",
+      "referenceCount": 1,
+      "references": [
+        {
+          "file": "docs/MQCHAIN_RESEARCH_NORMALIZATION_IMPLEMENTATION_MAP.md",
+          "line": 32
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_dictionary_id_ranges",
+      "newPhysicalName": "mq_governance_dictionary_id_ranges",
+      "action": "rename",
+      "referenceCount": 0,
+      "references": []
+    },
+    {
+      "oldPhysicalName": "mq_network_change_proposals",
+      "newPhysicalName": "mq_governance_network_change_proposals",
+      "action": "rename",
+      "referenceCount": 0,
+      "references": []
+    },
+    {
+      "oldPhysicalName": "mq_kv_builds",
+      "newPhysicalName": "mq_build_kv_builds",
+      "action": "rename",
+      "referenceCount": 8,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 156
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 167
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 363
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 363
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 405
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 405
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 37
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 37
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_kv_compiled_entries",
+      "newPhysicalName": "mq_build_compiled_entries",
+      "action": "rename",
+      "referenceCount": 0,
+      "references": []
+    },
+    {
+      "oldPhysicalName": "mq_kv_validation_runs",
+      "newPhysicalName": "mq_build_validation_runs",
+      "action": "rename",
+      "referenceCount": 0,
+      "references": []
+    },
+    {
+      "oldPhysicalName": "mq_metric_group_membership_snapshots",
+      "newPhysicalName": "mq_build_metric_group_membership_snapshots",
+      "action": "rename",
+      "referenceCount": 12,
+      "references": [
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 16
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 31
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 31
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 36
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 36
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 37
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 37
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 38
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 38
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 43
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 44
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 45
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_metric_group_members",
+      "newPhysicalName": "mq_build_metric_group_members",
+      "action": "rename",
+      "referenceCount": 19,
+      "references": [
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 1
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 31
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 31
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 32
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 32
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 33
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 33
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 34
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 34
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 35
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 35
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 39
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 39
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 40
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 40
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 41
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 41
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 42
+        },
+        {
+          "file": "drizzle/0002_freezing_nekra.sql",
+          "line": 42
+        }
+      ]
+    },
+    {
+      "oldPhysicalName": "mq_kv_index_manifest",
+      "newPhysicalName": "mq_build_index_manifests",
+      "action": "rename",
+      "referenceCount": 0,
+      "references": []
+    },
+    {
+      "oldPhysicalName": "mq_kv_index_shards",
+      "newPhysicalName": "mq_build_index_shards",
+      "action": "rename",
+      "referenceCount": 0,
+      "references": []
+    },
+    {
+      "oldPhysicalName": "mq_kv_filter_manifest",
+      "newPhysicalName": "mq_build_filter_manifests",
+      "action": "rename",
+      "referenceCount": 0,
+      "references": []
+    },
+    {
+      "oldPhysicalName": "mq_audit_log",
+      "newPhysicalName": "mq_audit_events",
+      "action": "rename",
+      "referenceCount": 14,
+      "references": [
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 91
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 357
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 357
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 398
+        },
+        {
+          "file": "drizzle/0000_low_maria_hill.sql",
+          "line": 399
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 20
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 20
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 22
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 23
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 26
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 26
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 28
+        },
+        {
+          "file": "drizzle/0003_audit_trail_immutability.sql",
+          "line": 29
+        },
+        {
+          "file": "docs/MQCHAIN_BULK_APPROVAL.md",
+          "line": 184
+        }
+      ]
+    }
+  ]
+}

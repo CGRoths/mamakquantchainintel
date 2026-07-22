@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { desc, eq } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
-import { mqKvBuilds } from "@/db/schema";
+import { mqBuildKvBuilds } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 
 import type { CompiledIndexName } from "../kv/compiled-records";
@@ -37,7 +37,7 @@ function parseLookup(input: unknown) {
 export async function resolveActivatedArtifactU1(input: unknown) {
   await assertPermission("view");
   const lookup = parseLookup(input);
-  const [build] = await getDb().select().from(mqKvBuilds).where(eq(mqKvBuilds.status, "active")).orderBy(desc(mqKvBuilds.activatedAt), desc(mqKvBuilds.id)).limit(1);
+  const [build] = await getDb().select().from(mqBuildKvBuilds).where(eq(mqBuildKvBuilds.status, "active")).orderBy(desc(mqBuildKvBuilds.activatedAt), desc(mqBuildKvBuilds.id)).limit(1);
   if (!build) throw new CompiledArtifactError(404, "active_artifact_not_found", "No active MQCHAIN U1 artifact exists.");
   const manifest = build.manifest as Record<string, unknown>;
   if (manifest.artifactType !== "rocksdb" || !build.storageUri?.startsWith("file:")) throw new CompiledArtifactError(409, "active_artifact_not_servable", "Active build is not a local immutable RocksDB artifact.");

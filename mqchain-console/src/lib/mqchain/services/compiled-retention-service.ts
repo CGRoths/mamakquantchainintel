@@ -1,7 +1,7 @@
 import { desc, eq, inArray, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
-import { mqAuditLog, mqKvBuilds, mqKvCompiledEntries, mqKvValidationRuns } from "@/db/schema";
+import { mqAuditEvents, mqBuildKvBuilds, mqBuildCompiledEntries, mqBuildValidationRuns } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 
 import { CompiledArtifactError } from "./compiled-artifact-service";
@@ -45,15 +45,15 @@ function normalizeBuildIds(value: unknown) {
 }
 
 export async function retainCompiledEntries(input: unknown) {
-  const actor = await assertPermission("batch:commit");
+  const actor = await assertPermission("kv:register");
   const record = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : {};
   const apply = record.apply === true;
   const db = getDb();
   return db.transaction(async tx => {
     const [builds, validations, counts] = await Promise.all([
-      tx.select({ id: mqKvBuilds.id, status: mqKvBuilds.status, activatedAt: mqKvBuilds.activatedAt }).from(mqKvBuilds).orderBy(desc(mqKvBuilds.id)).for("update"),
-      tx.select({ buildId: mqKvValidationRuns.buildId }).from(mqKvValidationRuns).where(eq(mqKvValidationRuns.status, "passed")),
-      tx.select({ buildId: mqKvCompiledEntries.buildId, count: sql<number>`count(*)::int` }).from(mqKvCompiledEntries).groupBy(mqKvCompiledEntries.buildId),
+      tx.select({ id: mqBuildKvBuilds.id, status: mqBuildKvBuilds.status, activatedAt: mqBuildKvBuilds.activatedAt }).from(mqBuildKvBuilds).orderBy(desc(mqBuildKvBuilds.id)).for("update"),
+      tx.select({ buildId: mqBuildValidationRuns.buildId }).from(mqBuildValidationRuns).where(eq(mqBuildValidationRuns.status, "passed")),
+      tx.select({ buildId: mqBuildCompiledEntries.buildId, count: sql<number>`count(*)::int` }).from(mqBuildCompiledEntries).groupBy(mqBuildCompiledEntries.buildId),
     ]);
     const plan = buildCompiledEntryRetentionPlan({
       builds,
@@ -67,13 +67,13 @@ export async function retainCompiledEntries(input: unknown) {
     if (requestedBuildIds.some(id => plan.protectedBuildIds.includes(id))) throw new CompiledArtifactError(409, "retention_protected_build", "Retention cannot delete active, newest successful, or rollback build entries.");
     let deletedCompiledEntryCount = 0;
     if (requestedBuildIds.length) {
-      const deleted = await tx.delete(mqKvCompiledEntries).where(inArray(mqKvCompiledEntries.buildId, requestedBuildIds)).returning({ id: mqKvCompiledEntries.id });
+      const deleted = await tx.delete(mqBuildCompiledEntries).where(inArray(mqBuildCompiledEntries.buildId, requestedBuildIds)).returning({ id: mqBuildCompiledEntries.id });
       deletedCompiledEntryCount = deleted.length;
     }
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "kv_compiled_entries_retained",
-      targetTable: "mq_kv_compiled_entries",
+      targetTable: "mq_build_compiled_entries",
       targetId: plan.planHash,
       payload: { buildIds: requestedBuildIds, deletedCompiledEntryCount, protectedBuildIds: plan.protectedBuildIds, planHash: plan.planHash },
     });

@@ -54,7 +54,7 @@ export function isKvTimelineLabelSource(row: KvCompilerRegistrySourceRow) {
 export function buildKvRegistrySourceContract(rows: KvCompilerRegistrySourceRow[]) {
   const committedRows = rows.filter(isCommittedKvRegistryLabel);
   return {
-    sourceOfTruth: "postgres:mq_address_registry",
+    sourceOfTruth: "postgres:mq_registry_address_labels",
     postgresIsCanonicalTruth: true,
     rocksDbIsCompiledArtifactOnly: true,
     registryRowsRequireApprovedBatch: true,

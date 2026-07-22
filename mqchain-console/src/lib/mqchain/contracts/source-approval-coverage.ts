@@ -1,6 +1,9 @@
 export type SourceJobApprovalCoverageDto = Readonly<{
   sourceJobId: number;
   dictionaryVersion: string;
+  candidateCount: number;
+  eligibleCount: number;
+  blockedCount: number;
   sheets: readonly Readonly<{
     sourceSheet: string;
     candidateCount: number;

@@ -1,16 +1,16 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressRegistry,
-  mqAddressCodecs,
-  mqAddressNamespaces,
-  mqCategoryDict,
-  mqEntities,
-  mqKvRoleDict,
-  mqMetricGroupRules,
-  mqMetricGroups,
-  mqProtocols,
+  mqRegistryAddressLabels,
+  mqDictAddressCodecs,
+  mqDictAddressNamespaces,
+  mqDictCategories,
+  mqDictEntities,
+  mqDictRoles,
+  mqPolicyMetricGroupRules,
+  mqDictMetricGroups,
+  mqDictProtocols,
 } from "@/db/schema";
 
 import { LABEL_STATUS } from "../constants";
@@ -27,6 +27,16 @@ export type FullKvMetricMembership = Readonly<{
   registryId: number;
 }>;
 
+export function assertUniqueMetricMembershipPairs(pairs: readonly FullKvMetricMembership[]) {
+  const seen = new Set<string>();
+  for (const pair of pairs) {
+    const key = `${pair.metricGroupId}:${pair.registryId}`;
+    if (seen.has(key)) throw new Error(`duplicate_metric_membership_pair:${key}`);
+    seen.add(key);
+  }
+  return pairs;
+}
+
 export type FullKvCompilationSnapshot = Readonly<{
   dictionaryVersion: string;
   registrySnapshotHash: string;
@@ -42,24 +52,24 @@ export type FullKvCompilationSnapshot = Readonly<{
 }>;
 
 type FullKvJoinedRow = {
-  registry: typeof mqAddressRegistry.$inferSelect;
-  entity: typeof mqEntities.$inferSelect | null;
-  protocol: typeof mqProtocols.$inferSelect | null;
-  role: typeof mqKvRoleDict.$inferSelect | null;
-  category: typeof mqCategoryDict.$inferSelect | null;
-  namespace: typeof mqAddressNamespaces.$inferSelect | null;
-  codec: typeof mqAddressCodecs.$inferSelect | null;
+  registry: typeof mqRegistryAddressLabels.$inferSelect;
+  entity: typeof mqDictEntities.$inferSelect | null;
+  protocol: typeof mqDictProtocols.$inferSelect | null;
+  role: typeof mqDictRoles.$inferSelect | null;
+  category: typeof mqDictCategories.$inferSelect | null;
+  namespace: typeof mqDictAddressNamespaces.$inferSelect | null;
+  codec: typeof mqDictAddressCodecs.$inferSelect | null;
 };
 
 function hasCompilableU1Identity(row: FullKvJoinedRow) {
   return validateU1AddressKey(row.registry, { namespace: row.namespace, codec: row.codec }).length === 0 && row.registry.entityId !== null && row.registry.roleId !== null;
 }
 
-function isCurrentServingRow(row: typeof mqAddressRegistry.$inferSelect) {
+function isCurrentServingRow(row: typeof mqRegistryAddressLabels.$inferSelect) {
   return row.isActive && (row.labelStatus === LABEL_STATUS.activeCurrent || row.labelStatus === LABEL_STATUS.sanctionedCurrent);
 }
 
-function isTimelineServingRow(row: typeof mqAddressRegistry.$inferSelect) {
+function isTimelineServingRow(row: typeof mqRegistryAddressLabels.$inferSelect) {
   // Frozen U1 policy: timeline records exist only for explicit validity bounds.
   return row.validFromBlock !== null || row.validToBlock !== null;
 }
@@ -67,8 +77,8 @@ function isTimelineServingRow(row: typeof mqAddressRegistry.$inferSelect) {
 export function assembleFullKvCompilationSnapshot(input: {
   dictionaryVersion: string;
   joinedRows: FullKvJoinedRow[];
-  activeGroups: Array<typeof mqMetricGroups.$inferSelect>;
-  activeRules: Array<typeof mqMetricGroupRules.$inferSelect>;
+  activeGroups: Array<typeof mqDictMetricGroups.$inferSelect>;
+  activeRules: Array<typeof mqPolicyMetricGroupRules.$inferSelect>;
 }): FullKvCompilationSnapshot {
   const compilableRows = input.joinedRows.filter(hasCompilableU1Identity);
   const currentRows = compilableRows.filter(row => isCurrentServingRow(row.registry));
@@ -89,12 +99,12 @@ export function assembleFullKvCompilationSnapshot(input: {
     role: row.role ? { roleCode: row.role.roleCode } : null,
     category: row.category ? { categoryCode: row.category.categoryCode } : null,
   }));
-  const metricMemberships = input.activeGroups.flatMap(group =>
+  const metricMemberships = assertUniqueMetricMembershipPairs(input.activeGroups.flatMap(group =>
     evaluateMetricGroupPreviewMembers(group, rulesByGroup.get(group.id) ?? [], previewRows).members.map(row => ({
       metricGroupId: group.id,
       registryId: row.registry.id,
     })),
-  ).sort((left, right) => left.metricGroupId - right.metricGroupId || left.registryId - right.registryId);
+  ).sort((left, right) => left.metricGroupId - right.metricGroupId || left.registryId - right.registryId));
 
   const participatingIds = new Set<number>([
     ...currentRows.map(row => row.registry.id),
@@ -128,32 +138,32 @@ export async function loadFullKvCompilationSnapshot(source: FullKvSnapshotSource
     getCanonicalDictionarySnapshot(source),
     source
       .select({
-        registry: mqAddressRegistry,
-        entity: mqEntities,
-        protocol: mqProtocols,
-        role: mqKvRoleDict,
-        category: mqCategoryDict,
-        namespace: mqAddressNamespaces,
-        codec: mqAddressCodecs,
+        registry: mqRegistryAddressLabels,
+        entity: mqDictEntities,
+        protocol: mqDictProtocols,
+        role: mqDictRoles,
+        category: mqDictCategories,
+        namespace: mqDictAddressNamespaces,
+        codec: mqDictAddressCodecs,
       })
-      .from(mqAddressRegistry)
-      .leftJoin(mqEntities, eq(mqAddressRegistry.entityId, mqEntities.id))
-      .leftJoin(mqProtocols, eq(mqAddressRegistry.protocolId, mqProtocols.id))
-      .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-      .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId))
-      .leftJoin(mqAddressNamespaces, eq(mqAddressRegistry.namespaceId, mqAddressNamespaces.id))
-      .leftJoin(mqAddressCodecs, eq(mqAddressRegistry.addressCodecId, mqAddressCodecs.id))
-      .orderBy(asc(mqAddressRegistry.id)),
-    source.select().from(mqMetricGroups).where(eq(mqMetricGroups.isActive, true)).orderBy(asc(mqMetricGroups.id)),
+      .from(mqRegistryAddressLabels)
+      .leftJoin(mqDictEntities, eq(mqRegistryAddressLabels.entityId, mqDictEntities.id))
+      .leftJoin(mqDictProtocols, eq(mqRegistryAddressLabels.protocolId, mqDictProtocols.id))
+      .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+        .leftJoin(mqDictCategories, eq(mqDictCategories.categoryId, sql<number>`coalesce(${mqRegistryAddressLabels.categoryId}, ${mqDictRoles.categoryId})`))
+      .leftJoin(mqDictAddressNamespaces, eq(mqRegistryAddressLabels.namespaceId, mqDictAddressNamespaces.id))
+      .leftJoin(mqDictAddressCodecs, eq(mqRegistryAddressLabels.addressCodecId, mqDictAddressCodecs.id))
+      .orderBy(asc(mqRegistryAddressLabels.id)),
+    source.select().from(mqDictMetricGroups).where(eq(mqDictMetricGroups.isActive, true)).orderBy(asc(mqDictMetricGroups.id)),
   ]);
 
   const groupIds = activeGroups.map(group => group.id);
   const activeRules = groupIds.length
     ? await source
         .select()
-        .from(mqMetricGroupRules)
-        .where(inArray(mqMetricGroupRules.metricGroupId, groupIds))
-        .orderBy(asc(mqMetricGroupRules.metricGroupId), asc(mqMetricGroupRules.id))
+        .from(mqPolicyMetricGroupRules)
+        .where(inArray(mqPolicyMetricGroupRules.metricGroupId, groupIds))
+        .orderBy(asc(mqPolicyMetricGroupRules.metricGroupId), asc(mqPolicyMetricGroupRules.id))
     : [];
   return assembleFullKvCompilationSnapshot({
     dictionaryVersion: dictionary.versionHash,

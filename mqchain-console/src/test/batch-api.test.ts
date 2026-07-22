@@ -197,7 +197,7 @@ describe("batch provenance API payloads", () => {
         id: 13,
         documentType: "csv",
         originalName: "reserves.csv",
-        storageUri: "postgres://mq_source_documents/12",
+        storageUri: "postgres://mq_workflow_source_documents/12",
         contentHash: "hash-doc",
         sizeBytes: 512,
       },

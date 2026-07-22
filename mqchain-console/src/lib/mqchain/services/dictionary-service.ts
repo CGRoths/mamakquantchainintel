@@ -2,27 +2,33 @@ import { and, asc, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressCandidates,
-  mqAddressCodecs,
-  mqAddressNamespaces,
-  mqAddressRegistry,
-  mqAuditLog,
-  mqCategoryDict,
-  mqChainAliases,
-  mqChainNetworks,
-  mqDictionaryVersions,
-  mqEntities,
-  mqKvKeyPrefixDict,
-  mqKvRoleDict,
-  mqMetricGroupRules,
-  mqMetricGroups,
-  mqNameAliases,
-  mqProtocolComponents,
-  mqProtocols,
-  mqTagDict,
-  mqTagsetDict,
-  mqTagsetMembers,
-  mqTokenStandards,
+  mqWorkflowAddressCandidates,
+  mqDictAddressCodecs,
+  mqDictAddressNamespaces,
+  mqRegistryAddressLabels,
+  mqAuditEvents,
+  mqDictCategories,
+  mqDictLabelStatuses,
+  mqDictMetricMembershipStatuses,
+  mqDictAssetStatuses,
+  mqDictQualityTiers,
+  mqDictFlagBits,
+  mqCatalogChainAliases,
+  mqDictChainNetworks,
+  mqGovernanceDictionaryVersions,
+  mqDictEntities,
+  mqDictLegacyKeyPrefixes,
+  mqDictRoles,
+  mqPolicyRoleApprovalRequirements,
+  mqPolicyMetricGroupRules,
+  mqDictMetricGroups,
+  mqCatalogNameAliases,
+  mqDictProtocolComponents,
+  mqDictProtocols,
+  mqDictTags,
+  mqDictTagsets,
+  mqMapTagsetMembers,
+  mqDictTokenStandards,
   mqUsers,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
@@ -66,68 +72,68 @@ import { optionalNumber } from "./service-utils";
 export async function listDictionaries() {
   const db = getDb();
   const [entities, protocols, roles, categories, prefixes, metricGroups, metricGroupRules] = await Promise.all([
-    db.select().from(mqEntities).orderBy(asc(mqEntities.entityName)),
-    db.select().from(mqProtocols).orderBy(asc(mqProtocols.protocolName)),
-    db.select().from(mqKvRoleDict).orderBy(asc(mqKvRoleDict.roleId)),
-    db.select().from(mqCategoryDict).orderBy(asc(mqCategoryDict.categoryId)),
-    db.select().from(mqKvKeyPrefixDict).orderBy(asc(mqKvKeyPrefixDict.prefixCode)),
-    db.select().from(mqMetricGroups).orderBy(asc(mqMetricGroups.metricGroupCode)),
-    db.select().from(mqMetricGroupRules).orderBy(asc(mqMetricGroupRules.metricGroupId), asc(mqMetricGroupRules.id)),
+    db.select().from(mqDictEntities).orderBy(asc(mqDictEntities.entityName)),
+    db.select().from(mqDictProtocols).orderBy(asc(mqDictProtocols.protocolName)),
+    db.select().from(mqDictRoles).orderBy(asc(mqDictRoles.roleId)),
+    db.select().from(mqDictCategories).orderBy(asc(mqDictCategories.categoryId)),
+    db.select().from(mqDictLegacyKeyPrefixes).orderBy(asc(mqDictLegacyKeyPrefixes.prefixCode)),
+    db.select().from(mqDictMetricGroups).orderBy(asc(mqDictMetricGroups.metricGroupCode)),
+    db.select().from(mqPolicyMetricGroupRules).orderBy(asc(mqPolicyMetricGroupRules.metricGroupId), asc(mqPolicyMetricGroupRules.id)),
   ]);
 
   return { entities, protocols, roles, categories, prefixes, metricGroups, metricGroupRules };
 }
 
 function entityDictionaryOrderBy(sort: EntityDictionaryListFilters["sort"]) {
-  if (sort === "code") return asc(mqEntities.entityCode);
-  if (sort === "type") return asc(mqEntities.entityType);
-  if (sort === "created_at") return desc(mqEntities.createdAt);
-  if (sort === "updated_at") return desc(mqEntities.updatedAt);
-  return asc(mqEntities.entityName);
+  if (sort === "code") return asc(mqDictEntities.entityCode);
+  if (sort === "type") return asc(mqDictEntities.entityType);
+  if (sort === "created_at") return desc(mqDictEntities.createdAt);
+  if (sort === "updated_at") return desc(mqDictEntities.updatedAt);
+  return asc(mqDictEntities.entityName);
 }
 
 function categoryDictionaryOrderBy(sort: CategoryDictionaryListFilters["sort"]) {
-  if (sort === "code") return asc(mqCategoryDict.categoryCode);
-  if (sort === "name") return asc(mqCategoryDict.categoryName);
-  if (sort === "domain") return asc(mqCategoryDict.domainCode);
-  if (sort === "created_at") return desc(mqCategoryDict.createdAt);
-  if (sort === "updated_at") return desc(mqCategoryDict.updatedAt);
-  return asc(mqCategoryDict.categoryId);
+  if (sort === "code") return asc(mqDictCategories.categoryCode);
+  if (sort === "name") return asc(mqDictCategories.categoryName);
+  if (sort === "domain") return asc(mqDictCategories.domainCode);
+  if (sort === "created_at") return desc(mqDictCategories.createdAt);
+  if (sort === "updated_at") return desc(mqDictCategories.updatedAt);
+  return asc(mqDictCategories.categoryId);
 }
 
 function protocolDictionaryOrderBy(sort: ProtocolDictionaryListFilters["sort"]) {
-  if (sort === "code") return asc(mqProtocols.protocolCode);
-  if (sort === "type") return asc(mqProtocols.protocolType);
-  if (sort === "entity") return asc(mqEntities.entityName);
-  if (sort === "created_at") return desc(mqProtocols.createdAt);
-  if (sort === "updated_at") return desc(mqProtocols.updatedAt);
-  return asc(mqProtocols.protocolName);
+  if (sort === "code") return asc(mqDictProtocols.protocolCode);
+  if (sort === "type") return asc(mqDictProtocols.protocolType);
+  if (sort === "entity") return asc(mqDictEntities.entityName);
+  if (sort === "created_at") return desc(mqDictProtocols.createdAt);
+  if (sort === "updated_at") return desc(mqDictProtocols.updatedAt);
+  return asc(mqDictProtocols.protocolName);
 }
 
 function roleDictionaryOrderBy(sort: RoleDictionaryListFilters["sort"]) {
-  if (sort === "code") return asc(mqKvRoleDict.roleCode);
-  if (sort === "name") return asc(mqKvRoleDict.roleName);
-  if (sort === "group") return asc(mqKvRoleDict.roleGroup);
-  if (sort === "quality") return desc(mqKvRoleDict.defaultQualityTier);
-  if (sort === "created_at") return desc(mqKvRoleDict.createdAt);
-  if (sort === "updated_at") return desc(mqKvRoleDict.updatedAt);
-  return asc(mqKvRoleDict.roleId);
+  if (sort === "code") return asc(mqDictRoles.roleCode);
+  if (sort === "name") return asc(mqDictRoles.roleName);
+  if (sort === "group") return asc(mqDictRoles.roleGroup);
+  if (sort === "quality") return desc(mqDictRoles.defaultQualityTier);
+  if (sort === "created_at") return desc(mqDictRoles.createdAt);
+  if (sort === "updated_at") return desc(mqDictRoles.updatedAt);
+  return asc(mqDictRoles.roleId);
 }
 
 function keyPrefixDictionaryOrderBy(sort: KeyPrefixDictionaryListFilters["sort"]) {
-  if (sort === "chain") return asc(mqKvKeyPrefixDict.chainCode);
-  if (sort === "chain_family") return asc(mqKvKeyPrefixDict.chainFamily);
-  if (sort === "address_family") return asc(mqKvKeyPrefixDict.addressFamily);
-  if (sort === "codec") return asc(mqKvKeyPrefixDict.codec);
-  if (sort === "created_at") return desc(mqKvKeyPrefixDict.createdAt);
-  if (sort === "updated_at") return desc(mqKvKeyPrefixDict.updatedAt);
-  return asc(mqKvKeyPrefixDict.prefixCode);
+  if (sort === "chain") return asc(mqDictLegacyKeyPrefixes.chainCode);
+  if (sort === "chain_family") return asc(mqDictLegacyKeyPrefixes.chainFamily);
+  if (sort === "address_family") return asc(mqDictLegacyKeyPrefixes.addressFamily);
+  if (sort === "codec") return asc(mqDictLegacyKeyPrefixes.codec);
+  if (sort === "created_at") return desc(mqDictLegacyKeyPrefixes.createdAt);
+  if (sort === "updated_at") return desc(mqDictLegacyKeyPrefixes.updatedAt);
+  return asc(mqDictLegacyKeyPrefixes.prefixCode);
 }
 
 function dictionaryVersionOrderBy(sort: DictionaryVersionListFilters["sort"]) {
-  if (sort === "hash") return asc(mqDictionaryVersions.versionHash);
-  if (sort === "reason") return asc(sql`${mqDictionaryVersions.summary}->>'reason'`);
-  return desc(mqDictionaryVersions.createdAt);
+  if (sort === "hash") return asc(mqGovernanceDictionaryVersions.versionHash);
+  if (sort === "reason") return asc(sql`${mqGovernanceDictionaryVersions.summary}->>'reason'`);
+  return desc(mqGovernanceDictionaryVersions.createdAt);
 }
 
 function addCondition(conditions: SQL[], condition: SQL | undefined) {
@@ -142,44 +148,44 @@ export async function listEntities(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        ilike(mqEntities.entityCode, `%${filters.q}%`),
-        ilike(mqEntities.entityName, `%${filters.q}%`),
-        ilike(mqEntities.entityType, `%${filters.q}%`),
-        ilike(mqEntities.websiteUrl, `%${filters.q}%`),
-        ilike(mqEntities.description, `%${filters.q}%`),
-        sql`${mqEntities.id}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqDictEntities.entityCode, `%${filters.q}%`),
+        ilike(mqDictEntities.entityName, `%${filters.q}%`),
+        ilike(mqDictEntities.entityType, `%${filters.q}%`),
+        ilike(mqDictEntities.websiteUrl, `%${filters.q}%`),
+        ilike(mqDictEntities.description, `%${filters.q}%`),
+        sql`${mqDictEntities.id}::text ilike ${`%${filters.q}%`}`,
       ),
     );
   }
 
-  if (filters.entityType) conditions.push(ilike(mqEntities.entityType, `%${filters.entityType}%`));
+  if (filters.entityType) conditions.push(ilike(mqDictEntities.entityType, `%${filters.entityType}%`));
   if (filters.category) {
     addCondition(
       conditions,
       or(
-        sql`${mqEntities.categoryId}::text ilike ${`%${filters.category}%`}`,
-        ilike(mqCategoryDict.categoryCode, `%${filters.category}%`),
-        ilike(mqCategoryDict.categoryName, `%${filters.category}%`),
+        sql`${mqDictEntities.categoryId}::text ilike ${`%${filters.category}%`}`,
+        ilike(mqDictCategories.categoryCode, `%${filters.category}%`),
+        ilike(mqDictCategories.categoryName, `%${filters.category}%`),
       ),
     );
   }
-  if (filters.active === "active") conditions.push(eq(mqEntities.isActive, true));
-  if (filters.active === "inactive") conditions.push(eq(mqEntities.isActive, false));
+  if (filters.active === "active") conditions.push(eq(mqDictEntities.isActive, true));
+  if (filters.active === "inactive") conditions.push(eq(mqDictEntities.isActive, false));
 
   const db = getDb();
   const where = conditions.length ? and(...conditions) : sql`true`;
   const offset = (filters.page - 1) * filters.pageSize;
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
-    .from(mqEntities)
-    .leftJoin(mqCategoryDict, eq(mqEntities.categoryId, mqCategoryDict.categoryId))
+    .from(mqDictEntities)
+    .leftJoin(mqDictCategories, eq(mqDictEntities.categoryId, mqDictCategories.categoryId))
     .where(where);
   const rows = await db
-    .select({ entity: mqEntities, category: mqCategoryDict })
-    .from(mqEntities)
-    .leftJoin(mqCategoryDict, eq(mqEntities.categoryId, mqCategoryDict.categoryId))
+    .select({ entity: mqDictEntities, category: mqDictCategories })
+    .from(mqDictEntities)
+    .leftJoin(mqDictCategories, eq(mqDictEntities.categoryId, mqDictCategories.categoryId))
     .where(where)
-    .orderBy(entityDictionaryOrderBy(filters.sort), asc(mqEntities.id))
+    .orderBy(entityDictionaryOrderBy(filters.sort), asc(mqDictEntities.id))
     .limit(filters.pageSize)
     .offset(offset);
 
@@ -201,15 +207,15 @@ export async function listKeyPrefixes(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        sql`${mqKvKeyPrefixDict.prefixCode}::text ilike ${`%${filters.q}%`}`,
-        ilike(mqKvKeyPrefixDict.chainCode, `%${filters.q}%`),
-        ilike(mqKvKeyPrefixDict.chainName, `%${filters.q}%`),
-        ilike(mqKvKeyPrefixDict.chainFamily, `%${filters.q}%`),
-        ilike(mqKvKeyPrefixDict.addressFamily, `%${filters.q}%`),
-        ilike(mqKvKeyPrefixDict.codec, `%${filters.q}%`),
-        ilike(mqKvKeyPrefixDict.description, `%${filters.q}%`),
-        sql`${mqKvKeyPrefixDict.payloadLen}::text ilike ${`%${filters.q}%`}`,
-        sql`${mqKvKeyPrefixDict.evmChainId}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqDictLegacyKeyPrefixes.prefixCode}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqDictLegacyKeyPrefixes.chainCode, `%${filters.q}%`),
+        ilike(mqDictLegacyKeyPrefixes.chainName, `%${filters.q}%`),
+        ilike(mqDictLegacyKeyPrefixes.chainFamily, `%${filters.q}%`),
+        ilike(mqDictLegacyKeyPrefixes.addressFamily, `%${filters.q}%`),
+        ilike(mqDictLegacyKeyPrefixes.codec, `%${filters.q}%`),
+        ilike(mqDictLegacyKeyPrefixes.description, `%${filters.q}%`),
+        sql`${mqDictLegacyKeyPrefixes.payloadLen}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqDictLegacyKeyPrefixes.evmChainId}::text ilike ${`%${filters.q}%`}`,
       ),
     );
   }
@@ -218,32 +224,32 @@ export async function listKeyPrefixes(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        ilike(mqKvKeyPrefixDict.chainCode, `%${filters.chain}%`),
-        ilike(mqKvKeyPrefixDict.chainName, `%${filters.chain}%`),
+        ilike(mqDictLegacyKeyPrefixes.chainCode, `%${filters.chain}%`),
+        ilike(mqDictLegacyKeyPrefixes.chainName, `%${filters.chain}%`),
       ),
     );
   }
-  if (filters.chainFamily) conditions.push(ilike(mqKvKeyPrefixDict.chainFamily, `%${filters.chainFamily}%`));
-  if (filters.addressFamily) conditions.push(ilike(mqKvKeyPrefixDict.addressFamily, `%${filters.addressFamily}%`));
-  if (filters.codec) conditions.push(ilike(mqKvKeyPrefixDict.codec, `%${filters.codec}%`));
-  if (filters.evmChainId !== undefined) conditions.push(eq(mqKvKeyPrefixDict.evmChainId, filters.evmChainId));
-  if (filters.minPayloadLen !== undefined) conditions.push(sql`${mqKvKeyPrefixDict.payloadLen} >= ${filters.minPayloadLen}`);
-  if (filters.maxPayloadLen !== undefined) conditions.push(sql`${mqKvKeyPrefixDict.payloadLen} <= ${filters.maxPayloadLen}`);
-  if (filters.active === "active") conditions.push(eq(mqKvKeyPrefixDict.isActive, true));
-  if (filters.active === "inactive") conditions.push(eq(mqKvKeyPrefixDict.isActive, false));
+  if (filters.chainFamily) conditions.push(ilike(mqDictLegacyKeyPrefixes.chainFamily, `%${filters.chainFamily}%`));
+  if (filters.addressFamily) conditions.push(ilike(mqDictLegacyKeyPrefixes.addressFamily, `%${filters.addressFamily}%`));
+  if (filters.codec) conditions.push(ilike(mqDictLegacyKeyPrefixes.codec, `%${filters.codec}%`));
+  if (filters.evmChainId !== undefined) conditions.push(eq(mqDictLegacyKeyPrefixes.evmChainId, filters.evmChainId));
+  if (filters.minPayloadLen !== undefined) conditions.push(sql`${mqDictLegacyKeyPrefixes.payloadLen} >= ${filters.minPayloadLen}`);
+  if (filters.maxPayloadLen !== undefined) conditions.push(sql`${mqDictLegacyKeyPrefixes.payloadLen} <= ${filters.maxPayloadLen}`);
+  if (filters.active === "active") conditions.push(eq(mqDictLegacyKeyPrefixes.isActive, true));
+  if (filters.active === "inactive") conditions.push(eq(mqDictLegacyKeyPrefixes.isActive, false));
 
   const db = getDb();
   const where = conditions.length ? and(...conditions) : sql`true`;
   const offset = (filters.page - 1) * filters.pageSize;
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
-    .from(mqKvKeyPrefixDict)
+    .from(mqDictLegacyKeyPrefixes)
     .where(where);
   const rows = await db
     .select()
-    .from(mqKvKeyPrefixDict)
+    .from(mqDictLegacyKeyPrefixes)
     .where(where)
-    .orderBy(keyPrefixDictionaryOrderBy(filters.sort), asc(mqKvKeyPrefixDict.prefixCode))
+    .orderBy(keyPrefixDictionaryOrderBy(filters.sort), asc(mqDictLegacyKeyPrefixes.prefixCode))
     .limit(filters.pageSize)
     .offset(offset);
 
@@ -265,17 +271,17 @@ export async function listRoles(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        sql`${mqKvRoleDict.roleId}::text ilike ${`%${filters.q}%`}`,
-        ilike(mqKvRoleDict.roleCode, `%${filters.q}%`),
-        ilike(mqKvRoleDict.roleName, `%${filters.q}%`),
-        ilike(mqKvRoleDict.roleGroup, `%${filters.q}%`),
-        ilike(mqKvRoleDict.metricUsageDefault, `%${filters.q}%`),
-        ilike(mqKvRoleDict.boundaryClass, `%${filters.q}%`),
-        ilike(mqKvRoleDict.description, `%${filters.q}%`),
-        sql`${mqKvRoleDict.defaultFlags}::text ilike ${`%${filters.q}%`}`,
-        sql`${mqKvRoleDict.categoryId}::text ilike ${`%${filters.q}%`}`,
-        ilike(mqCategoryDict.categoryCode, `%${filters.q}%`),
-        ilike(mqCategoryDict.categoryName, `%${filters.q}%`),
+        sql`${mqDictRoles.roleId}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqDictRoles.roleCode, `%${filters.q}%`),
+        ilike(mqDictRoles.roleName, `%${filters.q}%`),
+        ilike(mqDictRoles.roleGroup, `%${filters.q}%`),
+        ilike(mqDictRoles.metricUsageDefault, `%${filters.q}%`),
+        ilike(mqDictRoles.boundaryClass, `%${filters.q}%`),
+        ilike(mqDictRoles.description, `%${filters.q}%`),
+        sql`${mqDictRoles.defaultFlags}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqDictRoles.categoryId}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqDictCategories.categoryCode, `%${filters.q}%`),
+        ilike(mqDictCategories.categoryName, `%${filters.q}%`),
       ),
     );
   }
@@ -284,34 +290,34 @@ export async function listRoles(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        sql`${mqKvRoleDict.categoryId}::text ilike ${`%${filters.category}%`}`,
-        ilike(mqCategoryDict.categoryCode, `%${filters.category}%`),
-        ilike(mqCategoryDict.categoryName, `%${filters.category}%`),
+        sql`${mqDictRoles.categoryId}::text ilike ${`%${filters.category}%`}`,
+        ilike(mqDictCategories.categoryCode, `%${filters.category}%`),
+        ilike(mqDictCategories.categoryName, `%${filters.category}%`),
       ),
     );
   }
-  if (filters.roleGroup) conditions.push(ilike(mqKvRoleDict.roleGroup, `%${filters.roleGroup}%`));
-  if (filters.metricUsage) conditions.push(ilike(mqKvRoleDict.metricUsageDefault, `%${filters.metricUsage}%`));
-  if (filters.boundary) conditions.push(ilike(mqKvRoleDict.boundaryClass, `%${filters.boundary}%`));
-  if (filters.minQuality !== undefined) conditions.push(sql`${mqKvRoleDict.defaultQualityTier} >= ${filters.minQuality}`);
-  if (filters.maxQuality !== undefined) conditions.push(sql`${mqKvRoleDict.defaultQualityTier} <= ${filters.maxQuality}`);
-  if (filters.active === "active") conditions.push(eq(mqKvRoleDict.isActive, true));
-  if (filters.active === "inactive") conditions.push(eq(mqKvRoleDict.isActive, false));
+  if (filters.roleGroup) conditions.push(ilike(mqDictRoles.roleGroup, `%${filters.roleGroup}%`));
+  if (filters.metricUsage) conditions.push(ilike(mqDictRoles.metricUsageDefault, `%${filters.metricUsage}%`));
+  if (filters.boundary) conditions.push(ilike(mqDictRoles.boundaryClass, `%${filters.boundary}%`));
+  if (filters.minQuality !== undefined) conditions.push(sql`${mqDictRoles.defaultQualityTier} >= ${filters.minQuality}`);
+  if (filters.maxQuality !== undefined) conditions.push(sql`${mqDictRoles.defaultQualityTier} <= ${filters.maxQuality}`);
+  if (filters.active === "active") conditions.push(eq(mqDictRoles.isActive, true));
+  if (filters.active === "inactive") conditions.push(eq(mqDictRoles.isActive, false));
 
   const db = getDb();
   const where = conditions.length ? and(...conditions) : sql`true`;
   const offset = (filters.page - 1) * filters.pageSize;
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
-    .from(mqKvRoleDict)
-    .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId))
+    .from(mqDictRoles)
+    .leftJoin(mqDictCategories, eq(mqDictRoles.categoryId, mqDictCategories.categoryId))
     .where(where);
   const rows = await db
-    .select({ role: mqKvRoleDict, category: mqCategoryDict })
-    .from(mqKvRoleDict)
-    .leftJoin(mqCategoryDict, eq(mqKvRoleDict.categoryId, mqCategoryDict.categoryId))
+    .select({ role: mqDictRoles, category: mqDictCategories })
+    .from(mqDictRoles)
+    .leftJoin(mqDictCategories, eq(mqDictRoles.categoryId, mqDictCategories.categoryId))
     .where(where)
-    .orderBy(roleDictionaryOrderBy(filters.sort), asc(mqKvRoleDict.roleId))
+    .orderBy(roleDictionaryOrderBy(filters.sort), asc(mqDictRoles.roleId))
     .limit(filters.pageSize)
     .offset(offset);
 
@@ -333,15 +339,15 @@ export async function listProtocols(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        sql`${mqProtocols.id}::text ilike ${`%${filters.q}%`}`,
-        ilike(mqProtocols.protocolCode, `%${filters.q}%`),
-        ilike(mqProtocols.protocolName, `%${filters.q}%`),
-        ilike(mqProtocols.protocolType, `%${filters.q}%`),
-        ilike(mqProtocols.description, `%${filters.q}%`),
-        sql`array_to_string(${mqProtocols.chainScope}, ',') ilike ${`%${filters.q}%`}`,
-        sql`${mqProtocols.entityId}::text ilike ${`%${filters.q}%`}`,
-        ilike(mqEntities.entityCode, `%${filters.q}%`),
-        ilike(mqEntities.entityName, `%${filters.q}%`),
+        sql`${mqDictProtocols.id}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqDictProtocols.protocolCode, `%${filters.q}%`),
+        ilike(mqDictProtocols.protocolName, `%${filters.q}%`),
+        ilike(mqDictProtocols.protocolType, `%${filters.q}%`),
+        ilike(mqDictProtocols.description, `%${filters.q}%`),
+        sql`array_to_string(${mqDictProtocols.chainScope}, ',') ilike ${`%${filters.q}%`}`,
+        sql`${mqDictProtocols.entityId}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqDictEntities.entityCode, `%${filters.q}%`),
+        ilike(mqDictEntities.entityName, `%${filters.q}%`),
       ),
     );
   }
@@ -350,39 +356,39 @@ export async function listProtocols(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        sql`${mqProtocols.entityId}::text ilike ${`%${filters.entity}%`}`,
-        ilike(mqEntities.entityCode, `%${filters.entity}%`),
-        ilike(mqEntities.entityName, `%${filters.entity}%`),
+        sql`${mqDictProtocols.entityId}::text ilike ${`%${filters.entity}%`}`,
+        ilike(mqDictEntities.entityCode, `%${filters.entity}%`),
+        ilike(mqDictEntities.entityName, `%${filters.entity}%`),
       ),
     );
   }
-  if (filters.protocolType) conditions.push(ilike(mqProtocols.protocolType, `%${filters.protocolType}%`));
+  if (filters.protocolType) conditions.push(ilike(mqDictProtocols.protocolType, `%${filters.protocolType}%`));
   if (filters.chain) {
     addCondition(
       conditions,
       or(
-        sql`${filters.chain} = any(${mqProtocols.chainScope})`,
-        sql`array_to_string(${mqProtocols.chainScope}, ',') ilike ${`%${filters.chain}%`}`,
+        sql`${filters.chain} = any(${mqDictProtocols.chainScope})`,
+        sql`array_to_string(${mqDictProtocols.chainScope}, ',') ilike ${`%${filters.chain}%`}`,
       ),
     );
   }
-  if (filters.active === "active") conditions.push(eq(mqProtocols.isActive, true));
-  if (filters.active === "inactive") conditions.push(eq(mqProtocols.isActive, false));
+  if (filters.active === "active") conditions.push(eq(mqDictProtocols.isActive, true));
+  if (filters.active === "inactive") conditions.push(eq(mqDictProtocols.isActive, false));
 
   const db = getDb();
   const where = conditions.length ? and(...conditions) : sql`true`;
   const offset = (filters.page - 1) * filters.pageSize;
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
-    .from(mqProtocols)
-    .leftJoin(mqEntities, eq(mqProtocols.entityId, mqEntities.id))
+    .from(mqDictProtocols)
+    .leftJoin(mqDictEntities, eq(mqDictProtocols.entityId, mqDictEntities.id))
     .where(where);
   const rows = await db
-    .select({ protocol: mqProtocols, entity: mqEntities })
-    .from(mqProtocols)
-    .leftJoin(mqEntities, eq(mqProtocols.entityId, mqEntities.id))
+    .select({ protocol: mqDictProtocols, entity: mqDictEntities })
+    .from(mqDictProtocols)
+    .leftJoin(mqDictEntities, eq(mqDictProtocols.entityId, mqDictEntities.id))
     .where(where)
-    .orderBy(protocolDictionaryOrderBy(filters.sort), asc(mqProtocols.id))
+    .orderBy(protocolDictionaryOrderBy(filters.sort), asc(mqDictProtocols.id))
     .limit(filters.pageSize)
     .offset(offset);
 
@@ -404,34 +410,34 @@ export async function listCategories(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        sql`${mqCategoryDict.categoryId}::text ilike ${`%${filters.q}%`}`,
-        sql`${mqCategoryDict.parentCategoryId}::text ilike ${`%${filters.q}%`}`,
-        ilike(mqCategoryDict.categoryCode, `%${filters.q}%`),
-        ilike(mqCategoryDict.categoryName, `%${filters.q}%`),
-        ilike(mqCategoryDict.domainCode, `%${filters.q}%`),
-        ilike(mqCategoryDict.metricDomain, `%${filters.q}%`),
-        ilike(mqCategoryDict.description, `%${filters.q}%`),
+        sql`${mqDictCategories.categoryId}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqDictCategories.parentCategoryId}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqDictCategories.categoryCode, `%${filters.q}%`),
+        ilike(mqDictCategories.categoryName, `%${filters.q}%`),
+        ilike(mqDictCategories.domainCode, `%${filters.q}%`),
+        ilike(mqDictCategories.metricDomain, `%${filters.q}%`),
+        ilike(mqDictCategories.description, `%${filters.q}%`),
       ),
     );
   }
 
-  if (filters.domain) conditions.push(ilike(mqCategoryDict.domainCode, `%${filters.domain}%`));
-  if (filters.metricDomain) conditions.push(ilike(mqCategoryDict.metricDomain, `%${filters.metricDomain}%`));
-  if (filters.active === "active") conditions.push(eq(mqCategoryDict.isActive, true));
-  if (filters.active === "inactive") conditions.push(eq(mqCategoryDict.isActive, false));
+  if (filters.domain) conditions.push(ilike(mqDictCategories.domainCode, `%${filters.domain}%`));
+  if (filters.metricDomain) conditions.push(ilike(mqDictCategories.metricDomain, `%${filters.metricDomain}%`));
+  if (filters.active === "active") conditions.push(eq(mqDictCategories.isActive, true));
+  if (filters.active === "inactive") conditions.push(eq(mqDictCategories.isActive, false));
 
   const db = getDb();
   const where = conditions.length ? and(...conditions) : sql`true`;
   const offset = (filters.page - 1) * filters.pageSize;
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
-    .from(mqCategoryDict)
+    .from(mqDictCategories)
     .where(where);
   const rows = await db
     .select()
-    .from(mqCategoryDict)
+    .from(mqDictCategories)
     .where(where)
-    .orderBy(categoryDictionaryOrderBy(filters.sort), asc(mqCategoryDict.categoryId))
+    .orderBy(categoryDictionaryOrderBy(filters.sort), asc(mqDictCategories.categoryId))
     .limit(filters.pageSize)
     .offset(offset);
 
@@ -496,24 +502,34 @@ export async function loadCanonicalDictionaryRows(source?: CanonicalRowsSource):
     tokenStandards,
     metricGroups,
     metricGroupRules,
+    labelStatuses,
+    metricMembershipStatuses,
+    assetStatuses,
+    qualityTiers,
+    flagBits,
   ] = await Promise.all([
-    db.select().from(mqChainNetworks).orderBy(asc(mqChainNetworks.id)),
-    db.select().from(mqChainAliases).orderBy(asc(mqChainAliases.id)),
-    db.select().from(mqAddressNamespaces).orderBy(asc(mqAddressNamespaces.id)),
-    db.select().from(mqAddressCodecs).orderBy(asc(mqAddressCodecs.id)),
-    db.select().from(mqKvKeyPrefixDict).orderBy(asc(mqKvKeyPrefixDict.prefixCode)),
-    db.select().from(mqEntities).orderBy(asc(mqEntities.id)),
-    db.select().from(mqProtocols).orderBy(asc(mqProtocols.id)),
-    db.select().from(mqCategoryDict).orderBy(asc(mqCategoryDict.categoryId)),
-    db.select().from(mqKvRoleDict).orderBy(asc(mqKvRoleDict.roleId)),
-    db.select().from(mqProtocolComponents).orderBy(asc(mqProtocolComponents.id)),
-    db.select().from(mqNameAliases).orderBy(asc(mqNameAliases.id)),
-    db.select().from(mqTagDict).orderBy(asc(mqTagDict.id)),
-    db.select().from(mqTagsetDict).orderBy(asc(mqTagsetDict.id)),
-    db.select().from(mqTagsetMembers).orderBy(asc(mqTagsetMembers.tagsetId), asc(mqTagsetMembers.tagId)),
-    db.select().from(mqTokenStandards).orderBy(asc(mqTokenStandards.id)),
-    db.select().from(mqMetricGroups).orderBy(asc(mqMetricGroups.id)),
-    db.select().from(mqMetricGroupRules).orderBy(asc(mqMetricGroupRules.id)),
+    db.select().from(mqDictChainNetworks).orderBy(asc(mqDictChainNetworks.id)),
+    db.select().from(mqCatalogChainAliases).orderBy(asc(mqCatalogChainAliases.id)),
+    db.select().from(mqDictAddressNamespaces).orderBy(asc(mqDictAddressNamespaces.id)),
+    db.select().from(mqDictAddressCodecs).orderBy(asc(mqDictAddressCodecs.id)),
+    db.select().from(mqDictLegacyKeyPrefixes).orderBy(asc(mqDictLegacyKeyPrefixes.prefixCode)),
+    db.select().from(mqDictEntities).orderBy(asc(mqDictEntities.id)),
+    db.select().from(mqDictProtocols).orderBy(asc(mqDictProtocols.id)),
+    db.select().from(mqDictCategories).orderBy(asc(mqDictCategories.categoryId)),
+    db.select().from(mqDictRoles).orderBy(asc(mqDictRoles.roleId)),
+    db.select().from(mqDictProtocolComponents).orderBy(asc(mqDictProtocolComponents.id)),
+    db.select().from(mqCatalogNameAliases).orderBy(asc(mqCatalogNameAliases.id)),
+    db.select().from(mqDictTags).orderBy(asc(mqDictTags.id)),
+    db.select().from(mqDictTagsets).orderBy(asc(mqDictTagsets.id)),
+    db.select().from(mqMapTagsetMembers).orderBy(asc(mqMapTagsetMembers.tagsetId), asc(mqMapTagsetMembers.tagId)),
+    db.select().from(mqDictTokenStandards).orderBy(asc(mqDictTokenStandards.id)),
+    db.select().from(mqDictMetricGroups).orderBy(asc(mqDictMetricGroups.id)),
+    db.select().from(mqPolicyMetricGroupRules).orderBy(asc(mqPolicyMetricGroupRules.id)),
+    db.select().from(mqDictLabelStatuses).orderBy(asc(mqDictLabelStatuses.labelStatusCode)),
+    db.select().from(mqDictMetricMembershipStatuses).orderBy(asc(mqDictMetricMembershipStatuses.membershipStatusCode)),
+    db.select().from(mqDictAssetStatuses).orderBy(asc(mqDictAssetStatuses.assetStatusCode)),
+    db.select().from(mqDictQualityTiers).orderBy(asc(mqDictQualityTiers.qualityTier)),
+    db.select().from(mqDictFlagBits).orderBy(asc(mqDictFlagBits.bitPosition)),
   ]);
 
   return {
@@ -534,6 +550,11 @@ export async function loadCanonicalDictionaryRows(source?: CanonicalRowsSource):
     tokenStandards,
     metricGroups,
     metricGroupRules,
+    labelStatuses,
+    metricMembershipStatuses,
+    assetStatuses,
+    qualityTiers,
+    flagBits,
   };
 }
 
@@ -645,22 +666,22 @@ export async function getDashboardStats() {
     unresolvedConflicts,
     metricEligibleCount,
   ] = await Promise.all([
-    db.select({ value: count() }).from(mqAddressCandidates).where(eq(mqAddressCandidates.candidateStatus, "pending_review")),
-    db.select({ value: count() }).from(mqAddressCandidates).where(eq(mqAddressCandidates.candidateStatus, "needs_more_evidence")),
+    db.select({ value: count() }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.candidateStatus, "pending_review")),
+    db.select({ value: count() }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.candidateStatus, "needs_more_evidence")),
     db
       .select({ value: count() })
-      .from(mqAddressCandidates)
-      .where(sql`${mqAddressCandidates.candidateStatus} = 'approved' and ${mqAddressCandidates.updatedAt}::date = now()::date`),
+      .from(mqWorkflowAddressCandidates)
+      .where(sql`${mqWorkflowAddressCandidates.candidateStatus} = 'approved' and ${mqWorkflowAddressCandidates.updatedAt}::date = now()::date`),
     db
       .select({ value: count() })
-      .from(mqAddressCandidates)
-      .where(sql`${mqAddressCandidates.candidateStatus} = 'rejected' and ${mqAddressCandidates.updatedAt}::date = now()::date`),
-    db.select({ value: count() }).from(mqAddressRegistry).where(sql`${mqAddressRegistry.approvedBatchId} is not null`),
-    db.select({ value: count() }).from(mqEntities).where(eq(mqEntities.isActive, true)),
-    db.select({ value: count() }).from(mqProtocols).where(eq(mqProtocols.isActive, true)),
-    db.select({ value: count() }).from(mqAddressRegistry).where(eq(mqAddressRegistry.isActive, true)),
-    db.select({ value: count() }).from(mqAddressCandidates).where(eq(mqAddressCandidates.candidateStatus, "conflict_pending")),
-    db.select({ value: count() }).from(mqAddressRegistry).where(sql`(${mqAddressRegistry.flags} & 1) = 1`),
+      .from(mqWorkflowAddressCandidates)
+      .where(sql`${mqWorkflowAddressCandidates.candidateStatus} = 'rejected' and ${mqWorkflowAddressCandidates.updatedAt}::date = now()::date`),
+    db.select({ value: count() }).from(mqRegistryAddressLabels).where(sql`${mqRegistryAddressLabels.approvedBatchId} is not null`),
+    db.select({ value: count() }).from(mqDictEntities).where(eq(mqDictEntities.isActive, true)),
+    db.select({ value: count() }).from(mqDictProtocols).where(eq(mqDictProtocols.isActive, true)),
+    db.select({ value: count() }).from(mqRegistryAddressLabels).where(eq(mqRegistryAddressLabels.isActive, true)),
+    db.select({ value: count() }).from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.candidateStatus, "conflict_pending")),
+    db.select({ value: count() }).from(mqRegistryAddressLabels).where(sql`(${mqRegistryAddressLabels.flags} & 1) = 1`),
   ]);
 
   return {
@@ -779,7 +800,7 @@ export async function recordDictionaryVersion(
   const snapshot = await getCanonicalDictionarySnapshot(db);
 
   await db
-    .insert(mqDictionaryVersions)
+    .insert(mqGovernanceDictionaryVersions)
     .values({
       versionHash: snapshot.versionHash,
       summary: {
@@ -799,7 +820,7 @@ export async function recordDictionaryVersion(
 }
 
 async function auditDictionaryChange(actorId: string, action: string, targetTable: string, targetId: string | number, payload: Record<string, unknown>) {
-  await getDb().insert(mqAuditLog).values({
+  await getDb().insert(mqAuditEvents).values({
     actorId,
     action,
     targetTable,
@@ -809,7 +830,7 @@ async function auditDictionaryChange(actorId: string, action: string, targetTabl
 }
 
 export async function listDictionaryVersions(limit = 20) {
-  return getDb().select().from(mqDictionaryVersions).orderBy(desc(mqDictionaryVersions.createdAt)).limit(limit);
+  return getDb().select().from(mqGovernanceDictionaryVersions).orderBy(desc(mqGovernanceDictionaryVersions.createdAt)).limit(limit);
 }
 
 export async function listDictionaryVersionHistory(input: unknown = {}) {
@@ -820,8 +841,8 @@ export async function listDictionaryVersionHistory(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        ilike(mqDictionaryVersions.versionHash, `%${filters.q}%`),
-        sql`${mqDictionaryVersions.summary}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqGovernanceDictionaryVersions.versionHash, `%${filters.q}%`),
+        sql`${mqGovernanceDictionaryVersions.summary}::text ilike ${`%${filters.q}%`}`,
         ilike(mqUsers.email, `%${filters.q}%`),
         ilike(mqUsers.displayName, `%${filters.q}%`),
       ),
@@ -829,7 +850,7 @@ export async function listDictionaryVersionHistory(input: unknown = {}) {
   }
 
   if (filters.reason) {
-    conditions.push(sql`${mqDictionaryVersions.summary}->>'reason' ilike ${`%${filters.reason}%`}`);
+    conditions.push(sql`${mqGovernanceDictionaryVersions.summary}->>'reason' ilike ${`%${filters.reason}%`}`);
   }
 
   if (filters.actor) {
@@ -841,19 +862,19 @@ export async function listDictionaryVersionHistory(input: unknown = {}) {
   const offset = (filters.page - 1) * filters.pageSize;
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
-    .from(mqDictionaryVersions)
-    .leftJoin(mqUsers, eq(mqDictionaryVersions.createdBy, mqUsers.id))
+    .from(mqGovernanceDictionaryVersions)
+    .leftJoin(mqUsers, eq(mqGovernanceDictionaryVersions.createdBy, mqUsers.id))
     .where(where);
   const rows = await db
     .select({
-      version: mqDictionaryVersions,
+      version: mqGovernanceDictionaryVersions,
       creatorEmail: mqUsers.email,
       creatorName: mqUsers.displayName,
     })
-    .from(mqDictionaryVersions)
-    .leftJoin(mqUsers, eq(mqDictionaryVersions.createdBy, mqUsers.id))
+    .from(mqGovernanceDictionaryVersions)
+    .leftJoin(mqUsers, eq(mqGovernanceDictionaryVersions.createdBy, mqUsers.id))
     .where(where)
-    .orderBy(dictionaryVersionOrderBy(filters.sort), desc(mqDictionaryVersions.id))
+    .orderBy(dictionaryVersionOrderBy(filters.sort), desc(mqGovernanceDictionaryVersions.id))
     .limit(filters.pageSize)
     .offset(offset);
 
@@ -885,7 +906,7 @@ export async function createEntity(input: unknown) {
   const parsed = entitySchema.parse(input);
   const db = getDb();
   const [entity] = await db
-    .insert(mqEntities)
+    .insert(mqDictEntities)
     .values({
       entityCode: parsed.entityCode,
       entityName: parsed.entityName,
@@ -897,7 +918,7 @@ export async function createEntity(input: unknown) {
     .returning();
 
   const hash = await recordDictionaryVersion(actor.id, "entity_created");
-  await auditDictionaryChange(actor.id, "entity_created", "mq_entities", entity.id, { entity, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "entity_created", "mq_dict_entities", entity.id, { entity, dictionaryVersion: hash });
   return entity;
 }
 
@@ -905,14 +926,14 @@ export async function updateEntity(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = entityUpdateSchema.parse(input);
   const db = getDb();
-  const [before] = await db.select().from(mqEntities).where(eq(mqEntities.id, parsed.id)).limit(1);
+  const [before] = await db.select().from(mqDictEntities).where(eq(mqDictEntities.id, parsed.id)).limit(1);
 
   if (!before) {
     throw new Error("Entity not found.");
   }
 
   const [entity] = await db
-    .update(mqEntities)
+    .update(mqDictEntities)
     .set({
       entityCode: parsed.entityCode,
       entityName: parsed.entityName,
@@ -923,11 +944,11 @@ export async function updateEntity(input: unknown) {
       isActive: parsed.isActive,
       updatedAt: new Date(),
     })
-    .where(eq(mqEntities.id, parsed.id))
+    .where(eq(mqDictEntities.id, parsed.id))
     .returning();
 
   const hash = await recordDictionaryVersion(actor.id, "entity_updated");
-  await auditDictionaryChange(actor.id, "entity_updated", "mq_entities", entity.id, { before, after: entity, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "entity_updated", "mq_dict_entities", entity.id, { before, after: entity, dictionaryVersion: hash });
   return entity;
 }
 
@@ -935,9 +956,9 @@ export async function deactivateEntity(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = idSchema.parse(input);
   const [entity] = await getDb()
-    .update(mqEntities)
+    .update(mqDictEntities)
     .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(mqEntities.id, parsed.id))
+    .where(eq(mqDictEntities.id, parsed.id))
     .returning();
 
   if (!entity) {
@@ -945,7 +966,7 @@ export async function deactivateEntity(input: unknown) {
   }
 
   const hash = await recordDictionaryVersion(actor.id, "entity_deactivated");
-  await auditDictionaryChange(actor.id, "entity_deactivated", "mq_entities", entity.id, { entity, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "entity_deactivated", "mq_dict_entities", entity.id, { entity, dictionaryVersion: hash });
   return entity;
 }
 
@@ -953,7 +974,7 @@ export async function createProtocol(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = protocolSchema.parse(input);
   const [protocol] = await getDb()
-    .insert(mqProtocols)
+    .insert(mqDictProtocols)
     .values({
       entityId: parsed.entityId,
       protocolCode: parsed.protocolCode,
@@ -965,7 +986,7 @@ export async function createProtocol(input: unknown) {
     .returning();
 
   const hash = await recordDictionaryVersion(actor.id, "protocol_created");
-  await auditDictionaryChange(actor.id, "protocol_created", "mq_protocols", protocol.id, { protocol, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "protocol_created", "mq_dict_protocols", protocol.id, { protocol, dictionaryVersion: hash });
   return protocol;
 }
 
@@ -973,14 +994,14 @@ export async function updateProtocol(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = protocolUpdateSchema.parse(input);
   const db = getDb();
-  const [before] = await db.select().from(mqProtocols).where(eq(mqProtocols.id, parsed.id)).limit(1);
+  const [before] = await db.select().from(mqDictProtocols).where(eq(mqDictProtocols.id, parsed.id)).limit(1);
 
   if (!before) {
     throw new Error("Protocol not found.");
   }
 
   const [protocol] = await db
-    .update(mqProtocols)
+    .update(mqDictProtocols)
     .set({
       entityId: parsed.entityId,
       protocolCode: parsed.protocolCode,
@@ -991,11 +1012,11 @@ export async function updateProtocol(input: unknown) {
       isActive: parsed.isActive,
       updatedAt: new Date(),
     })
-    .where(eq(mqProtocols.id, parsed.id))
+    .where(eq(mqDictProtocols.id, parsed.id))
     .returning();
 
   const hash = await recordDictionaryVersion(actor.id, "protocol_updated");
-  await auditDictionaryChange(actor.id, "protocol_updated", "mq_protocols", protocol.id, { before, after: protocol, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "protocol_updated", "mq_dict_protocols", protocol.id, { before, after: protocol, dictionaryVersion: hash });
   return protocol;
 }
 
@@ -1003,9 +1024,9 @@ export async function deactivateProtocol(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = idSchema.parse(input);
   const [protocol] = await getDb()
-    .update(mqProtocols)
+    .update(mqDictProtocols)
     .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(mqProtocols.id, parsed.id))
+    .where(eq(mqDictProtocols.id, parsed.id))
     .returning();
 
   if (!protocol) {
@@ -1013,7 +1034,7 @@ export async function deactivateProtocol(input: unknown) {
   }
 
   const hash = await recordDictionaryVersion(actor.id, "protocol_deactivated");
-  await auditDictionaryChange(actor.id, "protocol_deactivated", "mq_protocols", protocol.id, { protocol, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "protocol_deactivated", "mq_dict_protocols", protocol.id, { protocol, dictionaryVersion: hash });
   return protocol;
 }
 
@@ -1021,7 +1042,7 @@ export async function createCategory(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = categorySchema.parse(input);
   const [category] = await getDb()
-    .insert(mqCategoryDict)
+    .insert(mqDictCategories)
     .values({
       categoryId: parsed.categoryId,
       categoryCode: parsed.categoryCode,
@@ -1034,7 +1055,7 @@ export async function createCategory(input: unknown) {
     .returning();
 
   const hash = await recordDictionaryVersion(actor.id, "category_created");
-  await auditDictionaryChange(actor.id, "category_created", "mq_category_dict", category.categoryId, { category, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "category_created", "mq_dict_categories", category.categoryId, { category, dictionaryVersion: hash });
   return category;
 }
 
@@ -1042,14 +1063,14 @@ export async function updateCategory(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = categoryUpdateSchema.parse(input);
   const db = getDb();
-  const [before] = await db.select().from(mqCategoryDict).where(eq(mqCategoryDict.categoryId, parsed.categoryId)).limit(1);
+  const [before] = await db.select().from(mqDictCategories).where(eq(mqDictCategories.categoryId, parsed.categoryId)).limit(1);
 
   if (!before) {
     throw new Error("Category not found.");
   }
 
   const [category] = await db
-    .update(mqCategoryDict)
+    .update(mqDictCategories)
     .set({
       categoryCode: parsed.categoryCode,
       categoryName: parsed.categoryName,
@@ -1060,11 +1081,11 @@ export async function updateCategory(input: unknown) {
       isActive: parsed.isActive,
       updatedAt: new Date(),
     })
-    .where(eq(mqCategoryDict.categoryId, parsed.categoryId))
+    .where(eq(mqDictCategories.categoryId, parsed.categoryId))
     .returning();
 
   const hash = await recordDictionaryVersion(actor.id, "category_updated");
-  await auditDictionaryChange(actor.id, "category_updated", "mq_category_dict", category.categoryId, { before, after: category, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "category_updated", "mq_dict_categories", category.categoryId, { before, after: category, dictionaryVersion: hash });
   return category;
 }
 
@@ -1072,9 +1093,9 @@ export async function deactivateCategory(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = idSchema.parse(input);
   const [category] = await getDb()
-    .update(mqCategoryDict)
+    .update(mqDictCategories)
     .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(mqCategoryDict.categoryId, parsed.id))
+    .where(eq(mqDictCategories.categoryId, parsed.id))
     .returning();
 
   if (!category) {
@@ -1082,7 +1103,7 @@ export async function deactivateCategory(input: unknown) {
   }
 
   const hash = await recordDictionaryVersion(actor.id, "category_deactivated");
-  await auditDictionaryChange(actor.id, "category_deactivated", "mq_category_dict", category.categoryId, { category, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "category_deactivated", "mq_dict_categories", category.categoryId, { category, dictionaryVersion: hash });
   return category;
 }
 
@@ -1091,7 +1112,7 @@ export async function createRole(input: unknown) {
   const parsed = roleSchema.parse(input);
   const defaultFlags = parsed.defaultFlags || buildDefaultFlags(parsed.roleCode, parsed.defaultQualityTier, parsed.metricUsageDefault?.includes("cex") ?? false);
   const [role] = await getDb()
-    .insert(mqKvRoleDict)
+    .insert(mqDictRoles)
     .values({
       roleId: parsed.roleId,
       roleCode: parsed.roleCode,
@@ -1105,9 +1126,10 @@ export async function createRole(input: unknown) {
       description: parsed.description || null,
     })
     .returning();
+  await getDb().insert(mqPolicyRoleApprovalRequirements).values({ roleId: role.roleId });
 
   const hash = await recordDictionaryVersion(actor.id, "role_created");
-  await auditDictionaryChange(actor.id, "role_created", "mq_kv_role_dict", role.roleId, { role, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "role_created", "mq_dict_roles", role.roleId, { role, dictionaryVersion: hash });
   return role;
 }
 
@@ -1115,14 +1137,14 @@ export async function updateRole(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = roleUpdateSchema.parse(input);
   const db = getDb();
-  const [before] = await db.select().from(mqKvRoleDict).where(eq(mqKvRoleDict.roleId, parsed.roleId)).limit(1);
+  const [before] = await db.select().from(mqDictRoles).where(eq(mqDictRoles.roleId, parsed.roleId)).limit(1);
 
   if (!before) {
     throw new Error("Role not found.");
   }
 
   const [role] = await db
-    .update(mqKvRoleDict)
+    .update(mqDictRoles)
     .set({
       roleCode: parsed.roleCode,
       roleName: parsed.roleName,
@@ -1136,11 +1158,11 @@ export async function updateRole(input: unknown) {
       isActive: parsed.isActive,
       updatedAt: new Date(),
     })
-    .where(eq(mqKvRoleDict.roleId, parsed.roleId))
+    .where(eq(mqDictRoles.roleId, parsed.roleId))
     .returning();
 
   const hash = await recordDictionaryVersion(actor.id, "role_updated");
-  await auditDictionaryChange(actor.id, "role_updated", "mq_kv_role_dict", role.roleId, { before, after: role, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "role_updated", "mq_dict_roles", role.roleId, { before, after: role, dictionaryVersion: hash });
   return role;
 }
 
@@ -1148,9 +1170,9 @@ export async function deactivateRole(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = idSchema.parse(input);
   const [role] = await getDb()
-    .update(mqKvRoleDict)
+    .update(mqDictRoles)
     .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(mqKvRoleDict.roleId, parsed.id))
+    .where(eq(mqDictRoles.roleId, parsed.id))
     .returning();
 
   if (!role) {
@@ -1158,7 +1180,7 @@ export async function deactivateRole(input: unknown) {
   }
 
   const hash = await recordDictionaryVersion(actor.id, "role_deactivated");
-  await auditDictionaryChange(actor.id, "role_deactivated", "mq_kv_role_dict", role.roleId, { role, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "role_deactivated", "mq_dict_roles", role.roleId, { role, dictionaryVersion: hash });
   return role;
 }
 
@@ -1166,7 +1188,7 @@ export async function createKeyPrefix(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = keyPrefixSchema.parse(input);
   const [prefix] = await getDb()
-    .insert(mqKvKeyPrefixDict)
+    .insert(mqDictLegacyKeyPrefixes)
     .values({
       prefixCode: parsed.prefixCode,
       chainCode: parsed.chainCode,
@@ -1181,7 +1203,7 @@ export async function createKeyPrefix(input: unknown) {
     .returning();
 
   const hash = await recordDictionaryVersion(actor.id, "key_prefix_created");
-  await auditDictionaryChange(actor.id, "key_prefix_created", "mq_kv_key_prefix_dict", prefix.prefixCode, { prefix, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "key_prefix_created", "mq_dict_legacy_key_prefixes", prefix.prefixCode, { prefix, dictionaryVersion: hash });
   return prefix;
 }
 
@@ -1189,14 +1211,14 @@ export async function updateKeyPrefix(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = keyPrefixUpdateSchema.parse(input);
   const db = getDb();
-  const [before] = await db.select().from(mqKvKeyPrefixDict).where(eq(mqKvKeyPrefixDict.prefixCode, parsed.prefixCode)).limit(1);
+  const [before] = await db.select().from(mqDictLegacyKeyPrefixes).where(eq(mqDictLegacyKeyPrefixes.prefixCode, parsed.prefixCode)).limit(1);
 
   if (!before) {
     throw new Error("Key prefix not found.");
   }
 
   const [prefix] = await db
-    .update(mqKvKeyPrefixDict)
+    .update(mqDictLegacyKeyPrefixes)
     .set({
       chainCode: parsed.chainCode,
       chainName: parsed.chainName || null,
@@ -1209,11 +1231,11 @@ export async function updateKeyPrefix(input: unknown) {
       isActive: parsed.isActive,
       updatedAt: new Date(),
     })
-    .where(eq(mqKvKeyPrefixDict.prefixCode, parsed.prefixCode))
+    .where(eq(mqDictLegacyKeyPrefixes.prefixCode, parsed.prefixCode))
     .returning();
 
   const hash = await recordDictionaryVersion(actor.id, "key_prefix_updated");
-  await auditDictionaryChange(actor.id, "key_prefix_updated", "mq_kv_key_prefix_dict", prefix.prefixCode, { before, after: prefix, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "key_prefix_updated", "mq_dict_legacy_key_prefixes", prefix.prefixCode, { before, after: prefix, dictionaryVersion: hash });
   return prefix;
 }
 
@@ -1221,9 +1243,9 @@ export async function deactivateKeyPrefix(input: unknown) {
   const actor = await assertPermission("dictionary:edit");
   const parsed = idSchema.parse(input);
   const [prefix] = await getDb()
-    .update(mqKvKeyPrefixDict)
+    .update(mqDictLegacyKeyPrefixes)
     .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(mqKvKeyPrefixDict.prefixCode, parsed.id))
+    .where(eq(mqDictLegacyKeyPrefixes.prefixCode, parsed.id))
     .returning();
 
   if (!prefix) {
@@ -1231,6 +1253,6 @@ export async function deactivateKeyPrefix(input: unknown) {
   }
 
   const hash = await recordDictionaryVersion(actor.id, "key_prefix_deactivated");
-  await auditDictionaryChange(actor.id, "key_prefix_deactivated", "mq_kv_key_prefix_dict", prefix.prefixCode, { prefix, dictionaryVersion: hash });
+  await auditDictionaryChange(actor.id, "key_prefix_deactivated", "mq_dict_legacy_key_prefixes", prefix.prefixCode, { prefix, dictionaryVersion: hash });
   return prefix;
 }

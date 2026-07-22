@@ -2,7 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { hash } from "bcryptjs";
 
 import { getDb } from "@/db/client";
-import { mqAuditLog, mqUsers, type MqUser } from "@/db/schema";
+import { mqAuditEvents, mqUsers, type MqUser } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 
 import {
@@ -61,7 +61,7 @@ export async function createSettingsUser(input: unknown) {
   }
 
   const sanitized = sanitizeUser(user);
-  await db.insert(mqAuditLog).values({
+  await db.insert(mqAuditEvents).values({
     actorId: actor.id,
     action: "user_created",
     targetTable: "mq_users",
@@ -121,7 +121,7 @@ export async function updateSettingsUserAccess(input: unknown) {
 
   const sanitizedBefore = sanitizeUser(existing);
   const sanitizedAfter = sanitizeUser(updated);
-  await db.insert(mqAuditLog).values({
+  await db.insert(mqAuditEvents).values({
     actorId: actor.id,
     action: "user_access_updated",
     targetTable: "mq_users",

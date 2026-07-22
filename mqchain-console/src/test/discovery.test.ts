@@ -496,7 +496,7 @@ describe("discovery result helpers", () => {
           sourceJobId: 31,
           documentType: "json",
           originalName: "discovery-job-7-results.json",
-          storageUri: "postgres://mq_discovery_jobs/7/results",
+          storageUri: "postgres://mq_workflow_discovery_jobs/7/results",
           contentHash: "sha256:abc",
           mimeType: "application/json",
           sizeBytes: 123,

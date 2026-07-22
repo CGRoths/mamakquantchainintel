@@ -2,16 +2,16 @@ import { and, asc, desc, eq, gte, ilike, inArray, or, sql, type SQL } from "driz
 
 import { getDb } from "@/db/client";
 import {
-  mqAddressCandidates,
-  mqAddressEvidence,
-  mqAddressRegistry,
-  mqAuditLog,
-  mqDiscoveryJobs,
-  mqEntities,
-  mqKvRoleDict,
-  mqProtocols,
-  mqSourceDocuments,
-  mqSourceJobs,
+  mqWorkflowAddressCandidates,
+  mqWorkflowAddressEvidence,
+  mqRegistryAddressLabels,
+  mqAuditEvents,
+  mqWorkflowDiscoveryJobs,
+  mqDictEntities,
+  mqDictRoles,
+  mqDictProtocols,
+  mqWorkflowSourceDocuments,
+  mqWorkflowSourceJobs,
 } from "@/db/schema";
 import { assertPermission } from "@/lib/mqchain/origin-only/actor-context";
 import { normalizeAddress } from "../address/normalize";
@@ -32,11 +32,11 @@ import { getDictionaryMaps } from "./dictionary-service";
 import { hashJson, hashText, optionalNumber } from "./service-utils";
 
 function discoveryJobOrderBy(sort: DiscoveryJobListFilters["sort"]) {
-  if (sort === "updated_at") return desc(mqDiscoveryJobs.updatedAt);
-  if (sort === "status") return asc(mqDiscoveryJobs.status);
-  if (sort === "candidates_created") return desc(mqDiscoveryJobs.candidatesCreated);
-  if (sort === "evidence_created") return desc(mqDiscoveryJobs.evidenceCreated);
-  return desc(mqDiscoveryJobs.createdAt);
+  if (sort === "updated_at") return desc(mqWorkflowDiscoveryJobs.updatedAt);
+  if (sort === "status") return asc(mqWorkflowDiscoveryJobs.status);
+  if (sort === "candidates_created") return desc(mqWorkflowDiscoveryJobs.candidatesCreated);
+  if (sort === "evidence_created") return desc(mqWorkflowDiscoveryJobs.evidenceCreated);
+  return desc(mqWorkflowDiscoveryJobs.createdAt);
 }
 
 function addCondition(conditions: SQL[], condition: SQL | undefined) {
@@ -51,29 +51,29 @@ export async function listDiscoveryJobs(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        ilike(mqDiscoveryJobs.discoveryType, `%${filters.q}%`),
-        ilike(mqDiscoveryJobs.seedAddress, `%${filters.q}%`),
-        ilike(mqDiscoveryJobs.error, `%${filters.q}%`),
-        sql`${mqDiscoveryJobs.config}::text ilike ${`%${filters.q}%`}`,
-        sql`${mqDiscoveryJobs.logs}::text ilike ${`%${filters.q}%`}`,
-        sql`${mqDiscoveryJobs.id}::text ilike ${`%${filters.q}%`}`,
+        ilike(mqWorkflowDiscoveryJobs.discoveryType, `%${filters.q}%`),
+        ilike(mqWorkflowDiscoveryJobs.seedAddress, `%${filters.q}%`),
+        ilike(mqWorkflowDiscoveryJobs.error, `%${filters.q}%`),
+        sql`${mqWorkflowDiscoveryJobs.config}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqWorkflowDiscoveryJobs.logs}::text ilike ${`%${filters.q}%`}`,
+        sql`${mqWorkflowDiscoveryJobs.id}::text ilike ${`%${filters.q}%`}`,
       ),
     );
   }
 
-  if (filters.discoveryType) conditions.push(ilike(mqDiscoveryJobs.discoveryType, `%${filters.discoveryType}%`));
-  if (filters.status) conditions.push(eq(mqDiscoveryJobs.status, filters.status));
-  if (filters.chain) conditions.push(eq(mqDiscoveryJobs.chainCode, filters.chain));
-  if (filters.seed) conditions.push(ilike(mqDiscoveryJobs.seedAddress, `%${filters.seed}%`));
-  if (typeof filters.minCandidates === "number") conditions.push(gte(mqDiscoveryJobs.candidatesCreated, filters.minCandidates));
-  if (typeof filters.minEvidence === "number") conditions.push(gte(mqDiscoveryJobs.evidenceCreated, filters.minEvidence));
+  if (filters.discoveryType) conditions.push(ilike(mqWorkflowDiscoveryJobs.discoveryType, `%${filters.discoveryType}%`));
+  if (filters.status) conditions.push(eq(mqWorkflowDiscoveryJobs.status, filters.status));
+  if (filters.chain) conditions.push(eq(mqWorkflowDiscoveryJobs.chainCode, filters.chain));
+  if (filters.seed) conditions.push(ilike(mqWorkflowDiscoveryJobs.seedAddress, `%${filters.seed}%`));
+  if (typeof filters.minCandidates === "number") conditions.push(gte(mqWorkflowDiscoveryJobs.candidatesCreated, filters.minCandidates));
+  if (typeof filters.minEvidence === "number") conditions.push(gte(mqWorkflowDiscoveryJobs.evidenceCreated, filters.minEvidence));
   if (filters.entity) {
     addCondition(
       conditions,
       or(
-        sql`${mqDiscoveryJobs.entityId}::text ilike ${`%${filters.entity}%`}`,
-        ilike(mqEntities.entityCode, `%${filters.entity}%`),
-        ilike(mqEntities.entityName, `%${filters.entity}%`),
+        sql`${mqWorkflowDiscoveryJobs.entityId}::text ilike ${`%${filters.entity}%`}`,
+        ilike(mqDictEntities.entityCode, `%${filters.entity}%`),
+        ilike(mqDictEntities.entityName, `%${filters.entity}%`),
       ),
     );
   }
@@ -81,9 +81,9 @@ export async function listDiscoveryJobs(input: unknown = {}) {
     addCondition(
       conditions,
       or(
-        sql`${mqDiscoveryJobs.protocolId}::text ilike ${`%${filters.protocol}%`}`,
-        ilike(mqProtocols.protocolCode, `%${filters.protocol}%`),
-        ilike(mqProtocols.protocolName, `%${filters.protocol}%`),
+        sql`${mqWorkflowDiscoveryJobs.protocolId}::text ilike ${`%${filters.protocol}%`}`,
+        ilike(mqDictProtocols.protocolCode, `%${filters.protocol}%`),
+        ilike(mqDictProtocols.protocolName, `%${filters.protocol}%`),
       ),
     );
   }
@@ -93,17 +93,17 @@ export async function listDiscoveryJobs(input: unknown = {}) {
   const offset = (filters.page - 1) * filters.pageSize;
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
-    .from(mqDiscoveryJobs)
-    .leftJoin(mqEntities, eq(mqDiscoveryJobs.entityId, mqEntities.id))
-    .leftJoin(mqProtocols, eq(mqDiscoveryJobs.protocolId, mqProtocols.id))
+    .from(mqWorkflowDiscoveryJobs)
+    .leftJoin(mqDictEntities, eq(mqWorkflowDiscoveryJobs.entityId, mqDictEntities.id))
+    .leftJoin(mqDictProtocols, eq(mqWorkflowDiscoveryJobs.protocolId, mqDictProtocols.id))
     .where(where);
   const rows = await db
-    .select({ job: mqDiscoveryJobs, entity: mqEntities, protocol: mqProtocols })
-    .from(mqDiscoveryJobs)
-    .leftJoin(mqEntities, eq(mqDiscoveryJobs.entityId, mqEntities.id))
-    .leftJoin(mqProtocols, eq(mqDiscoveryJobs.protocolId, mqProtocols.id))
+    .select({ job: mqWorkflowDiscoveryJobs, entity: mqDictEntities, protocol: mqDictProtocols })
+    .from(mqWorkflowDiscoveryJobs)
+    .leftJoin(mqDictEntities, eq(mqWorkflowDiscoveryJobs.entityId, mqDictEntities.id))
+    .leftJoin(mqDictProtocols, eq(mqWorkflowDiscoveryJobs.protocolId, mqDictProtocols.id))
     .where(where)
-    .orderBy(discoveryJobOrderBy(filters.sort), desc(mqDiscoveryJobs.id))
+    .orderBy(discoveryJobOrderBy(filters.sort), desc(mqWorkflowDiscoveryJobs.id))
     .limit(filters.pageSize)
     .offset(offset);
 
@@ -118,25 +118,25 @@ export async function listDiscoveryJobs(input: unknown = {}) {
 }
 
 export async function getDiscoveryJob(id: number) {
-  const [job] = await getDb().select().from(mqDiscoveryJobs).where(eq(mqDiscoveryJobs.id, id)).limit(1);
+  const [job] = await getDb().select().from(mqWorkflowDiscoveryJobs).where(eq(mqWorkflowDiscoveryJobs.id, id)).limit(1);
   return job ?? null;
 }
 
 export async function getDiscoveryJobDetail(id: number) {
   const db = getDb();
-  const [job] = await db.select().from(mqDiscoveryJobs).where(eq(mqDiscoveryJobs.id, id)).limit(1);
+  const [job] = await db.select().from(mqWorkflowDiscoveryJobs).where(eq(mqWorkflowDiscoveryJobs.id, id)).limit(1);
 
   if (!job) {
     return null;
   }
 
   const [candidates, sourceJobs] = await Promise.all([
-    db.select().from(mqAddressCandidates).where(eq(mqAddressCandidates.discoveryJobId, id)).orderBy(desc(mqAddressCandidates.createdAt)),
+    db.select().from(mqWorkflowAddressCandidates).where(eq(mqWorkflowAddressCandidates.discoveryJobId, id)).orderBy(desc(mqWorkflowAddressCandidates.createdAt)),
     db
       .select()
-      .from(mqSourceJobs)
-      .where(sql`${mqSourceJobs.metadata}->>'discoveryJobId' = ${String(id)}`)
-      .orderBy(desc(mqSourceJobs.createdAt)),
+      .from(mqWorkflowSourceJobs)
+      .where(sql`${mqWorkflowSourceJobs.metadata}->>'discoveryJobId' = ${String(id)}`)
+      .orderBy(desc(mqWorkflowSourceJobs.createdAt)),
   ]);
 
   const candidateIds = candidates.map((candidate) => candidate.id);
@@ -145,16 +145,16 @@ export async function getDiscoveryJobDetail(id: number) {
     candidateIds.length
       ? db
           .select()
-          .from(mqAddressEvidence)
-          .where(inArray(mqAddressEvidence.candidateId, candidateIds))
-          .orderBy(desc(mqAddressEvidence.createdAt))
+          .from(mqWorkflowAddressEvidence)
+          .where(inArray(mqWorkflowAddressEvidence.candidateId, candidateIds))
+          .orderBy(desc(mqWorkflowAddressEvidence.createdAt))
       : Promise.resolve([]),
     sourceJobIds.length
       ? db
           .select()
-          .from(mqSourceDocuments)
-          .where(inArray(mqSourceDocuments.sourceJobId, sourceJobIds))
-          .orderBy(desc(mqSourceDocuments.createdAt))
+          .from(mqWorkflowSourceDocuments)
+          .where(inArray(mqWorkflowSourceDocuments.sourceJobId, sourceJobIds))
+          .orderBy(desc(mqWorkflowSourceDocuments.createdAt))
       : Promise.resolve([]),
   ]);
 
@@ -190,7 +190,7 @@ export async function createDiscoveryJob(input: unknown) {
 
   return db.transaction(async (tx) => {
     const [job] = await tx
-      .insert(mqDiscoveryJobs)
+      .insert(mqWorkflowDiscoveryJobs)
       .values({
         discoveryType: parsed.discoveryType,
         chainCode,
@@ -208,10 +208,10 @@ export async function createDiscoveryJob(input: unknown) {
       })
       .returning();
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "discovery_job_created",
-      targetTable: "mq_discovery_jobs",
+      targetTable: "mq_workflow_discovery_jobs",
       targetId: String(job.id),
       payload: buildDiscoveryJobCreatedAuditPayload({
         discoveryJobId: job.id,
@@ -238,12 +238,12 @@ export async function createDiscoveryJobFromRegistry(input: unknown) {
   return db.transaction(async (tx) => {
     const [registryRow] = await tx
       .select({
-        registry: mqAddressRegistry,
-        roleCode: mqKvRoleDict.roleCode,
+        registry: mqRegistryAddressLabels,
+        roleCode: mqDictRoles.roleCode,
       })
-      .from(mqAddressRegistry)
-      .leftJoin(mqKvRoleDict, eq(mqAddressRegistry.roleId, mqKvRoleDict.roleId))
-      .where(eq(mqAddressRegistry.id, parsed.registryId))
+      .from(mqRegistryAddressLabels)
+      .leftJoin(mqDictRoles, eq(mqRegistryAddressLabels.roleId, mqDictRoles.roleId))
+      .where(eq(mqRegistryAddressLabels.id, parsed.registryId))
       .limit(1);
 
     if (!registryRow) {
@@ -271,7 +271,7 @@ export async function createDiscoveryJobFromRegistry(input: unknown) {
     });
 
     const [job] = await tx
-      .insert(mqDiscoveryJobs)
+      .insert(mqWorkflowDiscoveryJobs)
       .values({
         discoveryType: parsed.discoveryType,
         chainCode: registry.chainCode,
@@ -290,10 +290,10 @@ export async function createDiscoveryJobFromRegistry(input: unknown) {
       })
       .returning();
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "registry_discovery_job_created",
-      targetTable: "mq_discovery_jobs",
+      targetTable: "mq_workflow_discovery_jobs",
       targetId: String(job.id),
       payload: buildDiscoveryJobCreatedAuditPayload({
         discoveryJobId: job.id,
@@ -328,7 +328,7 @@ export async function completeDiscoveryJob(input: unknown) {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const [job] = await tx.select().from(mqDiscoveryJobs).where(eq(mqDiscoveryJobs.id, parsed.jobId)).limit(1);
+    const [job] = await tx.select().from(mqWorkflowDiscoveryJobs).where(eq(mqWorkflowDiscoveryJobs.id, parsed.jobId)).limit(1);
 
     if (!job) {
       throw new Error("Discovery job not found.");
@@ -338,7 +338,7 @@ export async function completeDiscoveryJob(input: unknown) {
     const runnerTask = job.config?.runner_task ?? null;
 
     const [sourceJob] = await tx
-      .insert(mqSourceJobs)
+      .insert(mqWorkflowSourceJobs)
       .values({
         sourceType: "onchain_discovery",
         sourceName: `Discovery job ${job.id}: ${job.discoveryType}`,
@@ -358,12 +358,12 @@ export async function completeDiscoveryJob(input: unknown) {
       .returning();
 
     const [document] = await tx
-      .insert(mqSourceDocuments)
+      .insert(mqWorkflowSourceDocuments)
       .values({
         sourceJobId: sourceJob.id,
         documentType: "json",
         originalName: `discovery-job-${job.id}-results.json`,
-        storageUri: `postgres://mq_discovery_jobs/${job.id}/results`,
+        storageUri: `postgres://mq_workflow_discovery_jobs/${job.id}/results`,
         contentHash: hashText(parsed.resultsJson),
         mimeType: "application/json",
         sizeBytes: Buffer.byteLength(parsed.resultsJson),
@@ -403,12 +403,12 @@ export async function completeDiscoveryJob(input: unknown) {
       seen.add(duplicateKey);
 
       const existing = await tx
-        .select({ id: mqAddressCandidates.id })
-        .from(mqAddressCandidates)
+        .select({ id: mqWorkflowAddressCandidates.id })
+        .from(mqWorkflowAddressCandidates)
         .where(
           and(
-            eq(mqAddressCandidates.normalizedAddress, normalized.normalizedAddress),
-            eq(mqAddressCandidates.chainCode, normalized.chainCode),
+            eq(mqWorkflowAddressCandidates.normalizedAddress, normalized.normalizedAddress),
+            eq(mqWorkflowAddressCandidates.chainCode, normalized.chainCode),
           ),
         )
         .limit(1);
@@ -423,7 +423,7 @@ export async function completeDiscoveryJob(input: unknown) {
       }
 
       const [candidate] = await tx
-        .insert(mqAddressCandidates)
+        .insert(mqWorkflowAddressCandidates)
         .values({
           sourceJobId: sourceJob.id,
           sourceDocumentId: document.id,
@@ -471,7 +471,7 @@ export async function completeDiscoveryJob(input: unknown) {
       };
 
       const [evidence] = await tx
-        .insert(mqAddressEvidence)
+        .insert(mqWorkflowAddressEvidence)
         .values({
           candidateId: candidate.id,
           sourceDocumentId: document.id,
@@ -484,7 +484,7 @@ export async function completeDiscoveryJob(input: unknown) {
           payload: evidencePayload,
           createdBy: actor.id,
         })
-        .returning({ id: mqAddressEvidence.id });
+        .returning({ id: mqWorkflowAddressEvidence.id });
       if (evidence) evidenceIds.push(evidence.id);
 
       candidatesCreated += 1;
@@ -492,7 +492,7 @@ export async function completeDiscoveryJob(input: unknown) {
     }
 
     const [updatedJob] = await tx
-      .update(mqDiscoveryJobs)
+      .update(mqWorkflowDiscoveryJobs)
       .set({
         status: invalidRows && !candidatesCreated ? "failed" : "completed",
         candidatesCreated,
@@ -503,13 +503,13 @@ export async function completeDiscoveryJob(input: unknown) {
         ],
         updatedAt: new Date(),
       })
-      .where(eq(mqDiscoveryJobs.id, job.id))
+      .where(eq(mqWorkflowDiscoveryJobs.id, job.id))
       .returning();
 
-    await tx.insert(mqAuditLog).values({
+    await tx.insert(mqAuditEvents).values({
       actorId: actor.id,
       action: "discovery_job_completed",
-      targetTable: "mq_discovery_jobs",
+      targetTable: "mq_workflow_discovery_jobs",
       targetId: String(job.id),
       payload: buildDiscoveryJobCompletedAuditPayload({
         discoveryJobId: job.id,
