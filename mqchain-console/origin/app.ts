@@ -25,6 +25,9 @@ import { getDashboardOverviewFromDatabase } from "../src/lib/mqchain/services/da
 import { createCategory, createEntity, createKeyPrefix, createProtocol, createRole, deactivateCategory, deactivateEntity, deactivateKeyPrefix, deactivateProtocol, deactivateRole, getDictionaryOverview, getRuntimeDictionaryDashboard, listCategories, listDictionaries, listDictionaryVersionHistory, listEntities, listKeyPrefixes, listProtocols, listRoles, updateCategory, updateEntity, updateKeyPrefix, updateProtocol, updateRole } from "../src/lib/mqchain/services/dictionary-service";
 import { completeDiscoveryJob, createDiscoveryJob, createDiscoveryJobFromRegistry, getDiscoveryJobDetail, listDiscoveryJobs } from "../src/lib/mqchain/services/discovery-service";
 import { addCandidateEvidence, addRegistryEvidence, listEvidenceLedger } from "../src/lib/mqchain/services/evidence-service";
+import { CompiledArtifactError, registerCompiledArtifact, runCompiledArtifactParity } from "../src/lib/mqchain/services/compiled-artifact-service";
+import { retainCompiledEntries } from "../src/lib/mqchain/services/compiled-retention-service";
+import { resolveActivatedArtifactU1 } from "../src/lib/mqchain/services/activated-artifact-resolver";
 import { activateKvBuildManifest, createKvBuildManifest, getActiveKvBuildDetail, getKvBuildDetail, listKvBuilds } from "../src/lib/mqchain/services/kv-manifest-service";
 import { addMetricGroupRule, createMetricGroup, deactivateMetricGroup, listMetricGroups, previewMetricGroupMembers, previewMetricGroupMembersByCode } from "../src/lib/mqchain/services/metric-group-service";
 import { createNetworkChangeProposal, getNetworkCatalogDrift, listNetworkSupportMatrix, reviewNetworkChangeProposal } from "../src/lib/mqchain/services/network-support-service";
@@ -198,6 +201,7 @@ async function employeeRoute(method: string, pathname: string, url: URL, body: R
   match = pathname.match(/^\/v1\/discovery\/jobs\/(\d+)$/);
   if (method === "GET" && match) return authorized(actor, "view", () => getDiscoveryJobDetail(Number(match![1])));
   if (method === "GET" && pathname === "/v1/kv-builds/active") return authorized(actor, "view", getActiveKvBuildDetail);
+  if (method === "GET" && pathname === "/v1/mqnode/u1/resolve") return authorized(actor, "view", () => resolveActivatedArtifactU1(query));
   if (method === "GET" && pathname === "/v1/kv-builds") return authorized(actor, "view", () => listKvBuilds(query));
   match = pathname.match(/^\/v1\/kv-builds\/(\d+)$/);
   if (method === "GET" && match) return authorized(actor, "view", () => getKvBuildDetail(Number(match![1])));
@@ -256,6 +260,9 @@ async function employeeRoute(method: string, pathname: string, url: URL, body: R
   if (method === "POST" && pathname === "/v1/discovery/jobs") return authorized(actor, "discovery:create", () => body.mode === "from_registry" ? createDiscoveryJobFromRegistry(body.input) : createDiscoveryJob(body.input));
   if (method === "POST" && /^\/v1\/discovery\/jobs\/\d+\/complete$/.test(pathname)) return authorized(actor, "discovery:create", () => completeDiscoveryJob(body));
   if (method === "POST" && pathname === "/v1/kv-builds") return authorized(actor, "batch:commit", () => createKvBuildManifest(body));
+  if (method === "POST" && pathname === "/v1/kv-builds/compiled/parity") return authorized(actor, "batch:commit", () => runCompiledArtifactParity(body));
+  if (method === "POST" && pathname === "/v1/kv-builds/compiled/register") return authorized(actor, "batch:commit", () => registerCompiledArtifact(body));
+  if (method === "POST" && pathname === "/v1/kv-builds/compiled/retention") return authorized(actor, "batch:commit", () => retainCompiledEntries(body));
   if (method === "POST" && /^\/v1\/kv-builds\/\d+\/activate$/.test(pathname)) return authorized(actor, "batch:commit", () => activateKvBuildManifest(body));
   if (method === "POST" && pathname === "/v1/metric-groups") return authorized(actor, "dictionary:edit", () => createMetricGroup(body));
   if (method === "POST" && /^\/v1\/metric-groups\/\d+\/rules$/.test(pathname)) return authorized(actor, "dictionary:edit", () => addMetricGroupRule(body));
@@ -307,6 +314,7 @@ export async function handleOriginRequest(request: IncomingMessage, response: Se
       error instanceof SourceJobDeletionError ||
       error instanceof ResearchIntakeError ||
       error instanceof BulkApprovalError ||
+      error instanceof CompiledArtifactError ||
       error instanceof BatchLifecycleError;
     const status = domainError ? error.status : error instanceof ZodError ? 400 : 500;
     const code = domainError ? error.code : error instanceof ZodError ? "validation_failed" : "internal_error";

@@ -18,6 +18,13 @@ export function indexDirectory(root: string, indexName: CompiledIndexName) {
   return path.join(root, indexName);
 }
 
+export function compiledArtifactDirectory(artifactRoot: string, artifactHash: string) {
+  const buildsRoot = path.join(path.resolve(artifactRoot), "builds");
+  const destination = path.join(buildsRoot, artifactHash);
+  assertChild(buildsRoot, destination);
+  return destination;
+}
+
 export async function writeRocksDbStagingArtifact(input: {
   artifactRoot: string;
   compileRequestHash: string;
@@ -51,8 +58,7 @@ export async function writeRocksDbStagingArtifact(input: {
 
 export async function promoteRocksDbArtifact(input: { artifactRoot: string; stagingDirectory: string; artifactHash: string }) {
   const buildsRoot = path.join(path.resolve(input.artifactRoot), "builds");
-  const destination = path.join(buildsRoot, input.artifactHash);
-  assertChild(buildsRoot, destination);
+  const destination = compiledArtifactDirectory(input.artifactRoot, input.artifactHash);
   await mkdir(buildsRoot, { recursive: true });
   try {
     await stat(destination);
@@ -79,4 +85,24 @@ export async function readRocksDbRecords(artifactDirectory: string, indexName: C
     await call(callback => db.close(callback));
   }
   return records;
+}
+
+export async function readRocksDbValues(artifactDirectory: string, indexName: CompiledIndexName, keys: readonly Buffer[]) {
+  if (!keys.length) return new Map<string, Buffer>();
+  const db = rocksdb(indexDirectory(artifactDirectory, indexName));
+  await call(callback => db.open({ createIfMissing: false }, callback));
+  try {
+    const values = await Promise.all(keys.map(async key => {
+      try {
+        const value = await call<Buffer>(callback => db.get(key, { asBuffer: true }, callback));
+        return [key.toString("hex"), value] as const;
+      } catch (error) {
+        if (error instanceof Error && /notfound/i.test(error.message)) return null;
+        throw error;
+      }
+    }));
+    return new Map(values.filter((value): value is readonly [string, Buffer] => value !== null));
+  } finally {
+    await call(callback => db.close(callback));
+  }
 }

@@ -13,7 +13,7 @@ async function main() {
   if (!Number.isSafeInteger(buildId) || buildId <= 0) throw new Error("--build-id must be a positive integer");
   const artifactRoot = path.resolve(argument("--artifact-root") ?? "D:/MAMAKQUANT_DATA/mqchain/rocksdb");
   const result = await compilePendingFullBuild(buildId, artifactRoot);
-  process.stdout.write(`${JSON.stringify({ buildId: result.build.id, compileRequestBuildId: buildId, artifactDirectory: result.artifactDirectory, validationRunId: result.validation.id, reportHash: result.validation.reportHash, report: result.report }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ compileRequestBuildId: buildId, artifactDirectory: result.artifactDirectory, artifactHash: result.manifest.artifactHash, indexes: result.summaries }, null, 2)}\n`);
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(closeDb);

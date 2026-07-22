@@ -10,11 +10,11 @@ const CANONICAL_WRITE_TABLES = [
   },
   {
     symbol: "mqKvBuilds",
-    allowedFiles: ["src/lib/mqchain/services/batch-service.ts", "src/lib/mqchain/services/kv-manifest-service.ts"],
+    allowedFiles: ["src/lib/mqchain/services/batch-service.ts", "src/lib/mqchain/services/kv-manifest-service.ts", "src/lib/mqchain/services/compiled-artifact-service.ts"],
   },
   {
     symbol: "mqKvIndexManifests",
-    allowedFiles: ["src/lib/mqchain/services/kv-manifest-service.ts"],
+    allowedFiles: ["src/lib/mqchain/services/kv-manifest-service.ts", "src/lib/mqchain/services/compiled-artifact-service.ts"],
   },
   {
     symbol: "mqMetricGroupMembers",
@@ -41,7 +41,7 @@ function workspaceRelative(file: string) {
 }
 
 describe("MQCHAIN staging boundary contract", () => {
-  it("keeps canonical registry and KV writes inside the approved commit services", () => {
+  it("keeps canonical registry and KV writes inside the approved commit and compiled-registration services", () => {
     const files = [
       ...tsFiles(join(process.cwd(), "src", "lib", "mqchain")),
       ...tsFiles(join(process.cwd(), "src", "app", "api", "mqchain")),
